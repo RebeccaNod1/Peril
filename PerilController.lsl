@@ -160,6 +160,21 @@ showStatus(string name) {
     floatSpawnMap += [avKey, (string)channel];
 }
 
+confetti() {
+    llParticleSystem([
+        PSYS_SRC_PATTERN, PSYS_SRC_PATTERN_EXPLODE,
+        PSYS_PART_START_COLOR, <1,1,1>, PSYS_PART_END_COLOR, <1,1,1>,
+        PSYS_PART_START_ALPHA, 1.0, PSYS_PART_END_ALPHA, 0.0,
+        PSYS_PART_START_SCALE, <0.2,0.2,0>, PSYS_PART_END_SCALE, <0.5,0.5,0>,
+        PSYS_PART_MAX_AGE, 2.0, PSYS_SRC_MAX_AGE, 2.0,
+        PSYS_SRC_ACCEL, <0,0,-0.4>,
+        PSYS_SRC_BURST_RATE, 0.01, PSYS_SRC_BURST_PART_COUNT, 50,
+        PSYS_SRC_BURST_RADIUS, 0.2,
+        PSYS_SRC_BURST_SPEED_MIN, 1.0, PSYS_SRC_BURST_SPEED_MAX, 2.0,
+        PSYS_PART_FLAGS, PSYS_PART_INTERP_COLOR_MASK | PSYS_PART_INTERP_SCALE_MASK | PSYS_PART_EMISSIVE_MASK
+    ]);
+}
+
 checkForWinner() {
     integer alive = 0;
     string last;
@@ -302,6 +317,7 @@ listen(integer chan, string speakerName, key id, string msg) {
                 integer currentLives = llList2Integer(lives, pidx);
                 lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
                 llSay(0, "💀 " + perilPlayer + " was hit and lost a life!");
+                confetti();
                 showStatus(perilPlayer);
             }
         }
