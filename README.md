@@ -1,4 +1,6 @@
 # Peril Dice
+Notice these rules were made by Noose the Bunny (djmusica28)  secondlife:///app/agent/5935e159-63ba-415a-b20b-4813b50367d0/about, im baseing off this but im also automating it
+
 🎲 PERIL DICE – GAME RULES
 🧍 Objective:
 Avoid becoming the “person in peril” and losing all your lives.
