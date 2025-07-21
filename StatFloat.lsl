@@ -1,5 +1,28 @@
+// === StatFloat Enhanced ===
 key target;
 string displayText;
+string myName;
+
+integer MSG_SYNC_GAME_STATE = 107;
+
+list lives;
+list picksData;
+string perilPlayer;
+list names;
+
+list getPicksFor(string nameInput) {
+    integer i;
+    for (i = 0; i < llGetListLength(picksData); i++) {
+        string entry = llList2String(picksData, i);
+        if (llSubStringIndex(entry, nameInput + "|") == 0) {
+            list parts = llParseString2List(entry, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                return llParseString2List(llList2String(parts, 1), [","], []);
+            }
+        }
+    }
+    return [];
+}
 
 default {
     state_entry() {
@@ -9,7 +32,8 @@ default {
 
     on_rez(integer start_param) {
         llListen(start_param, "", NULL_KEY, "");
-        llOwnerSay("📡 Listening on channel " + (string)start_param);
+        myName = llGetObjectDesc();
+        llOwnerSay("📱 Listening on channel " + (string)start_param + " for " + myName);
     }
 
     listen(integer channel, string name, key id, string message) {
@@ -23,8 +47,28 @@ default {
             }
         }
         else if (message == "CLEANUP") {
-            llOwnerSay("🧹 Cleaning up...");
+            llOwnerSay("🪟 Cleaning up...");
             llDie();
+        }
+    }
+
+    link_message(integer sender, integer num, string str, key id) {
+        if (num == MSG_SYNC_GAME_STATE) {
+            list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) < 4) return;
+            lives = llParseString2List(llList2String(parts, 0), [","], []);
+            picksData = llParseString2List(llList2String(parts, 1), ["~"], []);
+            perilPlayer = llList2String(parts, 2);
+            names = llParseString2List(llList2String(parts, 3), [","], []);
+
+            integer nameIdx = llListFindList(names, [myName]);
+            if (nameIdx == -1) return;
+
+            list picks = getPicksFor(myName);
+            integer lifeCount = llList2Integer(lives, nameIdx);
+
+            string txt = "🎲 Peril Dice\n👤 " + myName + "\n❤️ Lives: " + (string)lifeCount + "\n🢍 Peril: " + perilPlayer + "\n🔢 Picks: " + llList2CSV(picks);
+            llSetText(txt, <1,1,1>, 1.0);
         }
     }
 
