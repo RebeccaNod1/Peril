@@ -49,7 +49,6 @@ resetGame() {
     currentPickerIdx = 0;
     llSay(syncChannel, "RESET");
     llOwnerSay("🔄 Game reset!");
-    // defer game state sync until picks are populated
     llSleep(0.2);
 }
 
@@ -63,7 +62,6 @@ default {
     }
 
     touch_start(integer total_number) {
-        string gameSync;
         key toucher = llDetectedKey(0);
         string name = llDetectedName(0);
         integer idx = llListFindList(players, [toucher]);
@@ -75,11 +73,12 @@ default {
         players += [toucher];
         names += [name];
         lives += [3];
+        picksData += [name + "|0"]; // Initialize pick with default "0"
         llOwnerSay("✅ " + name + " has joined the game with 3 lives.");
         llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, name + "|" + (string)toucher, NULL_KEY);
         llMessageLinked(LINK_SET, MSG_REZ_FLOAT, name, toucher);
         llSleep(0.2);
-        gameSync = serializeGameState();
+        string gameSync = serializeGameState();
         llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
         llSleep(0.2);
         llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, name, toucher);
@@ -87,6 +86,7 @@ default {
 
     listen(integer chan, string speakerName, key id, string msg) {
         string gameSync;
+
         if (chan == -88888 && msg == "Yes") {
             integer i = llListFindList(players, [id]);
             if (i != -1) {
@@ -113,7 +113,12 @@ default {
             }
             integer r = (integer)llFrand(llGetListLength(names));
             perilPlayer = llList2String(names, r);
-            picksData = globalPickedNumbers = [];
+            picksData = [];
+            integer j;
+            for (j = 0; j < llGetListLength(names); j++) {
+                picksData += [llList2String(names, j) + "|0"]; // Initialize picks with default "0"
+            }
+            globalPickedNumbers = [];
             diceType = getDiceType(llGetListLength(names));
             pickQueue = names;
             currentPickerIdx = 0;
@@ -124,16 +129,49 @@ default {
             llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
             llSleep(0.2);
 
-            integer j;
             for (j = 0; j < llGetListLength(names); j++) {
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, llList2String(names, j), llList2Key(players, j));
             }
 
             string firstName = llList2String(pickQueue, currentPickerIdx);
             key firstKey = llList2Key(players, llListFindList(names, [firstName]));
-            llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, firstName, firstKey);
+            llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, firstName + "|" + (string)diceType, firstKey);
             gameSync = serializeGameState();
             llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
+        }
+        else if (chan == numberPickChannel) {
+            integer idx = llListFindList(players, [id]);
+            string playerName = "";
+            if (idx != -1) {
+                playerName = llList2String(names, idx);
+                string newPick = msg;
+                integer i;
+                for (i = 0; i < llGetListLength(picksData); i++) {
+                    string entry = llList2String(picksData, i);
+                    if (llSubStringIndex(entry, playerName + "|") == 0) {
+                        list parts = llParseString2List(entry, ["|"], []);
+                        string pickStr = llList2String(parts, 1);
+                        llOwnerSay("🔍 Existing pick for " + playerName + ": " + pickStr);
+
+                        // If the pick is still "0", update it with the new pick
+                        if (pickStr == "0") {
+                            pickStr = newPick;
+                        } else {
+                            pickStr = newPick; // Replacing rather than appending
+                        }
+                        picksData = llListReplaceList(picksData, [playerName + "|" + pickStr], i, i);
+                        llOwnerSay("✅ " + playerName + "'s pick updated to: " + newPick);
+                        
+                        // Immediately send updated data to floats
+                        gameSync = serializeGameState();
+                        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
+
+                        // Update the float
+                        llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, id);
+                        return;
+                    }
+                }
+            }
         }
     }
 }

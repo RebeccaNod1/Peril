@@ -56,10 +56,20 @@ default {
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
             if (llGetListLength(parts) < 4) return;
-            lives = llParseString2List(llList2String(parts, 0), [","], []);
-            picksData = llParseString2List(llList2String(parts, 1), ["~"], []);
+            lives = llCSV2List(llList2String(parts, 0));
+            list rawPicks = llCSV2List(llList2String(parts, 1));
+            picksData = [];
+            integer i;
+            for (i = 0; i < llGetListLength(rawPicks); i++) {
+                string entry = llList2String(rawPicks, i);
+                if (llSubStringIndex(entry, "|") != -1) {
+                    picksData += [entry];
+                } else {
+                    llOwnerSay("⚠️ Ignored malformed picksData during sync: " + entry);
+                }
+            }
             perilPlayer = llList2String(parts, 2);
-            names = llParseString2List(llList2String(parts, 3), [","], []);
+            names = llCSV2List(llList2String(parts, 3));
 
             integer nameIdx = llListFindList(names, [myName]);
             if (nameIdx == -1) return;
@@ -67,7 +77,16 @@ default {
             list picks = getPicksFor(myName);
             integer lifeCount = llList2Integer(lives, nameIdx);
 
-            string txt = "🎲 Peril Dice\n👤 " + myName + "\n❤️ Lives: " + (string)lifeCount + "\n🢍 Peril: " + perilPlayer + "\n🔢 Picks: " + llList2CSV(picks);
+            string perilDisplay;
+            if (perilPlayer != "") {
+                perilDisplay = perilPlayer;
+            } else {
+                perilDisplay = "Waiting for peril...";
+            }
+
+            string picksDisplay = llList2CSV(picks);
+
+            string txt = "🎲 Peril Dice\n👤 " + myName + "\n❤️ Lives: " + (string)lifeCount + "\n🢍 Peril: " + perilDisplay + "\n🔢 Picks: " + picksDisplay;
             llSetText(txt, <1,1,1>, 1.0);
         }
     }

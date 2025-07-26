@@ -15,13 +15,14 @@ list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
         string entry = llList2String(picksData, i);
-        if (llSubStringIndex(entry, nameInput + "|") == 0) {
-            list parts = llParseString2List(entry, ["|"], []);
+        list parts = llParseString2List(entry, ["|"], []);
+        if (llList2String(parts, 0) == nameInput) {
             return llParseString2List(llList2String(parts, 1), [","], []);
         }
     }
     return [];
 }
+
 
 integer rollDice(integer diceType) {
     return 1 + (integer)llFrand(diceType);
