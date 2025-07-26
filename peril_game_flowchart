@@ -1,0 +1,27 @@
+digraph {
+	Start [label="🎲 Game Ready"]
+	Join [label="👤 Player Joins via Touch"]
+	StartCmd [label="🚩 /start Command"]
+	SelectPeril [label="🔥 Select Peril Player"]
+	ShowDialog [label="🗨️ Show Pick Dialog"]
+	Pick [label="🎲 Player Picks Number"]
+	UpdateFloat [label="📤 Update Float Display"]
+	SyncState [label="🔄 Sync Game State"]
+	Leave [label="🚪 Player Leaves"]
+	Reset [label="♻️ Reset Game"]
+	Start -> Join
+	Join -> SyncState
+	Join -> UpdateFloat
+	Start -> StartCmd
+	StartCmd -> SelectPeril
+	SelectPeril -> SyncState
+	SelectPeril -> UpdateFloat
+	SelectPeril -> ShowDialog
+	ShowDialog -> Pick
+	Pick -> UpdateFloat
+	Pick -> SyncState
+	Join -> Leave
+	Start -> Reset
+	Reset -> SyncState
+	fontsize=20 label="🧭 Peril Dice Game Controller Flow" labelloc=top
+}
