@@ -1,10 +1,14 @@
-// === Roll and Confetti Module ===
+// === Roll and Confetti Module (with Roll Dialog Handler) ===
+
 integer MSG_SHOW_DIALOG = 101;
 integer MSG_ROLL_RESULT = 102;
 integer MSG_UPDATE_FLOAT = 103;
 integer MSG_CLEANUP_FLOAT = 104;
 integer MSG_REZ_FLOAT = 105;
 integer MSG_SYNC_GAME_STATE = 107;
+integer MSG_SHOW_ROLL_DIALOG = 301;
+
+integer rollDialogChannel = -77999;
 
 list names = [];
 list lives = [];
@@ -22,7 +26,6 @@ list getPicksFor(string nameInput) {
     }
     return [];
 }
-
 
 integer rollDice(integer diceType) {
     return 1 + (integer)llFrand(diceType);
@@ -44,8 +47,17 @@ confetti() {
 }
 
 default {
+    state_entry() {
+        llListen(rollDialogChannel, "", NULL_KEY, "");
+    }
+
     link_message(integer sender, integer num, string str, key id) {
-        if (num == MSG_ROLL_RESULT) {
+        if (num == MSG_SHOW_ROLL_DIALOG) {
+            llOwnerSay("🎲 Prompting " + str + " to roll the dice.");
+            llDialog(id, "🎲 All picks are in! You're the peril player. Roll the dice?", ["Roll"], rollDialogChannel);
+        }
+
+        else if (num == MSG_ROLL_RESULT) {
             integer diceType = (integer)str;
             integer result = rollDice(diceType);
             string resultStr = (string)result;
@@ -80,10 +92,13 @@ default {
                 }
             }
 
-            // Send updated game state to floats
-            string gameSync = llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer;
+            string gameSync = llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer + "~" + llList2CSV(names);
             llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
             llSleep(0.2);
         }
+    }
+
+    listen(integer channel, string name, key id, string msg) {
+        llMessageLinked(LINK_THIS, channel, msg, id);
     }
 }
