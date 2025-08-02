@@ -1,4 +1,6 @@
-// === Game Helper Functions Module ===
+// === Game Helper Functions Module (Max 10 players) ===
+// This version chooses a dice size based on the number of players,
+// ensuring at least three numbers are available per player.
 
 integer MSG_GET_DICE_TYPE = 1001;
 integer MSG_DICE_TYPE_RESULT = 1005;
@@ -14,11 +16,25 @@ string perilPlayer;
 list names;
 list pickQueue;
 
+// List of supported dice sizes; ensure the last entry can accommodate 10 players × 3 picks = 30
+list STANDARD_DICE = [6, 12, 20, 30];
+
+// Determine which die to use based on player count.
+// Each player should have at least 3 numbers available to choose from.
 integer getDiceType(integer playerCount) {
-    if (playerCount < 1) return 2;
-    return (integer)(llPow(3.0, (float)(playerCount - 1)) * 2.0);
+    integer minimumSides = playerCount * 3;
+    integer i;
+    for (i = 0; i < llGetListLength(STANDARD_DICE); i++) {
+        integer sides = llList2Integer(STANDARD_DICE, i);
+        if (sides >= minimumSides) {
+            return sides;
+        }
+    }
+    // If no predefined die has enough sides, return the largest supported die (d30)
+    return llList2Integer(STANDARD_DICE, llGetListLength(STANDARD_DICE) - 1);
 }
 
+// Determine how many picks a player should make based on the peril player's lives
 integer getPicksRequiredFromName(string name) {
     integer idx = llListFindList(names, [name]);
     if (idx == -1) {
@@ -38,15 +54,19 @@ integer getPicksRequiredFromName(string name) {
     return 3;
 }
 
+// Find the index of a player in the pickQueue by name
 integer getPickerIndex(string name) {
     return llListFindList(pickQueue, [name]);
 }
 
+// Serialize the current game state for syncing with other scripts
 string serializeGameState() {
     return llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer + "~" + llList2CSV(names);
 }
 
-showPickManager(string player, key id) {
+// Show a pick management dialog for the owner.
+// LSL does not support a void return type, so this returns an integer which is ignored.
+integer showPickManager(string player, key id) {
     string searchName = player;
     if (llSubStringIndex(searchName, "~") != -1) {
         list parts = llParseString2List(searchName, ["~"], []);
@@ -66,7 +86,7 @@ showPickManager(string player, key id) {
         }
         if (idx == -1) {
             llOwnerSay("⚠️ Could not find player: " + player);
-            return;
+            return 0;
         }
     }
 
@@ -92,6 +112,9 @@ showPickManager(string player, key id) {
 
     llOwnerSay("🛠 Showing pick dialog to: " + (string)id);
     llDialog(id, "🛠 Managing picks for: " + searchName + "\nCurrent: " + llList2CSV(currentPicks), buttons, -88888);
+
+    // Return dummy value since LSL does not have a void return type
+    return 0;
 }
 
 default {
