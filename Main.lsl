@@ -288,6 +288,36 @@ default {
             }
             return;
         }
+        // Handle leave game requests
+        if (num == 107) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llList2String(parts, 0) == "LEAVE_GAME") {
+                string leavingName = llList2String(parts, 1);
+                key leavingKey = (key)llList2String(parts, 2);
+                integer idx = llListFindList(players, [leavingKey]);
+                if (idx != -1) {
+                    // Remove player's float
+                    integer ch = -777000 + idx;
+                    llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
+                    // Remove from all lists
+                    players = llDeleteSubList(players, idx, idx);
+                    names = llDeleteSubList(names, idx, idx);
+                    lives = llDeleteSubList(lives, idx, idx);
+                    picksData = llDeleteSubList(picksData, idx, idx);
+                    // Update helpers
+                    updateHelpers();
+                    llOwnerSay("👋 " + leavingName + " left the game");
+                    // Check if game should end (less than 2 players)
+                    if (llGetListLength(names) == 1) {
+                        llSay(0, " " + llList2String(names, 0) + " is the last player standing and wins the game!");
+                        resetGame();
+                    } else if (llGetListLength(names) == 0) {
+                        resetGame();
+                    }
+                }
+            }
+            return;
+        }
     }
 
     listen(integer channel, string name, key id, string msg) {

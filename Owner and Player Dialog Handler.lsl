@@ -132,6 +132,11 @@ default {
             llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, pname + "|" + (string)id, NULL_KEY);
             llMessageLinked(LINK_SET, MSG_REZ_FLOAT, pname, id);
         }
+        else if (msg == "Leave Game") {
+            // Send leave game message to main controller
+            string pname = llKey2Name(id);
+            llMessageLinked(LINK_SET, 107, "LEAVE_GAME|" + pname + "|" + (string)id, NULL_KEY);
+        }
         else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
         }
