@@ -1,4 +1,6 @@
 // === FloatManager (Consolidated) ===
+// This version enforces a maximum of 10 players.
+
 integer MSG_SHOW_DIALOG = 101;
 integer MSG_ROLL_RESULT = 102;
 integer MSG_UPDATE_FLOAT = 103;
@@ -7,12 +9,16 @@ integer MSG_REZ_FLOAT = 105;
 integer MSG_REGISTER_PLAYER = 106;
 integer MSG_SYNC_GAME_STATE = 107;
 
+// Maximum number of players allowed in the game
+integer MAX_PLAYERS = 10;
+
 list players = [];
 list names = [];
 list lives = [];
 list picksData = [];
 string perilPlayer = "";
 
+// Returns a list of picks for the given player name, filtering out invalid values
 list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
@@ -49,15 +55,23 @@ list getPicksFor(string nameInput) {
     return [];
 }
 
+// Converts a player's key into their name (if registered)
 string getNameFromKey(key id) {
     integer i = llListFindList(players, [id]);
     if (i != -1) return llList2String(names, i);
     return (string)id;
 }
 
+// Main event handler
 default {
     link_message(integer sender, integer num, string str, key id) {
         if (num == MSG_REGISTER_PLAYER) {
+            // Enforce the maximum number of players
+            if (llGetListLength(players) >= MAX_PLAYERS) {
+                llOwnerSay("⚠️ Cannot register new player; the game is full (max " + (string)MAX_PLAYERS + ").");
+                return;
+            }
+            // Register a new player: store their name and avatar key
             list info = llParseString2List(str, ["|"], []);
             string name = llList2String(info, 0);
             key avKey = llList2Key(info, 1);
@@ -114,6 +128,7 @@ default {
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
+            // Synchronize the lists for lives and picksData when receiving a new game state
             list parts = llParseString2List(str, ["~"], []);
             lives = llCSV2List(llList2String(parts, 0));
             list rawPicks = llCSV2List(llList2String(parts, 1));
