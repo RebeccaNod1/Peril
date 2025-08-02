@@ -1,4 +1,6 @@
-// === Dialog Handler (Owner & Player) ===
+// === Dialog Handler (Owner & Player) with unified Ready/Leave menu ===
+// Owners and players share the same Ready/Leave dialog.
+// Owners also get an "Owner" button to access advanced options.
 
 integer DIALOG_CHANNEL = -88888;
 integer MSG_SHOW_MENU = 201;
@@ -7,24 +9,35 @@ integer MSG_PLAYER_LIST_RESULT = 203;
 integer MSG_PICK_LIST_RESULT = 205;
 integer MSG_LIFE_LOOKUP = 207;
 
+// Owner-specific options shown when pressing the "Owner" button
 list ownerOptions = ["Join Game", "Leave Game", "Add Test Player", "Manage Picks", "Start Game", "Reset Game", "Dump Players"];
-list playerOptions = ["Start", "Ready"];
 
+// Display the debug/owner menu
+showOwnerMenu(key id) {
+    llDialog(id, "🔧 Owner Menu", ownerOptions, DIALOG_CHANNEL);
+}
+
+// Display the combined Ready/Leave menu for both players and owners
+// If the caller is the starter, the first button is "Start"; otherwise "Ready".
+// Owners receive an extra "Owner" button to access the advanced owner menu.
+showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
+    list options;
+    if (isStarter) {
+        options = ["Start", "Leave Game"];
+    } else {
+        options = ["Ready", "Leave Game"];
+    }
+    if (isOwner) {
+        options += ["Owner"];
+    }
+    // Display the combined menu
+    llDialog(id, "Select an option:", options, DIALOG_CHANNEL);
+}
+
+// Manage picks UI helpers remain unchanged
 list currentPickList;
 string currentPickTarget;
 integer currentPickLimit = 3;
-
-showOwnerMenu(key id) {
-    llDialog(id, "🔧 Debug Menu", ownerOptions, DIALOG_CHANNEL);
-}
-
-showPlayerMenu(key id, integer isStarter) {
-    if (isStarter) {
-        llDialog(id, "You are the game starter. Click Start to begin when all are ready.", playerOptions, DIALOG_CHANNEL);
-    } else {
-        llDialog(id, "Click Ready when you are ready to begin.", ["Ready"], DIALOG_CHANNEL);
-    }
-}
 
 showPickManageMenu(key id, list playerNames) {
     list options = [];
@@ -69,13 +82,12 @@ default {
             }
             string targetType = llList2String(args, 0);
             integer isStarter = (integer)llList2String(args, 1);
-
+            // We treat owners and players the same for the Ready/Leave menu.
+            // If the targetType is "owner" we pass isOwner=TRUE and display the extra Owner button.
             if (targetType == "owner") {
-                llOwnerSay("👤 Showing owner menu");
-                showOwnerMenu(id);
+                showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
-                llOwnerSay("👥 Showing player menu");
-                showPlayerMenu(id, isStarter);
+                showReadyLeaveMenu(id, isStarter, FALSE);
             }
         }
         else if (num == MSG_PLAYER_LIST_RESULT) {
@@ -105,7 +117,11 @@ default {
     }
 
     listen(integer channel, string name, key id, string msg) {
-        if (msg == "Manage Picks") {
+        // Handle menus: if the user selects "Owner" on the combined menu, display the owner options.
+        if (msg == "Owner") {
+            showOwnerMenu(id);
+        }
+        else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
         }
         else if (llSubStringIndex(msg, "🛠 ") == 0) {
@@ -127,19 +143,18 @@ default {
             llSleep(0.2);
             llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
         }
+        // Forward numeric picks to the game logic
         else if ((integer)msg > 0) {
             if (llGetListLength(currentPickList) >= currentPickLimit) {
                 llOwnerSay("⚠️ Reached pick limit of " + (string)currentPickLimit + " for " + currentPickTarget);
                 showPickListMenu(id);
                 return;
             }
-
             if (llListFindList(currentPickList, [msg]) != -1) {
                 llOwnerSay("⚠️ Pick already exists: " + msg);
                 showPickListMenu(id);
                 return;
             }
-
             integer i;
             for (i = 0; i < llGetListLength(currentPickList); i++) {
                 if (llList2String(currentPickList, i) == msg) {
@@ -147,7 +162,6 @@ default {
                     return;
                 }
             }
-
             string payload = "ADD_PICK~" + currentPickTarget + "|" + msg;
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
             llSleep(0.2);
