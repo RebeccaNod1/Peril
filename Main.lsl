@@ -42,6 +42,10 @@ integer MSG_DICE_TYPE_RESULT = 1005;
 integer MSG_SERIALIZE_GAME_STATE = 1004;
 integer MSG_SYNC_PICKQUEUE = 2001;
 
+// Maximum number of players allowed (including test players). This should
+// mirror the value used in Floater Manager to avoid inconsistencies.
+integer MAX_PLAYERS = 10;
+
 integer TIMEOUT_SECONDS = 600;
 integer timeoutTimer;
 
@@ -78,8 +82,11 @@ string generateSerializedState() {
 }
 
 resetGame() {
+    // Remove floats in reverse order so indices remain correct as entries are
+    // deleted from the Floater Manager's lists.  Otherwise, deleting index 0
+    // first shifts subsequent indices and some floats are left behind.
     integer i;
-    for (i = 0; i < llGetListLength(names); i++) {
+    for (i = llGetListLength(names) - 1; i >= 0; i--) {
         integer ch = -777000 + i;
         llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
     }
@@ -95,6 +102,14 @@ resetGame() {
 }
 
 startNextRound() {
+    // Do not start a round if there are fewer than 2 players. This guard prevents
+    // accidental starts when only one player is present (e.g. after a reset or
+    // before any other participants join).
+    if (llGetListLength(names) < 2) {
+        llOwnerSay("⚠️ Need at least 2 players to start the game.");
+        return;
+    }
+    // If somehow called with exactly one player, treat them as the winner and reset.
     if (llGetListLength(names) == 1) {
         llSay(0, " " + llList2String(names, 0) + " is the last player standing and wins the game!");
         resetGame();
@@ -134,9 +149,23 @@ default {
         key toucher = llDetectedKey(0);
         integer idx = llListFindList(players, [toucher]);
         if (toucher == llGetOwner()) {
-            // Owner touches the prim: show menu for owner if already registered; else start as not starter
-            // Pass isStarter=0 because owner is never automatically starter until players join
-            llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", toucher);
+            // Determine if this will be the first registered player (starter) before registration
+            integer isStarter = FALSE;
+            if (idx == -1) {
+                // No index found; the owner is not yet registered.
+                // If there are no existing players, they will become the starter.
+                if (llGetListLength(players) == 0) {
+                    isStarter = TRUE;
+                }
+                string ownerName = llKey2Name(toucher);
+                // Send a registration request; Main.lsl will handle adding them and rezzing a float
+                llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, ownerName + "|" + (string)toucher, NULL_KEY);
+            } else {
+                // Already registered; starter if at index 0
+                isStarter = (idx == 0);
+            }
+            // Show the owner menu with the appropriate starter flag
+            llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
         } else if (idx != -1) {
             integer isStarter = (idx == 0);
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
@@ -248,9 +277,11 @@ default {
                 names += [newName];
                 lives += [3];
                 picksData += [newName + "|"];
-                // Rez a float for the new player
-                llMessageLinked(LINK_SET, MSG_REZ_FLOAT, newName, newKey);
-                llSleep(0.2);
+                // The float will be rezzed by the Floater Manager after it processes
+                // this registration.  Avoid sending MSG_REZ_FLOAT here to prevent
+                // race conditions; instead, request the float from Floater Manager
+                // after it has updated its own lists.  Immediately propagate
+                // helper updates now.
                 updateHelpers();
                 // Notify owner of registration
                 llOwnerSay("🔔 Added player: " + newName);
@@ -267,11 +298,8 @@ default {
                     resetGame();
                     return;
                 }
-                if (msg == "Start Game") {
-                    startNextRound();
-                    requestDiceType();
-                    return;
-                }
+                // Note: do not handle "Start Game" here; allow the generic start logic below to apply,
+                // so that minimum player checks are enforced and non-owner starters can initiate the game.
                 if (msg == "Dump Players") {
                     llOwnerSay(" Players: " + llList2CSV(names));
                     return;
@@ -282,19 +310,43 @@ default {
                     return;
                 }
                 if (msg == "Add Test Player") {
-                    string name = "TestBot" + (string)llGetUnixTime();
+                    // Ensure we do not exceed the maximum allowed players
+                    if (llGetListLength(players) >= MAX_PLAYERS) {
+                        llOwnerSay("⚠️ Cannot add test player; the game is full (max " + (string)MAX_PLAYERS + ").");
+                        return;
+                    }
+                    // Generate a unique name and key for the test player
+                    string testName = "TestBot" + (string)llGetUnixTime();
                     key fake = llGenerateKey();
-                    // Add the test player to lists and register them with floater manager
-                    players += [fake];
-                    names += [name];
-                    lives += [3];
-                    picksData += [name + "|"];
-                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, name + "|" + (string)fake, NULL_KEY);
-                    llMessageLinked(LINK_SET, MSG_REZ_FLOAT, name, fake);
-                    llSleep(0.2);
-                    updateHelpers();
+                    // Delegate registration to the MSG_REGISTER_PLAYER handler; it will add to lists and rez a float
+                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, testName + "|" + (string)fake, NULL_KEY);
+                    // Show the owner menu again (not flagged as starter)
                     llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", llGetOwner());
                     return;
+                }
+            }
+            // Allow the first registered player (index 0) or the owner to start the game.
+            // When the starter clicks "Start Game", begin the round.
+            if (msg == "Start Game") {
+                // Enforce a minimum of 2 players before starting
+                if (llGetListLength(players) < 2) {
+                    llOwnerSay("⚠️ Need at least 2 players to start the game.");
+                    return;
+                }
+                // Check if the sender is the owner
+                if (id == llGetOwner()) {
+                    startNextRound();
+                    requestDiceType();
+                    return;
+                }
+                // Otherwise, check if the sender is the very first player registered
+                if (llGetListLength(players) > 0) {
+                    key firstPlayer = llList2Key(players, 0);
+                    if (id == firstPlayer) {
+                        startNextRound();
+                        requestDiceType();
+                        return;
+                    }
                 }
             }
             // If the message text matches a player name, request their pick list

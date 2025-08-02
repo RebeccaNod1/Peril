@@ -133,7 +133,12 @@ default {
             integer playerCount = (integer)str;
             llOwnerSay("📊 playerCount received: " + (string)playerCount);
             integer result = getDiceType(playerCount);
-            llMessageLinked(LINK_THIS, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
+            // Broadcast the dice type result across the entire linkset so that
+            // the main game controller can receive it.  Using LINK_THIS
+            // restricted the message to the helper's prim, preventing the
+            // controller from seeing MSG_DICE_TYPE_RESULT and causing the
+            // game not to start.
+            llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
         }
         else if (num == MSG_GET_PICKS_REQUIRED) {
             integer result = getPicksRequiredFromName(str);

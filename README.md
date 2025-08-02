@@ -1,3 +1,100 @@
+🎲 Peril Dice — Modular Game System for Second Life
+Overview
+Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player’s number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+🔧 Features
+✅ Player System
+Max players: 10
+
+Each player starts with 3 lives
+
+Players can Join, Leave, or mark themselves Ready
+
+The first player to join gets a Start Game button
+
+The owner can join the game and also has a special Owner menu
+
+🎲 Dice Scaling
+Dice type is automatically chosen to ensure at least 3 picks per player
+
+Dice types supported: d6, d12, d20, d30
+
+Player Count	Dice Type
+1–2	d6
+3–4	d12
+5–6	d20
+7–10	d30
+
+🧍 Test Players
+Owner can add/remove test players (bots)
+
+Test players rez stat floaters at offset positions to prevent overlap
+
+Floater objects follow players and update in real time
+
+🪟 HUD & Stat Floaters
+Players receive a floating HUD showing:
+
+Player name
+
+Lives
+
+Picks
+
+Peril status or game state
+
+📦 Modular Architecture
+Separated scripts:
+
+Main Controller: Handles core game logic
+
+Dialog Handler: Manages pick dialogs
+
+Dice Selector: Returns dice type based on player count
+
+Stat Float Manager: Rezzes and updates floaters
+
+Stat Float Object: Displays floating text per player
+
+🕹️ Game Flow
+Players touch the controller object to join the game
+
+Once 2+ players have joined, the first player gets the option to Start Game
+
+Dice type is selected automatically
+
+Each player is prompted (in order) to select 3 numbers
+
+After all picks are made:
+
+The dice is rolled
+
+The result is compared to each player’s picks
+
+If the peril player’s number is rolled or no one picked it, the peril player loses a life
+
+The system checks for eliminations and starts the next round
+
+🧰 Admin Controls
+Owner can:
+
+Join or leave the game
+
+Open a special Owner menu
+
+Add/remove test bots
+
+Reset the game
+
+Debug current state (optional)
+
+
+
+Below what was started, ill have this up just a reminder
+
+
+
+
 # Peril Dice
 Notice these rules were made by Noose the Bunny (djmusica28)  secondlife:///app/agent/5935e159-63ba-415a-b20b-4813b50367d0/about, im baseing off this but im also automating it
 
@@ -11,7 +108,7 @@ Each player wears a Peril Dice Tracker HUD
 
 Everyone starts with 3 lives
 
-Choose a dice type: d6, d12, or d20
+Choose a dice type: d6, d12, or d21
 
 One player clicks "Set Yourself In Peril" on the HUD to start
 

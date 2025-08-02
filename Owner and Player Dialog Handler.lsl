@@ -1,6 +1,7 @@
-// === Dialog Handler (Owner & Player) with unified Ready/Leave menu ===
+// === Dialog Handler (Owner & Player) with unified Ready/Leave menu and join support ===
 // Owners and players share the same Ready/Leave dialog.
 // Owners also get an "Owner" button to access advanced options.
+// Owners can join the game and receive a floating display.
 
 integer DIALOG_CHANNEL = -88888;
 integer MSG_SHOW_MENU = 201;
@@ -8,6 +9,8 @@ integer MSG_PICK_ACTION = 204;
 integer MSG_PLAYER_LIST_RESULT = 203;
 integer MSG_PICK_LIST_RESULT = 205;
 integer MSG_LIFE_LOOKUP = 207;
+integer MSG_REGISTER_PLAYER = 106;
+integer MSG_REZ_FLOAT = 105;
 
 // Owner-specific options shown when pressing the "Owner" button
 list ownerOptions = ["Join Game", "Leave Game", "Add Test Player", "Manage Picks", "Start Game", "Reset Game", "Dump Players"];
@@ -22,8 +25,11 @@ showOwnerMenu(key id) {
 // Owners receive an extra "Owner" button to access the advanced owner menu.
 showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
     list options;
+    // If this user is flagged as the starter, they should see the "Start Game"
+    // button so they can initiate the round (regardless of ownership). Otherwise
+    // they see the regular "Ready" button.
     if (isStarter) {
-        options = ["Start", "Leave Game"];
+        options = ["Start Game", "Leave Game"];
     } else {
         options = ["Ready", "Leave Game"];
     }
@@ -82,8 +88,6 @@ default {
             }
             string targetType = llList2String(args, 0);
             integer isStarter = (integer)llList2String(args, 1);
-            // We treat owners and players the same for the Ready/Leave menu.
-            // If the targetType is "owner" we pass isOwner=TRUE and display the extra Owner button.
             if (targetType == "owner") {
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
@@ -117,9 +121,16 @@ default {
     }
 
     listen(integer channel, string name, key id, string msg) {
-        // Handle menus: if the user selects "Owner" on the combined menu, display the owner options.
+        // Handle "Owner" button to show owner options
         if (msg == "Owner") {
             showOwnerMenu(id);
+        }
+        // Owner joins the game: register and rez a float for them
+        else if (msg == "Join Game") {
+            // Use the avatar's key as the identifier
+            string pname = llKey2Name(id);
+            llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, pname + "|" + (string)id, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_REZ_FLOAT, pname, id);
         }
         else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
