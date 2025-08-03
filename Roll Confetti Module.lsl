@@ -21,9 +21,28 @@ list getPicksFor(string nameInput) {
         string entry = llList2String(picksData, i);
         list parts = llParseString2List(entry, ["|"], []);
         if (llList2String(parts, 0) == nameInput) {
-            return llParseString2List(llList2String(parts, 1), [","], []);
+            // Convert semicolons back to commas, then parse
+            string picks = llList2String(parts, 1);
+            string originalPicks = picks;
+            
+            // Check for corruption markers (^ symbols that shouldn't be in picks)
+            if (llSubStringIndex(picks, "^") != -1) {
+                llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): CORRUPTED data contains ^: '" + originalPicks + "'");
+                return [];
+            }
+            
+            if (picks == "") {
+                llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): empty picks");
+                return [];
+            }
+            
+            picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
+            list result = llParseString2List(picks, [","], []);
+            llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): raw='" + originalPicks + "' -> converted='" + picks + "' -> list=" + llList2CSV(result));
+            return result;
         }
     }
+    llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): NOT FOUND in picksData=" + llDumpList2String(picksData, " | "));
     return [];
 }
 
@@ -48,13 +67,61 @@ confetti() {
 
 default {
     state_entry() {
+        llOwnerSay("🎲 Roll Confetti Module ready!");
         llListen(rollDialogChannel, "", NULL_KEY, "");
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle game state sync from main controller
+        if (num == MSG_SYNC_GAME_STATE) {
+            list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) >= 4) {
+                lives = llCSV2List(llList2String(parts, 0));
+                // Use ^ delimiter for picksData to avoid comma conflicts
+                string picksDataStr = llList2String(parts, 1);
+                if (picksDataStr == "" || picksDataStr == "EMPTY") {
+                    picksData = [];
+                } else {
+                    picksData = llParseString2List(picksDataStr, ["^"], []);
+                }
+                string receivedPeril = llList2String(parts, 2);
+                if (receivedPeril == "NONE") {
+                    perilPlayer = "";
+                } else {
+                    perilPlayer = receivedPeril;
+                }
+                names = llCSV2List(llList2String(parts, 3));
+            }
+            return;
+        }
+        
+        if (num == 995) {
+            if (str == "VICTORY_CONFETTI") {
+                llOwnerSay("🎉 Victory confetti!");
+                confetti();
+            }
+            return;
+        }
+        
         if (num == MSG_SHOW_ROLL_DIALOG) {
-            llOwnerSay("🎲 Prompting " + str + " to roll the dice.");
-            llDialog(id, "🎲 All picks are in! You're the peril player. Roll the dice?", ["Roll"], rollDialogChannel);
+            // Check if this is a next round prompt
+            if (llSubStringIndex(str, "_NEXT_ROUND") != -1) {
+                string playerName = llGetSubString(str, 0, llSubStringIndex(str, "_NEXT_ROUND") - 1);
+                llOwnerSay("🎯 Prompting " + playerName + " to start next round...");
+                // Send message to main controller to get the player's key and show dialog
+                llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
+            } else {
+                llOwnerSay("🎲 Prompting " + str + " to roll the dice.");
+                // Check if this is a bot (TestBot names)
+                if (llSubStringIndex(str, "TestBot") == 0) {
+                    // Auto-roll for bots
+                    llOwnerSay("🤖 " + str + " (bot) is auto-rolling...");
+                    llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);
+                } else {
+                    // Show dialog for human players
+                    llDialog(id, "🎲 All picks are in! You're the peril player. Roll the dice?", ["Roll"], rollDialogChannel);
+                }
+            }
         }
 
         else if (num == MSG_ROLL_RESULT) {
@@ -65,40 +132,121 @@ default {
 
             string newPeril = "";
             integer matched = FALSE;
+            list matchedPlayers = [];
             integer i;
+            
+            llOwnerSay("🔍 DEBUG: Current peril player: " + perilPlayer + ", rolled: " + resultStr);
+            
+            // Find all players who picked the rolled number
             for (i = 0; i < llGetListLength(names); i++) {
                 string pname = llList2String(names, i);
                 list picks = getPicksFor(pname);
+                llOwnerSay("🔍 DEBUG: " + pname + " picks: " + llList2CSV(picks));
                 if (llListFindList(picks, [resultStr]) != -1) {
                     matched = TRUE;
-                    if (pname != perilPlayer && newPeril == "") {
-                        newPeril = pname;
-                    }
+                    matchedPlayers += [pname];
+                    llOwnerSay("🔍 DEBUG: " + pname + " matched the roll!");
+                }
+            }
+            
+            llOwnerSay("🔍 DEBUG: Matched players: " + llList2CSV(matchedPlayers));
+            
+            // If anyone matched, pick the first non-peril player as new peril
+            // If only the current peril player matched, they stay in peril (no change)
+            for (i = 0; i < llGetListLength(matchedPlayers) && newPeril == ""; i++) {
+                string pname = llList2String(matchedPlayers, i);
+                if (pname != perilPlayer) {
+                    newPeril = pname;
+                    llOwnerSay("🔍 DEBUG: New peril player will be: " + newPeril);
                 }
             }
 
             if (matched && newPeril != "") {
                 llSay(0, "🎯 " + newPeril + " matched the roll and becomes the new peril player!");
                 perilPlayer = newPeril;
-                llMessageLinked(LINK_SET, MSG_REZ_FLOAT, newPeril, NULL_KEY);
+                // Update floaters immediately to show correct peril player before sync
+                llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
             } else {
                 integer pidx = llListFindList(names, [perilPlayer]);
                 if (pidx != -1) {
                     integer currentLives = llList2Integer(lives, pidx);
                     lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
                     llSay(0, "💀 " + perilPlayer + " was hit and lost a life!");
-                    confetti();
                     llMessageLinked(LINK_SET, MSG_REZ_FLOAT, perilPlayer, NULL_KEY);
+                    
+                    // Check for elimination
+                    if (currentLives - 1 <= 0) {
+                        llSay(0, "💀 " + perilPlayer + " has been eliminated!");
+                        // Remove eliminated player (send message to main controller)
+                        llMessageLinked(LINK_SET, 999, "ELIMINATE_PLAYER|" + perilPlayer, NULL_KEY);
+                        // The Main Controller will handle peril player reassignment and game flow
+                        // Don't continue processing this round since the player was eliminated
+                        return;
+                    }
                 }
             }
 
-            string gameSync = llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer + "~" + llList2CSV(names);
+            // Note: Win condition checking is handled by Main Controller after elimination
+
+            // Encode picksData with semicolons to avoid comma conflicts
+            list encodedPicksData = [];
+            integer k;
+            for (k = 0; k < llGetListLength(picksData); k++) {
+                string entry = llList2String(picksData, k);
+                list parts = llParseString2List(entry, ["|"], []);
+                if (llGetListLength(parts) >= 2) {
+                    string playerName = llList2String(parts, 0);
+                    string picks = llList2String(parts, 1);
+                    // Only process picks if they're not empty
+                    if (picks != "") {
+                        // Parse picks, trim whitespace, then join with semicolons
+                        list pickList = llParseString2List(picks, [","], []);
+                        list cleanPickList = [];
+                        integer j;
+                        for (j = 0; j < llGetListLength(pickList); j++) {
+                            string pick = llStringTrim(llList2String(pickList, j), STRING_TRIM);
+                            if (pick != "") {
+                                cleanPickList += [pick];
+                            }
+                        }
+                        picks = llDumpList2String(cleanPickList, ";");
+                    }
+                    encodedPicksData += [playerName + "|" + picks];
+                } else if (llSubStringIndex(entry, "|") != -1) {
+                    // Handle entries with empty picks (e.g., "PlayerName|")
+                    encodedPicksData += [entry];
+                } else {
+                    // Skip malformed entries without pipe separator
+                    llOwnerSay("⚠️ Roll Module: Skipping malformed picksData entry: " + entry);
+                }
+            }
+            string gameSync = llList2CSV(lives) + "~" + llDumpList2String(encodedPicksData, "^") + "~" + perilPlayer + "~" + llList2CSV(names);
+            llOwnerSay("📤 Roll module sending sync with peril player: " + perilPlayer);
             llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
             llSleep(0.2);
+            
+            // Additional floater updates to ensure correct peril player display
+            llOwnerSay("🔄 Updating all floaters with new peril player: " + perilPlayer);
+            integer f;
+            for (f = 0; f < llGetListLength(names); f++) {
+                string fname = llList2String(names, f);
+                llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, fname, NULL_KEY);
+            }
+            
+            // Show start next round dialog to current peril player
+            llOwnerSay("🎯 Prompting " + perilPlayer + " to start next round...");
+            // Get the peril player's key from the main controller
+            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer + "_NEXT_ROUND", NULL_KEY);
         }
     }
 
     listen(integer channel, string name, key id, string msg) {
-        llMessageLinked(LINK_THIS, channel, msg, id);
+        if (msg == "Roll") {
+            // Handle dice roll - need to get dice type from main controller
+            llOwnerSay("🎲 Roll button clicked by " + name + " (key: " + (string)id + ")");
+            llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);
+        } else {
+            llMessageLinked(LINK_THIS, channel, msg, id);
+        }
     }
 }

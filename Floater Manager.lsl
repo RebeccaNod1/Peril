@@ -25,18 +25,26 @@ list getPicksFor(string nameInput) {
         string entry = llList2String(picksData, i);
 
         if (llSubStringIndex(entry, "|") == -1) {
-            llOwnerSay("⚠️ Malformed picks entry (missing pipe): " + entry);
+            if (entry != "") llOwnerSay("⚠️ Malformed picks entry (missing pipe): " + entry);
         } else {
             list parts = llParseString2List(entry, ["|"], []);
             if (llGetListLength(parts) < 2) {
-                llOwnerSay("⚠️ Malformed picks entry (too few parts): " + entry);
+                if (entry != "") llOwnerSay("⚠️ Malformed picks entry (too few parts): " + entry);
             }
             else if (llList2String(parts, 0) == nameInput) {
                 string pickString = llList2String(parts, 1);
                 if (pickString == "") {
-                    llOwnerSay("⚠️ Malformed or empty picks entry: " + entry);
+                    // Empty picks are normal during initialization, don't warn
+                    return [];
                 } else {
-                    list all = llParseString2List(pickString, [","], []);
+                    // Check for corruption markers (^ symbols that shouldn't be in picks)
+                    if (llSubStringIndex(pickString, "^") != -1) {
+                        llOwnerSay("⚠️ Corrupted picks data for " + nameInput + " (contains ^): '" + pickString + "'");
+                        return [];
+                    }
+                    // Convert semicolons back to commas, then parse
+                    string convertedPicks = llDumpList2String(llParseString2List(pickString, [";"], []), ",");
+                    list all = llParseString2List(convertedPicks, [","], []);
                     list filtered = [];
                     integer j;
                     for (j = 0; j < llGetListLength(all); j++) {
@@ -64,6 +72,10 @@ string getNameFromKey(key id) {
 
 // Main event handler
 default {
+    state_entry() {
+        llOwnerSay("📦 Floater Manager ready!");
+    }
+    
     link_message(integer sender, integer num, string str, key id) {
         if (num == MSG_REGISTER_PLAYER) {
             // Enforce the maximum number of players
@@ -150,7 +162,8 @@ default {
             if (perilPlayer == "" || llSubStringIndex(perilPlayer, ",") != -1) {
                 perilName = "🧍 Status: Waiting for game to start...";
             } else {
-                perilName = "🧍 Peril: " + getNameFromKey(perilPlayer);
+                // perilPlayer is already a name string, not a key
+                perilName = "🧍 Peril: " + perilPlayer;
             }
 
             string picksDisplay = llList2CSV(picks);
@@ -161,30 +174,47 @@ default {
         else if (num == MSG_CLEANUP_FLOAT) {
             integer ch = (integer)str;
             integer idx = ch - (-777000);
+            
+            // Always send cleanup message to the channel (even for orphaned floaters)
+            llRegionSay(ch, "CLEANUP");
+            llOwnerSay("🧹 Sent CLEANUP to channel " + (string)ch);
+            
+            // Only clean up internal lists if this corresponds to a valid player
             if (idx >= 0 && idx < llGetListLength(players)) {
-                llRegionSay(ch, "CLEANUP");
                 players = llDeleteSubList(players, idx, idx);
                 names = llDeleteSubList(names, idx, idx);
                 lives = llDeleteSubList(lives, idx, idx);
                 picksData = llDeleteSubList(picksData, idx, idx);
+                llOwnerSay("🗑️ Cleaned up internal data for player index " + (string)idx);
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
             // Synchronize the lists for lives and picksData when receiving a new game state
+            llOwnerSay("🔍 DEBUG: Floater Manager received sync: " + str);
             list parts = llParseString2List(str, ["~"], []);
             lives = llCSV2List(llList2String(parts, 0));
-            list rawPicks = llCSV2List(llList2String(parts, 1));
-            picksData = [];
-            integer i;
-            for (i = 0; i < llGetListLength(rawPicks); i++) {
-                string entry = llList2String(rawPicks, i);
-                if (llSubStringIndex(entry, "|") != -1) {
-                    picksData += [entry];
-                } else {
-                    llOwnerSay("⚠️ Ignored malformed picksData during sync: " + entry);
-                }
+            // Use ^ delimiter for picksData to avoid comma conflicts
+            string picksDataStr = llList2String(parts, 1);
+            llOwnerSay("🔍 DEBUG: Raw picksDataStr: '" + picksDataStr + "'");
+            if (picksDataStr == "" || picksDataStr == "EMPTY") {
+                picksData = [];
+                llOwnerSay("🔍 DEBUG: Parsed picksData: (empty)");
+            } else {
+                picksData = llParseString2List(picksDataStr, ["^"], []);
+                llOwnerSay("🔍 DEBUG: Parsed picksData: " + llDumpList2String(picksData, " | "));
             }
-            perilPlayer = llList2String(parts, 2);
+            string receivedPeril = llList2String(parts, 2);
+            string oldPeril = perilPlayer;
+            if (receivedPeril == "NONE") {
+                perilPlayer = "";  // Convert placeholder back to empty
+            } else {
+                perilPlayer = receivedPeril;
+            }
+            
+            // Debug peril player changes
+            if (oldPeril != perilPlayer) {
+                llOwnerSay("🔄 Floater Manager: Peril player changed from '" + oldPeril + "' to '" + perilPlayer + "'");
+            }
 
             // After synchronizing the game state, update all existing floats so
             // they reflect the current peril status.  Without this, floats

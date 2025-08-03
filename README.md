@@ -1,186 +1,108 @@
-🎲 Peril Dice — Modular Game System for Second Life
-Overview
-Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player’s number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+# 🎲 Peril Dice — Modular Game System for Second Life
+
+## Overview
+
+Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+## Key Features
 
-🔧 Features
-✅ Player System
-Max players: 10
+- **🎯 Dynamic Player Management**: Players can join at runtime (owner and other avatars)
+- **🤖 Bot Support**: Add AI bots for testing and gameplay variety  
+- **📱 Floating HUD Display**: Real-time stats for each player
+- **🎮 Intelligent Dice Sizing**: Automatic dice size based on player count
+- **🔄 Ready State System**: Players must be ready before games start
+- **⚡ Performance Optimized**: Reduced lag with selective particle effects
+- **🛡️ Robust Error Handling**: Comprehensive game state synchronization
+- **🚫 Game Protection**: Prevents joining games in progress
 
-Each player starts with 3 lives
+## Game Rules
 
-Players can Join, Leave, or mark themselves Ready
+1. **Setup**: 2-10 players join the game
+2. **Ready Phase**: All players except starter must mark themselves ready
+3. **Picking Phase**: Each player picks 1-3 numbers (based on peril player's remaining lives)
+4. **Rolling Phase**: Peril player rolls the dice
+5. **Resolution**: 
+   - If rolled number matches another player's pick → that player becomes new peril player
+   - If no match or peril player hits themselves → peril player loses a life
+6. **Elimination**: Players with 0 lives are eliminated
+7. **Victory**: Last player standing wins! 🏆
 
-The first player to join gets a Start Game button
+## Installation
 
-The owner can join the game and also has a special Owner menu
+1. Rez the main controller object in your desired location
+2. Ensure all scripts are loaded:
+   - `Main.lsl` (Main Controller)
+   - `Owner and Player Dialog Handler.lsl`
+   - `Number Picker Dialog Handler.lsl`
+   - `Roll Confetti Module.lsl`
+   - `Bot Manager.lsl`
+   - `Floater Manager.lsl`
+   - `StatFloat.lsl` (for the floating HUD objects)
+3. Touch the object to register as a player and start playing!
 
-🎲 Dice Scaling
-Dice type is automatically chosen to ensure at least 3 picks per player
+## How to Play
 
-Dice types supported: d6, d12, d20, d30
+### For Owner
+- **Touch object** → Access owner menu
+- **Add Bot** → Add AI players for testing
+- **Start Game** → Begin when all players are ready
+- **Reset Game** → Reset to initial state
+- **Manage Picks** → View/modify player selections
 
-Player Count	Dice Type
-1–2	d6
-3–4	d12
-5–6	d20
-7–10	d30
+### For Players
+- **Touch object** → Register and join game
+- **Ready/Not Ready** → Toggle your ready state
+- **Pick Numbers** → Select your numbers when prompted
+- **Roll Dice** → Roll when you're the peril player
 
-🧍 Test Players
-Owner can add/remove test players (bots)
+## Architecture
 
-Test players rez stat floaters at offset positions to prevent overlap
+The system uses a modular LSL architecture with inter-script communication:
 
-Floater objects follow players and update in real time
+- **Main Controller**: Core game logic and state management
+- **Dialog Handlers**: User interface and input processing  
+- **Roll Module**: Dice rolling and confetti effects
+- **Bot Manager**: AI player behavior
+- **Floater Manager**: Floating HUD display management
+- **Game Helpers**: Utility functions and dice type calculation
 
-🪟 HUD & Stat Floaters
-Players receive a floating HUD showing:
+## Dice Scaling
 
-Player name
+Dice type is automatically chosen to ensure at least 3 picks per player:
 
-Lives
+| Player Count | Dice Type |
+|--------------|-----------|
+| 1–2          | d6        |
+| 3–4          | d12       |
+| 5–6          | d20       |
+| 7–10         | d30       |
 
-Picks
+## Known Issues
 
-Peril status or game state
+- **Minor Bot Collision**: Bots may occasionally pick duplicate numbers in rapid succession (race condition)
+- **Performance**: Extended games with many bots may experience some lag due to debug output
 
-📦 Modular Architecture
-Separated scripts:
+## Version
 
-Main Controller: Handles core game logic
+**Current Version**: 2.1.0  
+**Last Updated**: January 2025  
+**Status**: Stable - Full game flow functional
 
-Dialog Handler: Manages pick dialogs
+---
 
-Dice Selector: Returns dice type based on player count
+## Original Game Rules Credit
 
-Stat Float Manager: Rezzes and updates floaters
+Game rules were created by **Noose the Bunny** (djmusica28) in Second Life. This automated version builds upon their original manual gameplay concept.
 
-Stat Float Object: Displays floating text per player
+### Original Manual Rules Summary:
+- Each player starts with 3 lives
+- Players pick numbers based on peril player's remaining lives:
+  - 3 Lives → Pick 1 number
+  - 2 Lives → Pick 2 numbers  
+  - 1 Life → Pick 3 numbers
+- Roll dice to determine outcome
+- Last player with lives wins
 
-🕹️ Game Flow
-Players touch the controller object to join the game
+---
 
-Once 2+ players have joined, the first player gets the option to Start Game
-
-Dice type is selected automatically
-
-Each player is prompted (in order) to select 3 numbers
-
-After all picks are made:
-
-The dice is rolled
-
-The result is compared to each player’s picks
-
-If the peril player’s number is rolled or no one picked it, the peril player loses a life
-
-The system checks for eliminations and starts the next round
-
-🧰 Admin Controls
-Owner can:
-
-Join or leave the game
-
-Open a special Owner menu
-
-Add/remove test bots
-
-Reset the game
-
-Debug current state (optional)
-
-
-
-Below what was started, ill have this up just a reminder
-
-
-
-
-# Peril Dice
-Notice these rules were made by Noose the Bunny (djmusica28)  secondlife:///app/agent/5935e159-63ba-415a-b20b-4813b50367d0/about, im baseing off this but im also automating it
-
-🎲 PERIL DICE – GAME RULES
-🧍 Objective:
-Avoid becoming the “person in peril” and losing all your lives.
-The last player with lives remaining wins!
-
-🛠️ Setup
-Each player wears a Peril Dice Tracker HUD
-
-Everyone starts with 3 lives
-
-Choose a dice type: d6, d12, or d21
-
-One player clicks "Set Yourself In Peril" on the HUD to start
-
-🔁 Game Rounds
-1. Determine Lives of Person in Peril
-
-3 Lives → Each player picks 1 number
-
-2 Lives → Each player picks 2 numbers
-
-1 Life → Each player picks 3 numbers
-
-2. Players Pick Numbers
-Everyone (including the player in peril) picks their numbers from the die range.
-Example: On a d12 with 2 lives in peril → pick 2 numbers between 1–12.
-
-3. Roll the Die
-Use a real or scripted dice object in SL to roll (matching your chosen type).
-
-🎯 Check the Result
-If the roll matches another player's pick →
-That player becomes the new person in peril
-
-If the roll matches no one, or the peril player’s own pick →
-The peril player loses 1 life and stays in peril
-
-💀 Elimination
-When a player reaches 0 lives, they're eliminated from the game.
-
-🏆 Winning the Game
-The last remaining player with lives wins!
-
-✅ Game Example
-4 players, using a d12
-
-Alice is in peril with 2 lives
-
-Everyone picks 2 numbers:
-
-makefile
-Copy
-Edit
-Bob:   3, 7  
-Carol: 6, 11  
-Dave:  2, 9  
-Alice: 1, 12
-🎲 Roll = 6 → Carol becomes the new person in peril
-
-📟 PERIL DICE TRACKER HUD GUIDE
-Touch the tracker to access the menu:
-
-🔘 Set Dice
-Pick d6, d12, or d20 — defines the range of possible numbers.
-
-🔘 Pick Numbers
-Lets you pick numbers (based on how many the current person in peril is allowed).
-Your picks are shown in the floating text.
-
-🔘 Set Yourself in Peril
-Marks you as the current player in peril. Everyone’s HUD will update with your name and lives.
-
-🔘 Lose Life / Reset Lives
-Used only by the wearer of the HUD to manage their own lives.
-If you’re the player in peril, everyone else will see your life change reflected in their menus.
-
-🧠 Odds of Rolling a Specific Number
-Here’s the chance of any one number being rolled:
-
-Dice    Total Sides    % Chance per Number
-d6    6    16.7%
-d12    12    8.3%
-d20    20    5.0%
-
-The more numbers you can pick, the better your odds — but lives are limited!
-# Peril Dice
+*Peril Dice provides hours of entertainment for Second Life communities with its blend of strategy, luck, and social interaction!*

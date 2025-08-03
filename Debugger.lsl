@@ -34,8 +34,12 @@ list validatePicksData(list picksData, list names) {
                 allPicksFlat += [pick];
             }
 
-            llOwnerSay("✅ " + name + "'s picks: " + llList2CSV(pickNums));
-        } else {
+            // Only show picks if player has actually picked something
+            if (picks != "") {
+                llOwnerSay("✅ " + name + "'s picks: " + llList2CSV(pickNums));
+            }
+        } else if (entry != "") {
+            // Only warn about non-empty malformed entries
             llOwnerSay("⚠️ Malformed entry in picksData: " + entry);
         }
     }
@@ -58,6 +62,10 @@ list validatePicksData(list picksData, list names) {
 
 
 default {
+    state_entry() {
+        llOwnerSay("🔍 Debugger ready!");
+    }
+    
     link_message(integer sender, integer num, string str, key id) {
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
@@ -71,7 +79,22 @@ default {
             string perilPlayer = llList2String(parts, 2);
             list names = llCSV2List(llList2String(parts, 3));
 
-            llOwnerSay("🔍 Checking picksData...");
+            // Only show checking message if there's actual picks data to validate
+            integer hasPicksData = FALSE;
+            integer i;
+            for (i = 0; i < llGetListLength(picksData); i++) {
+                string entry = llList2String(picksData, i);
+                list parts = llParseString2List(entry, ["|"], []);
+                if (llGetListLength(parts) == 2 && llList2String(parts, 1) != "") {
+                    hasPicksData = TRUE;
+                    jump skipCheck;
+                }
+            }
+            @skipCheck;
+            
+            if (hasPicksData) {
+                llOwnerSay("🔍 Checking picksData...");
+            }
             validatePicksData(picksData, names);
         }
     }

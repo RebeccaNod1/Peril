@@ -14,11 +14,19 @@ list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
         string entry = llList2String(picksData, i);
-        if (llSubStringIndex(entry, nameInput + "|") == 0) {
-            list parts = llParseString2List(entry, ["|"], []);
-            if (llGetListLength(parts) >= 2) {
-                return llParseString2List(llList2String(parts, 1), [","], []);
+        list parts = llParseString2List(entry, ["|"], []);
+        if (llGetListLength(parts) >= 2 && llList2String(parts, 0) == nameInput) {
+            string picks = llList2String(parts, 1);
+            if (picks == "") {
+                return [];
             }
+            // Check for corruption markers (^ symbols that shouldn't be in picks)
+            if (llSubStringIndex(picks, "^") != -1) {
+                return [];
+            }
+            // Convert semicolons back to commas, then parse
+            picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
+            return llParseString2List(picks, [","], []);
         }
     }
     return [];
@@ -57,18 +65,21 @@ default {
             list parts = llParseString2List(str, ["~"], []);
             if (llGetListLength(parts) < 4) return;
             lives = llCSV2List(llList2String(parts, 0));
-            list rawPicks = llCSV2List(llList2String(parts, 1));
-            picksData = [];
-            integer i;
-            for (i = 0; i < llGetListLength(rawPicks); i++) {
-                string entry = llList2String(rawPicks, i);
-                if (llSubStringIndex(entry, "|") != -1) {
-                    picksData += [entry];
-                } else {
-                    llOwnerSay("⚠️ Ignored malformed picksData during sync: " + entry);
-                }
+            
+            // Use ^ delimiter for picksData to match the main system
+            string picksDataStr = llList2String(parts, 1);
+            if (picksDataStr == "" || picksDataStr == "EMPTY") {
+                picksData = [];
+            } else {
+                picksData = llParseString2List(picksDataStr, ["^"], []);
             }
-            perilPlayer = llList2String(parts, 2);
+            
+            string receivedPeril = llList2String(parts, 2);
+            if (receivedPeril == "NONE") {
+                perilPlayer = "";  // Convert placeholder back to empty
+            } else {
+                perilPlayer = receivedPeril;
+            }
             names = llCSV2List(llList2String(parts, 3));
 
             integer nameIdx = llListFindList(names, [myName]);
@@ -78,10 +89,15 @@ default {
             integer lifeCount = llList2Integer(lives, nameIdx);
 
             string perilDisplay;
-            if (perilPlayer != "") {
-                perilDisplay = perilPlayer;
+            // If the perilPlayer string is empty or contains a comma (indicating
+            // multiple names), treat the game as not yet started.  This avoids
+            // showing multiple players as the peril player before the first
+            // round begins.  Once a single peril player is assigned, it will
+            // not contain a comma and will be displayed normally.
+            if (perilPlayer == "" || llSubStringIndex(perilPlayer, ",") != -1) {
+                perilDisplay = "Waiting for game to start...";
             } else {
-                perilDisplay = "Waiting for peril...";
+                perilDisplay = perilPlayer;
             }
 
             string picksDisplay = llList2CSV(picks);

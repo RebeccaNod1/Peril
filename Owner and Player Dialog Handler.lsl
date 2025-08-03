@@ -11,9 +11,18 @@ integer MSG_PICK_LIST_RESULT = 205;
 integer MSG_LIFE_LOOKUP = 207;
 integer MSG_REGISTER_PLAYER = 106;
 integer MSG_REZ_FLOAT = 105;
+integer MSG_TOGGLE_READY = 202;
+integer MSG_QUERY_READY_STATE = 210;
+integer MSG_READY_STATE_RESULT = 211;
+integer MSG_CLEANUP_ALL_FLOATERS = 212;
 
 // Owner-specific options shown when pressing the "Owner" button
-list ownerOptions = ["Join Game", "Leave Game", "Add Test Player", "Manage Picks", "Start Game", "Reset Game", "Dump Players"];
+list ownerOptions = ["Join Game", "Leave Game", "Add Test Player", "Manage Picks", "Start Game", "Reset Game", "Dump Players", "Cleanup Floaters"];
+
+// State tracking for dynamic ready menu
+key pendingMenuPlayer = NULL_KEY;
+integer pendingMenuIsStarter = FALSE;
+integer pendingMenuIsOwner = FALSE;
 
 // Display the debug/owner menu
 showOwnerMenu(key id) {
@@ -21,23 +30,48 @@ showOwnerMenu(key id) {
 }
 
 // Display the combined Ready/Leave menu for both players and owners
-// If the caller is the starter, the first button is "Start"; otherwise "Ready".
+// If the caller is the starter, the first button is "Start"; otherwise shows dynamic ready state.
 // Owners receive an extra "Owner" button to access the advanced owner menu.
 showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
+    // Store pending menu state and query ready status
+    pendingMenuPlayer = id;
+    pendingMenuIsStarter = isStarter;
+    pendingMenuIsOwner = isOwner;
+    
+    string playerName = llKey2Name(id);
+    llMessageLinked(LINK_SET, MSG_QUERY_READY_STATE, playerName, id);
+}
+
+// Internal function to show the menu once we have ready state
+showReadyLeaveMenuWithState(key id, integer isStarter, integer isOwner, integer isReady, integer isBot) {
+    // Bots don't get dialogs - they're managed by the owner
+    if (isBot) {
+        return;
+    }
+    
     list options;
-    // If this user is flagged as the starter, they should see the "Start Game"
-    // button so they can initiate the round (regardless of ownership). Otherwise
-    // they see the regular "Ready" button.
+    string menuText = "Select an option:";
+    
     if (isStarter) {
         options = ["Start Game", "Leave Game"];
+        menuText = "You are the game starter. You can start the game when all other players are ready.";
     } else {
-        options = ["Ready", "Leave Game"];
+        // Dynamic ready button based on current state
+        if (isReady) {
+            options = ["Not Ready", "Leave Game"];
+            menuText = "You are READY to play. Click 'Not Ready' to change your status.";
+        } else {
+            options = ["Ready", "Leave Game"];
+            menuText = "You are NOT READY to play. Click 'Ready' when you want to participate.";
+        }
     }
+    
     if (isOwner) {
         options += ["Owner"];
     }
-    // Display the combined menu
-    llDialog(id, "Select an option:", options, DIALOG_CHANNEL);
+    
+    // Display the menu with contextual information
+    llDialog(id, menuText, options, DIALOG_CHANNEL);
 }
 
 // Manage picks UI helpers remain unchanged
@@ -75,6 +109,7 @@ askForNewPick(key id) {
 
 default {
     state_entry() {
+        llOwnerSay("🎭 Owner and Player Dialog Handler ready!");
         llListen(DIALOG_CHANNEL, "", NULL_KEY, "");
     }
 
@@ -93,6 +128,23 @@ default {
             } else if (targetType == "player") {
                 showReadyLeaveMenu(id, isStarter, FALSE);
             }
+        }
+        else if (num == MSG_READY_STATE_RESULT) {
+            // Parse ready state response and show appropriate menu
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 3) {
+                string playerName = llList2String(parts, 0);
+                integer isReady = (integer)llList2String(parts, 1);
+                integer isBot = (integer)llList2String(parts, 2);
+                
+                // Show menu with the current ready state
+                if (pendingMenuPlayer == id) {
+                    showReadyLeaveMenuWithState(pendingMenuPlayer, pendingMenuIsStarter, pendingMenuIsOwner, isReady, isBot);
+                    // Reset pending state
+                    pendingMenuPlayer = NULL_KEY;
+                }
+            }
+            return;
         }
         else if (num == MSG_PLAYER_LIST_RESULT) {
             list playerNames = llParseString2List(str, [","], []);
@@ -130,12 +182,22 @@ default {
             // Use the avatar's key as the identifier
             string pname = llKey2Name(id);
             llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, pname + "|" + (string)id, NULL_KEY);
-            llMessageLinked(LINK_SET, MSG_REZ_FLOAT, pname, id);
+            // Floater Manager will automatically rez the floater during registration
         }
         else if (msg == "Leave Game") {
             // Send leave game message to main controller
             string pname = llKey2Name(id);
             llMessageLinked(LINK_SET, 107, "LEAVE_GAME|" + pname + "|" + (string)id, NULL_KEY);
+        }
+        else if (msg == "Ready" || msg == "Not Ready") {
+            // Toggle ready state (both buttons do the same thing - toggle)
+            string pname = llKey2Name(id);
+            llMessageLinked(LINK_SET, MSG_TOGGLE_READY, pname, NULL_KEY);
+        }
+        else if (msg == "Cleanup Floaters") {
+            // Send aggressive floater cleanup command
+            llOwnerSay("🧹 Sending aggressive floater cleanup command...");
+            llMessageLinked(LINK_SET, MSG_CLEANUP_ALL_FLOATERS, "", NULL_KEY);
         }
         else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
