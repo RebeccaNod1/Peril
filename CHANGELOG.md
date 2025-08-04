@@ -37,7 +37,7 @@ All notable changes to Peril Dice will be documented in this file.
 - **LSL Parsing Fixes**: Better handling of trailing empty elements in data parsing
 - **Memory Management**: Improved StatFloat lifecycle management
 
-## [2.1.0] - 2025-01-08
+## [2.1.0] - 2025-08-03
 
 ### ✨ Major Features Added
 - **Ready State System**: Players must mark themselves ready before games can start
@@ -106,7 +106,7 @@ All notable changes to Peril Dice will be documented in this file.
 - **Floater Manager**: HUD display coordination
 - **Game Helpers**: Utility functions and calculations
 
-## [1.0.0] - 2024-XX-XX
+## [1.0.0] - 2025-XX-XX
 
 ### 🌟 Original Release
 - Basic Peril Dice game implementation
