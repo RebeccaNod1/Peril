@@ -27,22 +27,18 @@ list getPicksFor(string nameInput) {
             
             // Check for corruption markers (^ symbols that shouldn't be in picks)
             if (llSubStringIndex(picks, "^") != -1) {
-                llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): CORRUPTED data contains ^: '" + originalPicks + "'");
                 return [];
             }
             
             if (picks == "") {
-                llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): empty picks");
                 return [];
             }
             
             picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
             list result = llParseString2List(picks, [","], []);
-            llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): raw='" + originalPicks + "' -> converted='" + picks + "' -> list=" + llList2CSV(result));
             return result;
         }
     }
-    llOwnerSay("🔍 DEBUG getPicksFor(" + nameInput + "): NOT FOUND in picksData=" + llDumpList2String(picksData, " | "));
     return [];
 }
 
@@ -97,7 +93,7 @@ default {
         
         if (num == 995) {
             if (str == "VICTORY_CONFETTI") {
-                llOwnerSay("🎉 Victory confetti!");
+                llOwnerSay("✨ ULTIMATE VICTORY CELEBRATION!");
                 confetti();
             }
             return;
@@ -119,7 +115,7 @@ default {
                     llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);
                 } else {
                     // Show dialog for human players
-                    llDialog(id, "🎲 All picks are in! You're the peril player. Roll the dice?", ["Roll"], rollDialogChannel);
+                    llDialog(id, "🎲 THE MOMENT OF TRUTH! You're in ultimate peril. Will you face your fate?", ["ROLL THE DICE OF FATE"], rollDialogChannel);
                 }
             }
         }
@@ -128,28 +124,24 @@ default {
             integer diceType = (integer)str;
             integer result = rollDice(diceType);
             string resultStr = (string)result;
-            llSay(0, "🎲 " + perilPlayer + " rolled a " + resultStr + "!");
+            llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
             string newPeril = "";
             integer matched = FALSE;
             list matchedPlayers = [];
             integer i;
             
-            llOwnerSay("🔍 DEBUG: Current peril player: " + perilPlayer + ", rolled: " + resultStr);
             
             // Find all players who picked the rolled number
             for (i = 0; i < llGetListLength(names); i++) {
                 string pname = llList2String(names, i);
                 list picks = getPicksFor(pname);
-                llOwnerSay("🔍 DEBUG: " + pname + " picks: " + llList2CSV(picks));
                 if (llListFindList(picks, [resultStr]) != -1) {
                     matched = TRUE;
                     matchedPlayers += [pname];
-                    llOwnerSay("🔍 DEBUG: " + pname + " matched the roll!");
                 }
             }
             
-            llOwnerSay("🔍 DEBUG: Matched players: " + llList2CSV(matchedPlayers));
             
             // If anyone matched, pick the first non-peril player as new peril
             // If only the current peril player matched, they stay in peril (no change)
@@ -157,12 +149,11 @@ default {
                 string pname = llList2String(matchedPlayers, i);
                 if (pname != perilPlayer) {
                     newPeril = pname;
-                    llOwnerSay("🔍 DEBUG: New peril player will be: " + newPeril);
                 }
             }
 
             if (matched && newPeril != "") {
-                llSay(0, "🎯 " + newPeril + " matched the roll and becomes the new peril player!");
+                llSay(0, "⚡ PLOT TWIST! " + newPeril + " picked " + resultStr + " (rolled on d" + (string)diceType + ") and is now in ULTIMATE PERIL! ⚡");
                 perilPlayer = newPeril;
                 // Update floaters immediately to show correct peril player before sync
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
@@ -171,12 +162,21 @@ default {
                 if (pidx != -1) {
                     integer currentLives = llList2Integer(lives, pidx);
                     lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
-                    llSay(0, "💀 " + perilPlayer + " was hit and lost a life!");
-                    llMessageLinked(LINK_SET, MSG_REZ_FLOAT, perilPlayer, NULL_KEY);
+                    
+                    // Check if peril player picked the rolled number
+                    list perilPicks = getPicksFor(perilPlayer);
+                    integer perilPickedIt = (llListFindList(perilPicks, [resultStr]) != -1);
+                    
+                    if (perilPickedIt) {
+                        llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
+                    } else {
+                        llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
+                    }
+                    llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, perilPlayer, NULL_KEY);
                     
                     // Check for elimination
                     if (currentLives - 1 <= 0) {
-                        llSay(0, "💀 " + perilPlayer + " has been eliminated!");
+                        llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
                         // Remove eliminated player (send message to main controller)
                         llMessageLinked(LINK_SET, 999, "ELIMINATE_PLAYER|" + perilPlayer, NULL_KEY);
                         // The Main Controller will handle peril player reassignment and game flow
@@ -234,14 +234,13 @@ default {
             }
             
             // Show start next round dialog to current peril player
-            llOwnerSay("🎯 Prompting " + perilPlayer + " to start next round...");
             // Get the peril player's key from the main controller
             llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer + "_NEXT_ROUND", NULL_KEY);
         }
     }
 
     listen(integer channel, string name, key id, string msg) {
-        if (msg == "Roll") {
+        if (msg == "Roll" || msg == "ROLL THE DICE OF FATE") {
             // Handle dice roll - need to get dice type from main controller
             llOwnerSay("🎲 Roll button clicked by " + name + " (key: " + (string)id + ")");
             llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);

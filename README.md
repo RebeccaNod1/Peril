@@ -11,6 +11,8 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **📱 Floating HUD Display**: Real-time stats for each player
 - **🎮 Intelligent Dice Sizing**: Automatic dice size based on player count
 - **🔄 Ready State System**: Players must be ready before games start
+- **🎭 Dramatic Messaging**: Immersive thematic announcements visible to all players
+- **🎲 Context-Rich Rolls**: Detailed dice information with type and result
 - **⚡ Performance Optimized**: Reduced lag with selective particle effects
 - **🛡️ Robust Error Handling**: Comprehensive game state synchronization
 - **🚫 Game Protection**: Prevents joining games in progress
@@ -22,8 +24,9 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 3. **Picking Phase**: Each player picks 1-3 numbers (based on peril player's remaining lives)
 4. **Rolling Phase**: Peril player rolls the dice
 5. **Resolution**: 
-   - If rolled number matches another player's pick → that player becomes new peril player
-   - If no match or peril player hits themselves → peril player loses a life
+   - If rolled number matches another player's pick → that player becomes new peril player (`⚡ PLOT TWIST!`)
+   - If peril player picked the rolled number → they lose a life (`🩸 DIRECT HIT!`)
+   - If nobody picked the rolled number → peril player loses a life (`🩸 NO SHIELD!`)
 6. **Elimination**: Players with 0 lives are eliminated
 7. **Victory**: Last player standing wins! 🏆
 
@@ -77,16 +80,18 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 | 5–6          | d20       |
 | 7–10         | d30       |
 
-## Known Issues
+## Recent Improvements (v2.2.0)
 
-- **Minor Bot Collision**: Bots may occasionally pick duplicate numbers in rapid succession (race condition)
-- **Performance**: Extended games with many bots may experience some lag due to debug output
+- **🎭 Dramatic Messaging**: All game events now use thematic, immersive language
+- **📢 Public Announcements**: Players can see all major game events in public chat
+- **🎲 Enhanced Dice Messages**: Rolls show both dice type (d6, d8, etc.) and result
+- **🔧 Bug Fixes**: Resolved StatFloat duplication and duplicate message handling issues
 
 ## Version
 
-**Current Version**: 2.1.0  
-**Last Updated**: January 2025  
-**Status**: Stable - Full game flow functional
+**Current Version**: 2.2.0  
+**Last Updated**: August 2025  
+**Status**: Stable - Enhanced UX with dramatic messaging system
 
 ---
 

@@ -25,24 +25,39 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
         return;
     }
     
-    llOwnerSay("[Bot Manager] ✅ Picking " + (string)count + " numbers for " + botName + " (lives=" + (string)botLives + ", max=" + (string)diceMax + ")");
-    if (llGetListLength(avoidNumbers) > 0) {
-        llOwnerSay("[Bot Manager] Avoiding already picked numbers: " + llList2CSV(avoidNumbers));
-    }
+    
     list picks;
     integer attempts = 0;
+    
     while (llGetListLength(picks) < count && attempts < 100) {
         integer roll = 1 + (integer)(llFrand((float)diceMax));
         string rollStr = (string)roll;
+        
+        integer inPicks = llListFindList(picks, [rollStr]);
+        integer inAvoid = llListFindList(avoidNumbers, [rollStr]);
+        
+        
         // Check if not already picked by this bot and not picked by others
-        if (llListFindList(picks, [rollStr]) == -1 && llListFindList(avoidNumbers, [rollStr]) == -1) {
+        if (inPicks == -1 && inAvoid == -1) {
             picks += rollStr;
+        } else {
+            string reason = "";
+            if (inPicks != -1) {
+                reason = "already picked by this bot";
+            } else if (inAvoid != -1) {
+                reason = "already picked by another player";
+            }
         }
         attempts++;
     }
-    string pickString = llDumpList2String(picks, ",");
+    
+    
+    if (llGetListLength(picks) < count) {
+        llOwnerSay("[Bot Manager] ⚠️ WARNING: " + botName + " only picked " + (string)llGetListLength(picks) + "/" + (string)count + " numbers after " + (string)attempts + " attempts");
+    }
+    
+    string pickString = llDumpList2String(picks, ";");
     string response = "BOT_PICKED:" + botName + ":" + pickString;
-    llOwnerSay("[Bot Manager] Sending: " + response);
     llMessageLinked(LINK_SET, -9997, response, NULL_KEY);
 }
 
@@ -66,7 +81,6 @@ doBotRoll(string botName, integer diceMax) {
         return;
     }
     
-    llOwnerSay("[Bot Manager] ✅ Bot '" + botName + "' rolling dice (max=" + (string)diceMax + ")");
     integer roll = 1 + (integer)(llFrand((float)diceMax));
     llRegionSay(LISTEN_CHANNEL, "BOT_ROLL:" + botName + ":" + (string)roll);
 }
@@ -93,14 +107,12 @@ default {
                     perilPlayer = receivedPeril;
                 }
                 names = llCSV2List(llList2String(parts, 3));
-                llOwnerSay("[Bot Manager] 🔄 Sync: " + (string)llGetListLength(names) + " players, peril='" + perilPlayer + "'");
             }
             return;
         }
         
         if (num == -9999) {
-            llOwnerSay("[Bot Manager] Received link message: " + str);
-            if (llSubStringIndex(str, "BOT_PICK:") == 0) {
+                if (llSubStringIndex(str, "BOT_PICK:") == 0) {
                 // Format: BOT_PICK:bot_1:3:20:1,2,3 (last part is optional already picked numbers)
                 list parts = llParseStringKeepNulls(str, [":"], []);
                 if (llGetListLength(parts) >= 4) {
@@ -111,7 +123,16 @@ default {
                     if (llGetListLength(parts) >= 5) {
                         string avoidStr = llList2String(parts, 4);
                         if (avoidStr != "") {
-                            avoidNumbers = llCSV2List(avoidStr);
+                            list rawList = llCSV2List(avoidStr);
+                            // Trim whitespace from each number
+                            avoidNumbers = [];
+                            integer i;
+                            for (i = 0; i < llGetListLength(rawList); i++) {
+                                string trimmed = llStringTrim(llList2String(rawList, i), STRING_TRIM);
+                                if (trimmed != "") {
+                                    avoidNumbers += [trimmed];
+                                }
+                            }
                         }
                     }
                     doBotPick(botName, count, diceMax, avoidNumbers);
@@ -130,7 +151,6 @@ default {
     }
 
     listen(integer channel, string name, key id, string message) {
-        llOwnerSay("[Bot Manager] Received: " + message);
         if (llSubStringIndex(message, "BOT_PICK:") == 0) {
             // Format: BOT_PICK:bot_1:3:20
             list parts = llParseStringKeepNulls(message, [":"], []);

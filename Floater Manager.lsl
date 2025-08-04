@@ -28,6 +28,10 @@ list getPicksFor(string nameInput) {
             if (entry != "") llOwnerSay("⚠️ Malformed picks entry (missing pipe): " + entry);
         } else {
             list parts = llParseString2List(entry, ["|"], []);
+            // Handle entries ending with "|" (empty picks) - LSL drops trailing empty elements
+            if (llGetListLength(parts) == 1 && llGetSubString(entry, -1, -1) == "|") {
+                parts += [""];  // Add the empty picks part back
+            }
             if (llGetListLength(parts) < 2) {
                 if (entry != "") llOwnerSay("⚠️ Malformed picks entry (too few parts): " + entry);
             }
@@ -37,22 +41,14 @@ list getPicksFor(string nameInput) {
                     // Empty picks are normal during initialization, don't warn
                     return [];
                 } else {
-                    // Check for corruption markers (^ symbols that shouldn't be in picks)
-                    if (llSubStringIndex(pickString, "^") != -1) {
-                        llOwnerSay("⚠️ Corrupted picks data for " + nameInput + " (contains ^): '" + pickString + "'");
-                        return [];
-                    }
-                    // Convert semicolons back to commas, then parse
-                    string convertedPicks = llDumpList2String(llParseString2List(pickString, [";"], []), ",");
-                    list all = llParseString2List(convertedPicks, [","], []);
+                    // Convert semicolons back to commas for display
+                    list pickList = llParseString2List(pickString, [";"], []);
                     list filtered = [];
                     integer j;
-                    for (j = 0; j < llGetListLength(all); j++) {
-                        string val = llStringTrim(llList2String(all, j), STRING_TRIM);
+                    for (j = 0; j < llGetListLength(pickList); j++) {
+                        string val = llStringTrim(llList2String(pickList, j), STRING_TRIM);
                         if (val != "" && (string)((integer)val) == val) {
                             filtered += [val];
-                        } else {
-                            llOwnerSay("⚠️ Invalid number in picks for " + nameInput + ": '" + val + "'");
                         }
                     }
                     return filtered;
@@ -89,7 +85,7 @@ default {
             key avKey = llList2Key(info, 1);
             names += [name];
             players += [avKey];
-            llOwnerSay("📝 Registered: " + name);
+            llSay(0, "💀 " + name + " has entered the deadly game! Welcome to your potential doom! 💀");
 
             // Immediately rez the float after registration.  This ensures the
             // float manager has updated its internal lists before attempting
@@ -129,7 +125,6 @@ default {
                 pos = basePos + <1 + (float)idx * 0.5, 0, 1>;
             }
             integer ch = -777000 + idx;
-            llOwnerSay("📦 Rezzing float for " + name + " at " + (string)pos);
             llSetObjectDesc(name);
             llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
             // After rezzing, immediately update the float so it displays the
@@ -147,11 +142,8 @@ default {
             integer ch = -777000 + idx;
             integer lifeCount = llList2Integer(lives, idx);
 
-            llOwnerSay("🔍 Checking picksData: " + name);
             list picks = getPicksFor(name);
 
-            llOwnerSay("🛠️ Updating float for " + name);
-            llOwnerSay("🔎 Found picks: " + llList2CSV(picks));
 
             string perilName;
             // If the perilPlayer string is empty or contains a comma (indicating
@@ -169,7 +161,6 @@ default {
             string picksDisplay = llList2CSV(picks);
             string txt = "🎲 Peril Dice\n👤 " + name + "\n❤️ Lives: " + (string)lifeCount + "\n" + perilName + "\n🔢 Picks: " + picksDisplay;
             llRegionSay(ch, "FLOAT:" + (string)avKey + "|" + txt);
-            llOwnerSay("📤 Sent FLOAT message on channel " + (string)ch + ": " + txt);
         }
         else if (num == MSG_CLEANUP_FLOAT) {
             integer ch = (integer)str;
@@ -177,7 +168,6 @@ default {
             
             // Always send cleanup message to the channel (even for orphaned floaters)
             llRegionSay(ch, "CLEANUP");
-            llOwnerSay("🧹 Sent CLEANUP to channel " + (string)ch);
             
             // Only clean up internal lists if this corresponds to a valid player
             if (idx >= 0 && idx < llGetListLength(players)) {
@@ -185,23 +175,19 @@ default {
                 names = llDeleteSubList(names, idx, idx);
                 lives = llDeleteSubList(lives, idx, idx);
                 picksData = llDeleteSubList(picksData, idx, idx);
-                llOwnerSay("🗑️ Cleaned up internal data for player index " + (string)idx);
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
             // Synchronize the lists for lives and picksData when receiving a new game state
-            llOwnerSay("🔍 DEBUG: Floater Manager received sync: " + str);
             list parts = llParseString2List(str, ["~"], []);
-            lives = llCSV2List(llList2String(parts, 0));
+            string livesStr = llList2String(parts, 0);
+            lives = llCSV2List(livesStr);
             // Use ^ delimiter for picksData to avoid comma conflicts
             string picksDataStr = llList2String(parts, 1);
-            llOwnerSay("🔍 DEBUG: Raw picksDataStr: '" + picksDataStr + "'");
             if (picksDataStr == "" || picksDataStr == "EMPTY") {
                 picksData = [];
-                llOwnerSay("🔍 DEBUG: Parsed picksData: (empty)");
             } else {
                 picksData = llParseString2List(picksDataStr, ["^"], []);
-                llOwnerSay("🔍 DEBUG: Parsed picksData: " + llDumpList2String(picksData, " | "));
             }
             string receivedPeril = llList2String(parts, 2);
             string oldPeril = perilPlayer;
@@ -211,10 +197,6 @@ default {
                 perilPlayer = receivedPeril;
             }
             
-            // Debug peril player changes
-            if (oldPeril != perilPlayer) {
-                llOwnerSay("🔄 Floater Manager: Peril player changed from '" + oldPeril + "' to '" + perilPlayer + "'");
-            }
 
             // After synchronizing the game state, update all existing floats so
             // they reflect the current peril status.  Without this, floats

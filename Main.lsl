@@ -68,8 +68,6 @@ updateHelpers() {
     if (roundStarted) {
         perilForSync = perilPlayer;
     }
-    llOwnerSay("🔍 updateHelpers() - lives: " + llList2CSV(lives) + ", roundStarted: " + (string)roundStarted);
-    llOwnerSay("🔍 updateHelpers() - perilPlayer: '" + perilPlayer + "', perilForSync: '" + perilForSync + "'");
     // Encode picksData with a safe delimiter that won't conflict with player names or picks
     // Replace commas in picks with semicolons to avoid CSV conflicts
     list encodedPicksData = [];
@@ -137,16 +135,18 @@ resetGame() {
     integer i;
     for (i = 0; i < llGetListLength(floaterChannels); i++) {
         integer ch = llList2Integer(floaterChannels, i);
-        llOwnerSay("🔍 Cleaning up floater channel " + (string)ch + " during reset");
         llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
     }
     
-    // Also send cleanup for all possible floater channels in case of orphaned floaters
-    // This handles any duplicate floaters that weren't properly tracked
-    for (i = 0; i < MAX_PLAYERS; i++) {
+    // Only send cleanup for channels that might actually have floaters
+    // Check up to the number of players that were registered
+    integer maxUsedIdx = llGetListLength(names);
+    for (i = 0; i < maxUsedIdx; i++) {
         integer ch = -777000 + i;
-        llOwnerSay("🧹 Sending cleanup for possible orphaned floater channel " + (string)ch);
-        llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
+        // Only send cleanup if not already in tracked channels
+        if (llListFindList(floaterChannels, [ch]) == -1) {
+            llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
+        }
     }
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
     floaterChannels = []; // Clear the tracked channels
@@ -250,23 +250,20 @@ startNextRound() {
     }
     // If somehow called with exactly one player, treat them as the winner and reset.
     if (llGetListLength(names) == 1) {
-        llSay(0, " " + llList2String(names, 0) + " is the last player standing and wins the game!");
+        llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " is the Ultimate Survivor!");
         resetGame();
         return;
     }
-    // Reset round flag for new round
-    roundStarted = FALSE;
+    // DON'T reset round flag during continuation rounds - only reset for brand new games
+    // This prevents peril player from being lost during round transitions
     
-    llOwnerSay("🔍 DEBUG: startNextRound() called with perilPlayer = '" + perilPlayer + "'");
     
     // Select random initial peril player if none is set (only for very first round)
     if (perilPlayer == "" || perilPlayer == "NONE") {
         integer randomIdx = (integer)llFrand(llGetListLength(names));
         perilPlayer = llList2String(names, randomIdx);
         llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
-        llOwnerSay("🔍 DEBUG: Selected random peril player: " + perilPlayer);
     } else {
-        llOwnerSay("🔍 DEBUG: Continuing with existing peril player: " + perilPlayer);
     }
     picksData = [];
     globalPickedNumbers = [];
@@ -303,14 +300,13 @@ showNextPickerDialog() {
         if (perilIdx != -1) {
             perilLives = llList2Integer(lives, perilIdx);
         }
-        llOwnerSay("🔍 DEBUG BOT: Peril player '" + perilPlayer + "' lives=" + (string)perilLives + " (idx=" + (string)perilIdx + ")");
         // Pick count = 4 - peril player's lives (3 lives=1 pick, 2 lives=2 picks, 1 life=3 picks)
         integer picksNeeded = 4 - perilLives;
         
         // Send command to Bot Manager to auto-pick numbers (include already picked numbers)
+        // CRITICAL: Use the most current globalPickedNumbers to prevent race conditions
         string alreadyPicked = llList2CSV(globalPickedNumbers);
         string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + alreadyPicked;
-        llOwnerSay("📡 Sending to Bot Manager: " + botCommand);
         llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
         llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)picksNeeded + " numbers...");
     } else {
@@ -320,15 +316,11 @@ showNextPickerDialog() {
         if (perilIdx != -1) {
             perilLives = llList2Integer(lives, perilIdx);
         }
-        llOwnerSay("🔍 DEBUG: Peril player '" + perilPlayer + "' lives=" + (string)perilLives + " (idx=" + (string)perilIdx + ")");
-        llOwnerSay("🔍 DEBUG: All lives: " + llList2CSV(lives));
         integer picksNeeded = 4 - perilLives;
-        llOwnerSay("🔍 DEBUG: Picks needed calculation: 4 - " + (string)perilLives + " = " + (string)picksNeeded);
         
         // Include already picked numbers so player can't pick duplicates
         string alreadyPicked = llList2CSV(globalPickedNumbers);
         string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + alreadyPicked;
-        llOwnerSay("🎯 Sending dialog to " + firstName + " with diceType=" + (string)diceType + ", picksNeeded=" + (string)picksNeeded);
         llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, currentPicker);
         timeoutTimer = llGetUnixTime();
         lastWarning = 0;
@@ -374,18 +366,15 @@ default {
                 // Already registered; check if owner is the first human player
                 string ownerName = llList2String(names, idx);
                 isStarter = TRUE;  // Default to TRUE for owner
-                llOwnerSay("🔍 Owner check: idx=" + (string)idx + ", ownerName=" + ownerName);
                 integer k;
                 for (k = 0; k < idx && isStarter; k++) {
                     string existingName = llList2String(names, k);
-                    llOwnerSay("🔍 Checking name[" + (string)k + "] = " + existingName + " (isBot=" + (string)(llSubStringIndex(existingName, "TestBot") == 0) + ")");
                     // If there's a human player before the owner, owner is not starter
                     if (llSubStringIndex(existingName, "TestBot") != 0) {
                         isStarter = FALSE;
                         llOwnerSay("❌ Found human player before owner, not starter");
                     }
                 }
-                llOwnerSay("🔍 Final isStarter = " + (string)isStarter);
             }
             // Show the owner menu with the appropriate starter flag
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
@@ -512,32 +501,40 @@ default {
             
             // Prevent joining game in progress (except owner accessing menu)
             if (roundStarted && newKey != llGetOwner()) {
-                llOwnerSay("⚠️ " + newName + " cannot join - game in progress");
-                llRegionSayTo(newKey, 0, "⚠️ Cannot join game in progress. Wait for current game to finish.");
+                llOwnerSay("🚫 " + newName + " cannot join - the killing game has begun!");
+                llRegionSayTo(newKey, 0, "🚫 The killing game has already begun! Wait for the current game to end.");
                 return;
             }
             
             // Do not register if already present
             integer existingIdx = llListFindList(players, [newKey]);
-            llOwnerSay("🐛 DEBUG: Registration request for " + newName + " (key: " + (string)newKey + "), existingIdx: " + (string)existingIdx);
-            llOwnerSay("🐛 DEBUG: Current players: " + llList2CSV(players));
-            llOwnerSay("🐛 DEBUG: Current lives: " + llList2CSV(lives));
             if (existingIdx == -1) {
                 // Add to local lists
                 players += [newKey];
                 names += [newName];
                 lives += [3];
-                llOwnerSay("🐛 DEBUG: Added player " + newName + " with 3 lives. Lives now: " + llList2CSV(lives));
                 picksData += [newName + "|"];
                 // Track the floater channel for this player
                 integer newPlayerIdx = llGetListLength(names) - 1;
                 integer ch = -777000 + newPlayerIdx;
                 floaterChannels += [ch];
-                llOwnerSay("🔍 Added floater channel " + (string)ch + " for " + newName);
                 // Auto-mark bots as ready, leave humans as not ready
                 if (llSubStringIndex(newName, "TestBot") == 0) {
                     readyPlayers += [newName];
-                    llOwnerSay("🤖 Auto-marked bot " + newName + " as ready");
+                    llSay(0, "🤖 " + newName + " boots up with deadly precision - ready to play! 🤖");
+                } else {
+                    // Check if this is the first human player (starter - automatically ready)
+                    integer humanCount = 0;
+                    integer i;
+                    for (i = 0; i < llGetListLength(names); i++) {
+                        string playerName = llList2String(names, i);
+                        if (llSubStringIndex(playerName, "TestBot") != 0) {
+                            humanCount++;
+                        }
+                    }
+                    if (humanCount == 1) { // This is the first human player
+                        llSay(0, "👑 " + newName + " steps forward as the game master - automatically ready for the deadly challenge! 👑");
+                    }
                 }
                 // The float will be rezzed by the Floater Manager after it processes
                 // this registration.  Avoid sending MSG_REZ_FLOAT here to prevent
@@ -559,7 +556,6 @@ default {
                 if (idx != -1) {
                     // Remove player's float using the tracked channel
                     integer ch = llList2Integer(floaterChannels, idx);
-                    llOwnerSay("🔍 Cleaning up floater channel " + (string)ch + " for " + eliminatedPlayer);
                     llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
                     // Remove from all lists
                     players = llDeleteSubList(players, idx, idx);
@@ -576,11 +572,11 @@ default {
                     // Check if game should end (1 or fewer players remaining)
                     if (llGetListLength(names) <= 1) {
                         if (llGetListLength(names) == 1) {
-                            llSay(0, "🏆 " + llList2String(names, 0) + " wins the game!");
+                            llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " is the Ultimate Survivor!");
                             // Trigger victory confetti
                             llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
                         } else {
-                            llSay(0, "🏆 Game over - no players remaining!");
+                            llSay(0, "💀 DESPAIR WINS! No Ultimate Survivors remain!");
                         }
                         resetGame();
                         return;
@@ -653,10 +649,8 @@ default {
                     // Check if current peril player is still in the game
                     integer perilStillInGame = llListFindList(names, [perilPlayer]) != -1;
                     if (perilStillInGame) {
-                        llOwnerSay("🔍 DEBUG: Ignoring sync attempt to change peril player from '" + perilPlayer + "' to 'NONE'");
                         return; // Don't process this sync update
                     } else {
-                        llOwnerSay("🔍 DEBUG: Allowing peril player clear because current peril '" + perilPlayer + "' is no longer in game");
                     }
                 }
                 
@@ -664,7 +658,6 @@ default {
                 integer livesChanged = (newLivesStr != currentLivesStr);
                 
                 if (livesChanged || perilChanged) {
-                    llOwnerSay("🔍 DEBUG: Sync update needed - livesChanged=" + (string)livesChanged + ", perilChanged=" + (string)perilChanged);
                     // Decode the pickData from the encoded format
                     string encodedPicksDataStr = llList2String(parts, 1);
                     list newPicksData = [];
@@ -690,7 +683,6 @@ default {
                     
                     // Debug peril player changes
                     if (perilPlayer != newPerilPlayer) {
-                        llOwnerSay("🔍 DEBUG: Main Controller peril change: '" + perilPlayer + "' -> '" + newPerilPlayer + "'");
                     }
                     
                     // Update our game state with the new data
@@ -726,7 +718,7 @@ default {
                         requestDiceType();
                     } else {
                         // Show dialog for humans
-                        llDialog(playerKey, "🎯 You're in peril! Ready for the next round?", ["Start Next Round"], -77999);
+                        llDialog(playerKey, "💀 YOU ARE IN ULTIMATE PERIL! Are you ready to face the deadly challenge?", ["BEGIN KILLING GAME"], -77999);
                     }
                 }
             }
@@ -750,7 +742,6 @@ default {
                 if (idx != -1) {
                     // Remove player's float using the tracked channel
                     integer ch = llList2Integer(floaterChannels, idx);
-                    llOwnerSay("🔍 Cleaning up floater channel " + (string)ch + " for " + leavingName);
                     llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
                     // Remove from all lists including ready state
                     players = llDeleteSubList(players, idx, idx);
@@ -768,7 +759,7 @@ default {
                     llOwnerSay("👋 " + leavingName + " left the game");
                     // Check if game should end (less than 2 players)
                     if (llGetListLength(names) == 1) {
-                        llSay(0, " " + llList2String(names, 0) + " is the last player standing and wins the game!");
+                        llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " survives the killing game!");
                         // Trigger victory confetti
                         llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
                         resetGame();
@@ -794,13 +785,12 @@ default {
                 if (readyIdx == -1) {
                     // Player is not ready, make them ready
                     readyPlayers += [playerName];
-                    llOwnerSay("✅ " + playerName + " is now ready");
+                    llSay(0, "⚔️ " + playerName + " steels themselves for the deadly challenge ahead! ⚔️");
                 } else {
                     // Player is ready, make them not ready
                     readyPlayers = llDeleteSubList(readyPlayers, readyIdx, readyIdx);
-                    llOwnerSay("❌ " + playerName + " is no longer ready");
+                    llSay(0, "🏃 " + playerName + " loses their nerve and backs away from the challenge! 🏃");
                 }
-                llOwnerSay("🔍 Ready players: " + llList2CSV(readyPlayers));
             }
             return;
         }
@@ -815,7 +805,6 @@ default {
         }
         // Handle aggressive floater cleanup
         if (num == MSG_CLEANUP_ALL_FLOATERS) {
-            llOwnerSay("🧹 Performing aggressive floater cleanup for all possible channels...");
             integer i;
             for (i = 0; i < MAX_PLAYERS; i++) {
                 integer ch = -777000 + i;
@@ -826,12 +815,10 @@ default {
             }
             // Reset our tracked channels list
             floaterChannels = [];
-            llOwnerSay("🧹 Aggressive cleanup completed!");
             return;
         }
         // Handle HUMAN_PICKED messages from dialog handler
         if (num == -9998 && llSubStringIndex(str, "HUMAN_PICKED:") == 0) {
-            llOwnerSay("📨 Main Controller received: " + str);
             list parts = llParseString2List(str, [":"], []);
             if (llGetListLength(parts) >= 3) {
                 string playerName = llList2String(parts, 1);
@@ -865,7 +852,7 @@ default {
                         }
                     }
                     updateHelpers();
-                    llOwnerSay("👤 " + playerName + " picked: " + picksStr);
+                    llSay(0, "🎯 " + playerName + " stakes their life on numbers: " + picksStr + " 🎲");
                     
                     // Move to next picker
                     currentPickerIdx++;
@@ -874,13 +861,11 @@ default {
                     } else {
                         llOwnerSay("✅ All players have picked their numbers!");
                         // Show roll dialog to peril player
-                        llOwnerSay("🔍 DEBUG: About to show roll dialog - perilPlayer: '" + perilPlayer + "'");
                         if (perilPlayer == "" || perilPlayer == "NONE") {
                             llOwnerSay("❌ ERROR: Cannot show roll dialog - perilPlayer is invalid: '" + perilPlayer + "'");
                             return;
                         }
                         key perilKey = llList2Key(players, llListFindList(names, [perilPlayer]));
-                        llOwnerSay("🔍 DEBUG: Sending roll dialog to '" + perilPlayer + "' (key: " + (string)perilKey + ")");
                         llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
                     }
                 }
@@ -889,11 +874,11 @@ default {
         }
         // Handle BOT_PICKED messages from Bot Manager
         if (num == -9997 && llSubStringIndex(str, "BOT_PICKED:") == 0) {
-            llOwnerSay("📨 Main Controller received: " + str);
             list parts = llParseString2List(str, [":"], []);
             if (llGetListLength(parts) >= 3) {
                 string playerName = llList2String(parts, 1);
                 string picksStr = llList2String(parts, 2);
+                
                 
                 // Update the player's picks in picksData
                 integer idx = llListFindList(names, [playerName]);
@@ -913,32 +898,33 @@ default {
                     } else {
                         picksData = llListReplaceList(picksData, [newEntry], picksIdx, picksIdx);
                     }
-                    // Update global picked numbers list
-                    list newPicks = llParseString2List(picksStr, [","], []);
+                    // Update global picked numbers list - bot picks use semicolon delimiters
+                    list newPicks = llParseString2List(picksStr, [";"], []);
                     integer j;
                     for (j = 0; j < llGetListLength(newPicks); j++) {
                         string pick = llList2String(newPicks, j);
                         if (llListFindList(globalPickedNumbers, [pick]) == -1) {
                             globalPickedNumbers += [pick];
+                        } else {
+                            llOwnerSay("⚠️ WARNING: " + playerName + " picked " + pick + " which was already in globalPickedNumbers!");
                         }
                     }
                     updateHelpers();
-                    llOwnerSay("🤖 " + playerName + " picked: " + picksStr);
+                    llSay(0, "🎯 " + playerName + " (bot) stakes their digital life on numbers: " + picksStr + " 🎲");
                     
                     // Move to next picker
                     currentPickerIdx++;
                     if (currentPickerIdx < llGetListLength(pickQueue)) {
+                        string nextPicker = llList2String(pickQueue, currentPickerIdx);
                         showNextPickerDialog();
                     } else {
                         llOwnerSay("✅ All players have picked their numbers!");
                         // Show roll dialog to peril player
-                        llOwnerSay("🔍 DEBUG: About to show roll dialog - perilPlayer: '" + perilPlayer + "'");
                         if (perilPlayer == "" || perilPlayer == "NONE") {
                             llOwnerSay("❌ ERROR: Cannot show roll dialog - perilPlayer is invalid: '" + perilPlayer + "'");
                             return;
                         }
                         key perilKey = llList2Key(players, llListFindList(names, [perilPlayer]));
-                        llOwnerSay("🔍 DEBUG: Sending roll dialog to '" + perilPlayer + "' (key: " + (string)perilKey + ")");
                         llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
                     }
                 }
@@ -949,41 +935,10 @@ default {
 
 
     listen(integer channel, string name, key id, string msg) {
-        // Handle bot and human responses
-        if (channel == -9999 && (llSubStringIndex(msg, "BOT_PICKED:") == 0 || llSubStringIndex(msg, "HUMAN_PICKED:") == 0)) {
-            list parts = llParseString2List(msg, [":"], []);
-            if (llGetListLength(parts) >= 3) {
-                string playerName = llList2String(parts, 1);
-                string picksStr = llList2String(parts, 2);
-                
-                // Update the player's picks in picksData
-                integer idx = llListFindList(names, [playerName]);
-                if (idx != -1) {
-                    picksData = llListReplaceList(picksData, [playerName + "|" + picksStr], idx, idx);
-                    updateHelpers();
-                    string icon = "🤖";
-                    if (llSubStringIndex(msg, "HUMAN_PICKED:") == 0) icon = "👤";
-                    llOwnerSay(icon + " " + playerName + " picked: " + picksStr);
-                    
-                    // Move to next picker
-                    currentPickerIdx++;
-                    if (currentPickerIdx < llGetListLength(pickQueue)) {
-                        showNextPickerDialog();
-                    } else {
-                        llOwnerSay("✅ All players have picked their numbers!");
-                        // Show roll dialog to peril player
-                        key perilKey = llList2Key(players, llListFindList(names, [perilPlayer]));
-                        llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                    }
-                }
-            }
-            return;
-        }
         
         if (channel == rollDialogChannel) {
-            if (msg == "Start Next Round") {
-                llOwnerSay("🔍 DEBUG: Start Next Round clicked by " + llKey2Name(id) + ", but perilPlayer=" + perilPlayer);
-                llSay(0, "🎯 " + perilPlayer + " is starting the next round!");
+            if (msg == "Start Next Round" || msg == "BEGIN KILLING GAME") {
+                llSay(0, "⚡ THE KILLING GAME CONTINUES! " + perilPlayer + " begins the next deadly round!");
                 startNextRound();
                 requestDiceType();
                 return;
@@ -1078,7 +1033,7 @@ default {
                 }
                 
                 // All checks passed, start the game
-                llOwnerSay("✅ All players ready! Starting game...");
+                llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
                 startNextRound();
                 requestDiceType();
             }

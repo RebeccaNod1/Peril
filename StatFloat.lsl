@@ -51,7 +51,6 @@ default {
                 target = (key)llGetSubString(llList2String(parts, 0), 6, -1);
                 displayText = llList2String(parts, 1);
                 llSetText(displayText, <1,1,1>, 1.0);
-                llOwnerSay("✅ StatFloat updated for: " + (string)target);
             }
         }
         else if (message == "CLEANUP") {

@@ -41,7 +41,6 @@ list getNumbersForPage(integer page, integer diceType) {
 }
 
 showPickDialog(string name, key id, integer diceType, integer picks) {
-    llOwnerSay("🎮 showPickDialog called: name=" + name + ", id=" + (string)id + ", diceType=" + (string)diceType + ", picks=" + (string)picks);
     if (diceType <= 0) {
         llOwnerSay("⚠️ Cannot show dialog: diceType is 0 or invalid.");
         return;
@@ -98,7 +97,6 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
         dialogText = "Pick " + pickText + " (1-" + (string)diceType + ")" + pageInfo + currentPicksText;
     }
     
-    llOwnerSay("🗨️ Showing dialog to: " + name + " - needs " + pickText + pageInfo);
     llDialog(id, dialogText, options, numberPickChannel);
 }
 
@@ -109,10 +107,8 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
-        llOwnerSay("📥 Dialog Handler received: num=" + (string)num + ", str=" + str + ", id=" + (string)id);
         if (num == MSG_SHOW_DIALOG) {
-            llOwnerSay("✅ Processing MSG_SHOW_DIALOG...");
-            list parts = llParseString2List(str, ["|"], []);
+                    list parts = llParseString2List(str, ["|"], []);
             if (llGetListLength(parts) < 3) {
                 llOwnerSay("⚠️ Malformed MSG_SHOW_DIALOG input: " + str);
                 return;
@@ -134,16 +130,11 @@ default {
                 globallyPickedNumbers = [];
             }
             
-            llOwnerSay("🎯 Calling showPickDialog for " + name + " with diceType=" + (string)diceType + ", picks=" + (string)picks);
-            if (llGetListLength(globallyPickedNumbers) > 0) {
-                llOwnerSay("📋 Available numbers: " + (string)(diceType - llGetListLength(globallyPickedNumbers)) + "/" + (string)diceType);
-            }
             showPickDialog(name, id, diceType, picks);
         }
     }
 
     listen(integer channel, string name, key id, string message) {
-        llOwnerSay("🔊 Listen triggered: " + message + " from " + name);
         
         // Handle navigation
         if (message == "◀ Prev") {
@@ -166,9 +157,7 @@ default {
         if (message == "✅ Done") {
             if (llGetListLength(currentPicks) >= picksNeeded) {
                 string picksStr = llList2CSV(currentPicks);
-                llOwnerSay("✅ " + currentPlayer + " completed picks: " + picksStr);
                 string response = "HUMAN_PICKED:" + currentPlayer + ":" + picksStr;
-                llOwnerSay("📡 Sending to Main Controller: " + response);
                 llMessageLinked(LINK_SET, -9998, response, NULL_KEY);
                 // Reset state
                 currentPlayer = "";
@@ -187,7 +176,6 @@ default {
             if (llGetListLength(currentPicks) < picksNeeded) {
                 // Add to picks (numbers already picked won't be shown in dialog)
                 currentPicks += [message];
-                llOwnerSay("✅ " + currentPlayer + " picked: " + message + " (" + (string)llGetListLength(currentPicks) + "/" + (string)picksNeeded + ")");
             } else {
                 llOwnerSay("⚠️ " + currentPlayer + " has already picked enough numbers");
             }

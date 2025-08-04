@@ -7,11 +7,16 @@ list validatePicksData(list picksData, list names) {
     for (i = 0; i < llGetListLength(picksData); i++) {
         string entry = llList2String(picksData, i);
         list parts = llParseString2List(entry, ["|"], []);
+        
+        // Handle entries ending with "|" (empty picks) - LSL drops trailing empty elements
+        if (llGetListLength(parts) == 1 && llGetSubString(entry, -1, -1) == "|") {
+            parts += [""];  // Add the empty picks part back
+        }
 
         if (llGetListLength(parts) == 2) {
             string name = llList2String(parts, 0);
             string picks = llList2String(parts, 1);
-            list pickNums = llParseString2List(picks, [","], []);
+            list pickNums = llParseString2List(picks, [";"], []);
 
             // Check if name is in names list
             if (names != [] && llListFindList(names, [name]) == -1) {
@@ -23,9 +28,7 @@ list validatePicksData(list picksData, list names) {
             list uniqueCheck = [];
             for (j = 0; j < llGetListLength(pickNums); j++) {
                 string pick = llList2String(pickNums, j);
-                if ((string)((float)pick) != pick) {
-                    llOwnerSay("⚠️ Invalid number in picks for " + name + ": '" + pick + "'");
-                }
+                // Skip validation warnings for cosmetic issues
                 if (~llListFindList(uniqueCheck, [pick])) {
                     llOwnerSay("🚨 Duplicate pick in " + name + "'s picks: " + pick);
                 } else {
@@ -75,7 +78,12 @@ default {
             }
 
             list lives = llCSV2List(llList2String(parts, 0));
-            list picksData = llCSV2List(llList2String(parts, 1));
+            // Use ^ delimiter for picksData to avoid comma conflicts
+            string picksDataStr = llList2String(parts, 1);
+            list picksData = [];
+            if (picksDataStr != "" && picksDataStr != "EMPTY") {
+                picksData = llParseString2List(picksDataStr, ["^"], []);
+            }
             string perilPlayer = llList2String(parts, 2);
             list names = llCSV2List(llList2String(parts, 3));
 
@@ -92,9 +100,7 @@ default {
             }
             @skipCheck;
             
-            if (hasPicksData) {
-                llOwnerSay("🔍 Checking picksData...");
-            }
+            // Only show checking message for actual issues, not routine validation
             validatePicksData(picksData, names);
         }
     }
