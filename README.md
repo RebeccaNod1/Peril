@@ -30,18 +30,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 6. **Elimination**: Players with 0 lives are eliminated
 7. **Victory**: Last player standing wins! 🏆
 
-## Installation
 
-1. Rez the main controller object in your desired location
-2. Ensure all scripts are loaded:
-   - `Main.lsl` (Main Controller)
-   - `Owner and Player Dialog Handler.lsl`
-   - `Number Picker Dialog Handler.lsl`
-   - `Roll Confetti Module.lsl`
-   - `Bot Manager.lsl`
-   - `Floater Manager.lsl`
-   - `StatFloat.lsl` (for the floating HUD objects)
-3. Touch the object to register as a player and start playing!
 
 ## How to Play
 
