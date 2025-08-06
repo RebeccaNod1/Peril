@@ -122,6 +122,18 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset helper state
+            lives = [];
+            picksData = [];
+            perilPlayer = "";
+            names = [];
+            pickQueue = [];
+            llOwnerSay("🧘 Helper Module reset!");
+            return;
+        }
+        
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
             lives = llCSV2List(llList2String(parts, 0));

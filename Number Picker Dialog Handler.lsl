@@ -1,6 +1,7 @@
 // === Dialog Handler (Updated for Peril Dice - Paginated Multiple Picks) ===
 
 integer MSG_SHOW_DIALOG = 101;
+integer MSG_GET_CURRENT_DIALOG = 302;
 integer numberPickChannel = -77888;
 
 // Pagination and picking state
@@ -66,11 +67,19 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
         // Show number selection with pagination
         options = getNumbersForPage(currentPage, diceType);
         
+        // If current page has no numbers, go back to page 0
+        if (llGetListLength(options) == 0 && currentPage > 0) {
+            currentPage = 0;
+            options = getNumbersForPage(currentPage, diceType);
+        }
+        
         // Calculate total pages based on available numbers, not all numbers
         integer availableCount = diceType - llGetListLength(globallyPickedNumbers) - llGetListLength(currentPicks);
         totalPages = (availableCount + NUMBERS_PER_PAGE - 1) / NUMBERS_PER_PAGE;
         if (totalPages < 1) totalPages = 1;
-        if (totalPages > 1) {
+        
+        // Only show navigation if there are multiple pages AND current page has numbers
+        if (totalPages > 1 && llGetListLength(options) > 0) {
             if (currentPage > 0) options += ["◀ Prev"];
             if (currentPage < totalPages - 1) options += ["Next ▶"];
         }
@@ -107,8 +116,22 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset all dialog state
+            currentPlayer = "";
+            currentPlayerKey = NULL_KEY;
+            currentDiceType = 0;
+            picksNeeded = 1;
+            currentPicks = [];
+            globallyPickedNumbers = [];
+            currentPage = 0;
+            llOwnerSay("🎮 Number Picker Dialog Handler reset!");
+            return;
+        }
+        
         if (num == MSG_SHOW_DIALOG) {
-                    list parts = llParseString2List(str, ["|"], []);
+            list parts = llParseString2List(str, ["|"], []);
             if (llGetListLength(parts) < 3) {
                 llOwnerSay("⚠️ Malformed MSG_SHOW_DIALOG input: " + str);
                 return;
@@ -132,6 +155,18 @@ default {
             
             showPickDialog(name, id, diceType, picks);
         }
+        
+        // Handle dialog recovery requests
+        else if (num == MSG_GET_CURRENT_DIALOG) {
+            string playerName = str;
+            // Only show dialog if this player is the current picker
+            if (currentPlayer == playerName && currentPlayerKey == id) {
+                llOwnerSay("🔄 Restoring dialog for " + playerName);
+                showPickDialog(currentPlayer, currentPlayerKey, currentDiceType, picksNeeded);
+            } else {
+                llRegionSayTo(id, 0, "❌ You don't have an active dialog to restore.");
+            }
+        }
     }
 
     listen(integer channel, string name, key id, string message) {
@@ -145,7 +180,11 @@ default {
             return;
         }
         if (message == "Next ▶") {
-            integer totalPages = (currentDiceType + NUMBERS_PER_PAGE - 1) / NUMBERS_PER_PAGE;
+            // Calculate total pages based on AVAILABLE numbers, not all dice numbers
+            integer availableCount = currentDiceType - llGetListLength(globallyPickedNumbers) - llGetListLength(currentPicks);
+            integer totalPages = (availableCount + NUMBERS_PER_PAGE - 1) / NUMBERS_PER_PAGE;
+            if (totalPages < 1) totalPages = 1;
+            
             if (currentPage < totalPages - 1) {
                 currentPage++;
                 showPickDialog(currentPlayer, currentPlayerKey, currentDiceType, picksNeeded);

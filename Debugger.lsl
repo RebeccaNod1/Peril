@@ -70,6 +70,13 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Debugger doesn't maintain state, but acknowledge reset
+            llOwnerSay("🔍 Debugger reset!");
+            return;
+        }
+        
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
             if (llGetListLength(parts) < 4) {

@@ -73,6 +73,18 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset all game state
+            players = [];
+            names = [];
+            lives = [];
+            picksData = [];
+            perilPlayer = "";
+            llOwnerSay("📦 Floater Manager reset!");
+            return;
+        }
+        
         if (num == MSG_REGISTER_PLAYER) {
             // Enforce the maximum number of players
             if (llGetListLength(players) >= MAX_PLAYERS) {
@@ -85,6 +97,8 @@ default {
             key avKey = llList2Key(info, 1);
             names += [name];
             players += [avKey];
+            lives += [3]; // Initialize with 3 lives for new players
+            picksData += [name + "|"];  // Initialize with empty picks
             llSay(0, "💀 " + name + " has entered the deadly game! Welcome to your potential doom! 💀");
 
             // Immediately rez the float after registration.  This ensures the
@@ -118,15 +132,21 @@ default {
                 // Real avatars: rez next to the avatar with the standard offset
                 pos = basePos + <1, 0, 1>;
             } else {
-                // Test players: space floats apart along the X axis so they don't overlap.
-                // Each test player gets an additional 0.5m offset based on their index.
-                // This uses the current prim's position as the base since there's no
-                // avatar position available.
-                pos = basePos + <1 + (float)idx * 0.5, 0, 1>;
+                // Test players: space floats apart and away from the scoreboard/leaderboard area.
+                // Move them further away (3-5 meters) and spread them out more.
+                // This prevents them from spawning directly on the leaderboard.
+                pos = basePos + <-4.0 - (float)idx * 1.0, 2.0 + (float)idx * 0.8, 1>;
             }
             integer ch = -777000 + idx;
-            llSetObjectDesc(name);
             llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
+            // Wait a moment then set the description
+            llSleep(0.2);
+            // Find the rezzed object and set its description
+            list nearby = llGetObjectDetails(llGetKey(), [OBJECT_POS]);
+            if (llGetListLength(nearby) > 0) {
+                // Use llRegionSay to tell the StatFloat its name
+                llRegionSay(ch, "SET_NAME:" + name);
+            }
             // After rezzing, immediately update the float so it displays the
             // correct lives, picks and peril status.  Use the avatar key as
             // the id to keep the float tied to the player.  This ensures that
@@ -159,7 +179,7 @@ default {
             }
 
             string picksDisplay = llList2CSV(picks);
-            string txt = "🎲 Peril Dice\n👤 " + name + "\n❤️ Lives: " + (string)lifeCount + "\n" + perilName + "\n🔢 Picks: " + picksDisplay;
+            string txt = "🎲 Peril Dice\n👤 " + name + "\nLives: " + (string)lifeCount + "\n" + perilName + "\n🔢 Picks: " + picksDisplay;
             llRegionSay(ch, "FLOAT:" + (string)avKey + "|" + txt);
         }
         else if (num == MSG_CLEANUP_FLOAT) {

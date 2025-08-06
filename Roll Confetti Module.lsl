@@ -68,6 +68,19 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset roll confetti module state
+            names = [];
+            lives = [];
+            picksData = [];
+            perilPlayer = "";
+            // Stop any active particles
+            llParticleSystem([]);
+            llOwnerSay("🎆 Roll Confetti Module reset!");
+            return;
+        }
+        
         // Handle game state sync from main controller
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
@@ -155,6 +168,12 @@ default {
             if (matched && newPeril != "") {
                 llSay(0, "⚡ PLOT TWIST! " + newPeril + " picked " + resultStr + " (rolled on d" + (string)diceType + ") and is now in ULTIMATE PERIL! ⚡");
                 perilPlayer = newPeril;
+                
+                // Send Plot Twist status to scoreboard
+                llRegionSay(-12345, "GAME_STATUS|Plot Twist");
+                // Add delay to let status display before next phase
+                llSleep(2.0);
+                
                 // Update floaters immediately to show correct peril player before sync
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
             } else {
@@ -163,19 +182,42 @@ default {
                     integer currentLives = llList2Integer(lives, pidx);
                     lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
                     
+                    // Immediately send updated heart count to scoreboard
+                    integer newLives = currentLives - 1;
+                    key perilKey = NULL_KEY; // We don't have player keys in this module, use NULL_KEY
+                    if (pidx < llGetListLength(names)) {
+                        string updateMsg = "PLAYER_UPDATE|" + perilPlayer + "|" + (string)newLives + "|" + (string)perilKey;
+                        llRegionSay(-12345, updateMsg);
+                        llOwnerSay("💗 Immediate scoreboard update: " + perilPlayer + " now has " + (string)newLives + " lives");
+                    }
+                    
                     // Check if peril player picked the rolled number
                     list perilPicks = getPicksFor(perilPlayer);
                     integer perilPickedIt = (llListFindList(perilPicks, [resultStr]) != -1);
                     
                     if (perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
+                        // Send Direct Hit status to scoreboard
+                        llRegionSay(-12345, "GAME_STATUS|Direct Hit");
+                        // Add delay to let status display before next phase
+                        llSleep(2.0);
                     } else {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
+                        // Send No Shield status to scoreboard
+                        llRegionSay(-12345, "GAME_STATUS|No Shield");
+                        // Add delay to let status display before next phase
+                        llSleep(2.0);
                     }
+                    
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, perilPlayer, NULL_KEY);
                     
                     // Check for elimination
                     if (currentLives - 1 <= 0) {
+                        // Show 0 hearts on scoreboard before elimination message
+                        string eliminationUpdateMsg = "PLAYER_UPDATE|" + perilPlayer + "|0|" + (string)NULL_KEY;
+                        llRegionSay(-12345, eliminationUpdateMsg);
+                        llOwnerSay("💀 Elimination update: " + perilPlayer + " now shows 0 hearts");
+                        
                         llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
                         // Remove eliminated player (send message to main controller)
                         llMessageLinked(LINK_SET, 999, "ELIMINATE_PLAYER|" + perilPlayer, NULL_KEY);

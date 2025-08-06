@@ -13,6 +13,17 @@ integer numberPickChannel = -77888;
 integer rollDialogChannel = -77999;
 integer DIALOG_CHANNEL = -88888;
 
+// Game timing settings to prevent dialog system overload
+float BOT_PICK_DELAY = 2.0;      // Delay after bot picks before next action
+float HUMAN_PICK_DELAY = 1.0;    // Delay after human picks before next action
+float DIALOG_DELAY = 1.5;        // Delay before showing dialogs
+integer gameTimer = 0;           // Timer for game flow delays
+
+// Status message timing
+float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
+integer statusTimer = 0;         // Track when status messages were sent
+string lastStatus = "";          // Track last status sent
+
 list players = [];
 list names = [];
 list lives = [];
@@ -39,6 +50,14 @@ integer MSG_QUERY_READY_STATE = 210;
 integer MSG_READY_STATE_RESULT = 211;
 integer MSG_CLEANUP_ALL_FLOATERS = 212;
 integer MSG_SHOW_ROLL_DIALOG = 301;
+integer MSG_GET_CURRENT_DIALOG = 302;
+integer MSG_PLAYER_WON = 551;
+integer MSG_RESET_LEADERBOARD = 553; // Custom message to reset leaderboard
+
+// Display configuration
+integer CONTROLLER_FACE = 1;  // Face to display start image on (front face)
+string TEXTURE_START = "title_start";  // Start image texture
+string TEXTURE_GAME_ACTIVE = "game_active";  // Optional: different texture during game
 
 integer MSG_GET_DICE_TYPE = 1001;
 integer MSG_GET_PICKS_REQUIRED = 1002;
@@ -60,6 +79,17 @@ integer warning9min = 540;
 integer lastWarning = 0;
 
 key currentPicker;
+
+// Send status message to scoreboard with timing
+sendStatusMessage(string status) {
+    statusTimer = llGetUnixTime();
+    lastStatus = status;
+    llRegionSay(-12345, "GAME_STATUS|" + status);
+    llOwnerSay("📢 Status: " + status + " (showing for " + (string)STATUS_DISPLAY_TIME + "s)");
+    
+    // Start timer to automatically clear status after display time
+    llSetTimerEvent(STATUS_DISPLAY_TIME + 1.0); // Add 1 second buffer
+}
 
 // Forward game state to helpers when it changes
 updateHelpers() {
@@ -111,6 +141,26 @@ updateHelpers() {
         "~" + perilForSync + "~" + llList2CSV(names);
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, serialized, NULL_KEY);
     llMessageLinked(LINK_SET, MSG_SYNC_PICKQUEUE, llList2CSV(pickQueue), NULL_KEY);
+    
+    // Send a test message first to verify scoreboard communication
+    llRegionSay(-12345, "GAME_STATUS|Testing communication...");
+    llOwnerSay("DEBUG: Sent test message to scoreboard");
+    
+    // Send player updates to scoreboard
+    integer j;
+    for (j = 0; j < llGetListLength(names); j++) {
+        string playerName = llList2String(names, j);
+        integer playerLives = llList2Integer(lives, j);
+        key playerKey = llList2Key(players, j);
+        
+        // Use the actual player key as the profile UUID
+        string profileUUID = (string)playerKey;
+        
+        // Send PLAYER_UPDATE message to scoreboard
+        string updateMsg = "PLAYER_UPDATE|" + playerName + "|" + (string)playerLives + "|" + profileUUID;
+        llOwnerSay("DEBUG: Sending to scoreboard: " + updateMsg);
+        llRegionSay(-12345, updateMsg);
+    }
 }
 
 // Request helper-calculated values
@@ -148,15 +198,36 @@ resetGame() {
             llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
         }
     }
+    
+    // Reset all game state variables
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
     floaterChannels = []; // Clear the tracked channels
     perilPlayer = "";
     pickQueue = [];
     currentPickerIdx = 0;
     roundStarted = FALSE; // Reset round flag
+    currentPicker = NULL_KEY; // Reset current picker
+    timeoutTimer = 0; // Reset timeout timer
+    lastWarning = 0; // Reset warning timer
+    diceType = 6; // Reset dice type to default
+    
+    // Send reset message to all other scripts to clear their state
+    llMessageLinked(LINK_SET, -99999, "FULL_RESET", NULL_KEY);
     llSay(syncChannel, "RESET");
-    llOwnerSay(" Game reset!");
-    llSleep(0.2);
+    
+    // Send CLEAR_GAME message to scoreboard to reset display
+    llRegionSay(-12345, "CLEAR_GAME");
+    llOwnerSay("🎮 Game reset! All state cleared (including scoreboard).");
+    
+    // Clear status tracking
+    statusTimer = 0;
+    lastStatus = "";
+    
+    // Reset controller display to start image
+    llSetTexture(TEXTURE_START, CONTROLLER_FACE);
+    llSetText("🎮 PERIL DICE GAME\nTouch to play!", <1.0, 1.0, 0.0>, 1.0);
+    
+    llSleep(0.5); // Give other scripts time to process reset
     llSetTimerEvent(0);
     updateHelpers();
 }
@@ -249,9 +320,17 @@ startNextRound() {
         return;
     }
     // If somehow called with exactly one player, treat them as the winner and reset.
-    if (llGetListLength(names) == 1) {
-        llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " is the Ultimate Survivor!");
-        resetGame();
+if (llGetListLength(names) == 1) {
+string winner = llList2String(names, 0);
+llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
+// Trigger victory confetti and record win
+llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
+llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
+sendStatusMessage("Victory");  // Show victory status
+                        // Wait for victory status to display before reset
+                        llSleep(STATUS_DISPLAY_TIME + 1.0);
+resetGame();
         return;
     }
     // DON'T reset round flag during continuation rounds - only reset for brand new games
@@ -263,7 +342,12 @@ startNextRound() {
         integer randomIdx = (integer)llFrand(llGetListLength(names));
         perilPlayer = llList2String(names, randomIdx);
         llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
+        sendStatusMessage("Peril Selected");  // Show peril selected status when peril player is chosen
     } else {
+        // Continue showing peril selected status for existing peril player
+        sendStatusMessage("Peril Selected");
+        // Add delay to allow this status to display before next phase
+        llSleep(STATUS_DISPLAY_TIME * 0.6); // Wait 60% of status display time (~5 seconds)
     }
     picksData = [];
     globalPickedNumbers = [];
@@ -291,6 +375,9 @@ showNextPickerDialog() {
     
     string firstName = llList2String(pickQueue, currentPickerIdx);
     currentPicker = llList2Key(players, llListFindList(names, [firstName]));
+    
+    // Add delay before showing dialog to prevent system overload
+    llSleep(DIALOG_DELAY);
     
     // Check if this is a bot (TestBot names)
     if (llSubStringIndex(firstName, "TestBot") == 0) {
@@ -335,6 +422,11 @@ default {
         llOwnerSay("🎮 Main Controller ready!");
         llOwnerSay("🎮 Main Controller key: " + (string)llGetKey());
         llOwnerSay("🎮 Main Controller position: " + (string)llGetPos());
+        
+        // Set the start image on the controller prim
+        llSetTexture(TEXTURE_START, CONTROLLER_FACE);
+        llSetText("🎮 PERIL DICE GAME\nTouch to play!", <1.0, 1.0, 0.0>, 1.0);
+        
         llListen(DIALOG_CHANNEL, "", NULL_KEY, "");
         llListen(-9999, "", NULL_KEY, ""); // Listen for bot responses
         llListen(rollDialogChannel, "", NULL_KEY, ""); // Listen for roll dialog responses
@@ -344,6 +436,56 @@ default {
         llOwnerSay("Touched by: " + (string)llDetectedKey(0));
         key toucher = llDetectedKey(0);
         integer idx = llListFindList(players, [toucher]);
+        
+// Check if player has a current dialog they can recover
+if (idx != -1 && toucher != llGetOwner() && roundStarted) {
+    string playerName = llList2String(names, idx);
+    // Check if this player is the current picker waiting for a dialog
+    if (currentPicker == toucher) {
+        llRegionSayTo(toucher, 0, "🔄 Restoring your number picking dialog...");
+        llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, playerName, toucher);
+        return;
+    }
+    // Check if this player is the peril player who might need a roll dialog
+    else if (playerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
+        llRegionSayTo(toucher, 0, "🔄 Restoring your roll dialog...");
+        llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, toucher);
+        return;
+    }
+}
+
+// Special handling for owner during gameplay
+if (toucher == llGetOwner() && roundStarted) {
+    string ownerName = llKey2Name(toucher);
+    list options = [];
+    string menuText = "Game in progress. What would you like to do?";
+    
+    // Check if owner has active dialogs they can recover
+    integer hasActiveDialog = FALSE;
+    if (currentPicker == toucher) {
+        options += ["🔄 Recover Pick Dialog"];
+        hasActiveDialog = TRUE;
+    }
+    if (ownerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
+        options += ["🔄 Recover Roll Dialog"];
+        hasActiveDialog = TRUE;
+    }
+    
+    // Always offer admin menu
+    options += ["🔧 Admin Menu"];
+    
+    // If no active dialogs, just show admin menu directly
+    if (!hasActiveDialog) {
+        llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner during gameplay");
+        llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", toucher);
+        return;
+    }
+    
+    // Show choice dialog
+    llDialog(toucher, menuText, options, DIALOG_CHANNEL);
+    return;
+}
+        
         if (toucher == llGetOwner()) {
             // Determine if this will be the first registered player (starter) before registration
             integer isStarter = FALSE;
@@ -364,7 +506,7 @@ default {
                 llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, ownerName + "|" + (string)toucher, NULL_KEY);
             } else {
                 // Already registered; check if owner is the first human player
-                string ownerName = llList2String(names, idx);
+                // Owner is starter if they are at index 0 OR if all players before them are bots
                 isStarter = TRUE;  // Default to TRUE for owner
                 integer k;
                 for (k = 0; k < idx && isStarter; k++) {
@@ -372,11 +514,17 @@ default {
                     // If there's a human player before the owner, owner is not starter
                     if (llSubStringIndex(existingName, "TestBot") != 0) {
                         isStarter = FALSE;
-                        llOwnerSay("❌ Found human player before owner, not starter");
+                        llOwnerSay("DEBUG: Found human player before owner at index " + (string)k + ": " + existingName);
                     }
+                }
+                // Special case: if owner is at index 0, they are definitely the starter
+                if (idx == 0) {
+                    isStarter = TRUE;
+                    llOwnerSay("DEBUG: Owner is at index 0, definitely starter");
                 }
             }
             // Show the owner menu with the appropriate starter flag
+            llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner, isStarter=" + (string)isStarter + ", idx=" + (string)idx);
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
         } else if (idx != -1) {
             // For non-owner players, check if they're the first human player
@@ -390,6 +538,27 @@ default {
                 }
             }
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
+        } else {
+            // Unregistered non-owner player - register them and show menu
+            string playerName = llKey2Name(toucher);
+            if (playerName != "") {
+                // Send a registration request; Main.lsl will handle adding them and rezzing a float
+                llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, playerName + "|" + (string)toucher, NULL_KEY);
+                // Determine if this will be the first human player (starter)
+                integer isStarter = TRUE;  // Default to TRUE
+                integer n;
+                for (n = 0; n < llGetListLength(names) && isStarter; n++) {
+                    string existingName = llList2String(names, n);
+                    // If there's already a human player (not a bot), this player is not starter
+                    if (llSubStringIndex(existingName, "TestBot") != 0) {
+                        isStarter = FALSE;
+                    }
+                }
+                // Show the player menu with the appropriate starter flag
+                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
+            } else {
+                llOwnerSay("⚠️ Could not get name for toucher: " + (string)toucher);
+            }
         }
     }
 
@@ -523,7 +692,7 @@ default {
                     readyPlayers += [newName];
                     llSay(0, "🤖 " + newName + " boots up with deadly precision - ready to play! 🤖");
                 } else {
-                    // Check if this is the first human player (starter - automatically ready)
+                    // Check if this is the first human player (starter - automatically ready only if owner)
                     integer humanCount = 0;
                     integer i;
                     for (i = 0; i < llGetListLength(names); i++) {
@@ -533,7 +702,14 @@ default {
                         }
                     }
                     if (humanCount == 1) { // This is the first human player
-                        llSay(0, "👑 " + newName + " steps forward as the game master - automatically ready for the deadly challenge! 👑");
+                        if (newKey == llGetOwner()) {
+                            // Owner is auto-ready as starter
+                            readyPlayers += [newName];
+                            llSay(0, "👑 " + newName + " steps forward as the game master - automatically ready for the deadly challenge! 👑");
+                        } else {
+                            // Non-owner starter can toggle ready state
+                            llSay(0, "👑 " + newName + " steps forward as the game master! Touch to set your ready status.");
+                        }
                     }
                 }
                 // The float will be rezzed by the Floater Manager after it processes
@@ -566,17 +742,30 @@ default {
                     
                     llOwnerSay("🗑️ Eliminated " + eliminatedPlayer + ". Remaining players: " + (string)llGetListLength(names));
                     
+                    // Show elimination status when someone is actually eliminated
+                    sendStatusMessage("Elimination");
+                    
                     // Update all scripts with the new player lists after elimination
                     updateHelpers();
                     
                     // Check if game should end (1 or fewer players remaining)
                     if (llGetListLength(names) <= 1) {
-                        if (llGetListLength(names) == 1) {
-                            llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " is the Ultimate Survivor!");
-                            // Trigger victory confetti
-                            llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+if (llGetListLength(names) == 1) {
+string winner = llList2String(names, 0);
+llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
+// Trigger victory confetti and record win
+llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
+llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
+                            // Wait for elimination status to display before showing victory
+                            llSleep(STATUS_DISPLAY_TIME * 0.8); // Wait 80% of status display time (~6.4 seconds)
+sendStatusMessage("Victory");  // Show victory status
+                            // Wait for victory status to display before reset
+                            llSleep(STATUS_DISPLAY_TIME + 1.0);
                         } else {
                             llSay(0, "💀 DESPAIR WINS! No Ultimate Survivors remain!");
+                            // Wait for elimination status to display before reset (elimination already sent above)
+                            llSleep(STATUS_DISPLAY_TIME + 1.0);
                         }
                         resetGame();
                         return;
@@ -625,9 +814,10 @@ default {
         if (num == 998) {
             list parts = llParseString2List(str, ["|"], []);
             if (llList2String(parts, 0) == "GAME_WON") {
-                string winner = llList2String(parts, 1);
-                llSleep(2.0); // Let celebration message display
-                resetGame();
+string winner = llList2String(parts, 1);
+llRegionSay(-12346, "GAME_WON|" + winner); // Send winner info to scoreboard
+llSleep(2.0); // Let celebration message display
+resetGame();
             }
             return;
         }
@@ -758,13 +948,17 @@ default {
                     updateHelpers();
                     llOwnerSay("👋 " + leavingName + " left the game");
                     // Check if game should end (less than 2 players)
-                    if (llGetListLength(names) == 1) {
-                        llSay(0, "✨ ULTIMATE VICTORY! " + llList2String(names, 0) + " survives the killing game!");
-                        // Trigger victory confetti
-                        llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
-                        resetGame();
-                    } else if (llGetListLength(names) == 0) {
-                        resetGame();
+if (llGetListLength(names) == 1) {
+string winner = llList2String(names, 0);
+llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
+// Trigger victory confetti and record win
+llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
+llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
+sendStatusMessage("Victory");  // Show victory status
+                        // Wait for victory status to display before reset
+                        llSleep(STATUS_DISPLAY_TIME + 1.0);
+resetGame();
                     }
                 }
             }
@@ -854,6 +1048,9 @@ default {
                     updateHelpers();
                     llSay(0, "🎯 " + playerName + " stakes their life on numbers: " + picksStr + " 🎲");
                     
+                    // Add delay before moving to next picker to prevent dialog system overload
+                    llSleep(HUMAN_PICK_DELAY);
+                    
                     // Move to next picker
                     currentPickerIdx++;
                     if (currentPickerIdx < llGetListLength(pickQueue)) {
@@ -912,6 +1109,9 @@ default {
                     updateHelpers();
                     llSay(0, "🎯 " + playerName + " (bot) stakes their digital life on numbers: " + picksStr + " 🎲");
                     
+                    // Add delay after bot picks to prevent dialog system overload
+                    llSleep(BOT_PICK_DELAY);
+                    
                     // Move to next picker
                     currentPickerIdx++;
                     if (currentPickerIdx < llGetListLength(pickQueue)) {
@@ -946,23 +1146,45 @@ default {
         }
         
         if (channel == DIALOG_CHANNEL) {
+            // Handle owner choice dialog responses during gameplay
+            if (id == llGetOwner() && roundStarted) {
+                if (msg == "🔄 Recover Pick Dialog") {
+                    string ownerName = llKey2Name(id);
+                    llRegionSayTo(id, 0, "🔄 Restoring your number picking dialog...");
+                    llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, ownerName, id);
+                    return;
+                }
+                else if (msg == "🔄 Recover Roll Dialog") {
+                    llRegionSayTo(id, 0, "🔄 Restoring your roll dialog...");
+                    llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, id);
+                    return;
+                }
+                else if (msg == "🔧 Admin Menu") {
+                    llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner admin during gameplay");
+                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", id);
+                    return;
+                }
+            }
+            
             // Owner-specific commands: only owner messages in the dialog should be processed here.
             if (id == llGetOwner()) {
-                if (msg == "Reset Game") {
-                    resetGame();
+if (msg == "Reset Game") {
+resetGame(); // Only reset current game, keep leaderboard
+                    return;
+                }
+                if (msg == "Reset Leaderboard") {
+llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset only leaderboard scores
+                    llOwnerSay("🏆 Leaderboard scores reset - game wins cleared!");
+                    return;
+                }
+                if (msg == "Reset All") {
+                    resetGame(); // Reset current game
+llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
+                    llOwnerSay("🔄 Complete reset - game and leaderboard cleared!");
                     return;
                 }
                 // Note: do not handle "Start Game" here; allow the generic start logic below to apply,
                 // so that minimum player checks are enforced and non-owner starters can initiate the game.
-                if (msg == "Dump Players") {
-                    llOwnerSay(" Players: " + llList2CSV(names));
-                    return;
-                }
-                if (msg == "Manage Picks") {
-                    llOwnerSay(" Fetching list of players for pick management...");
-                    llMessageLinked(LINK_SET, 202, "REQUEST_PLAYER_LIST", llGetOwner());
-                    return;
-                }
                 if (msg == "Add Test Player") {
                     // Ensure we do not exceed the maximum allowed players
                     if (llGetListLength(players) >= MAX_PLAYERS) {
@@ -1034,12 +1256,51 @@ default {
                 
                 // All checks passed, start the game
                 llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
+                
+                // Change controller display to show game is active
+                llSetText("🎮 GAME IN PROGRESS\nRound " + (string)(llGetListLength(names)) + " players", <1.0, 0.2, 0.2>, 1.0);
+                
+                sendStatusMessage("Title");  // Show title status at game start
                 startNextRound();
                 requestDiceType();
             }
             // If the message text matches a player name, request their pick list
             if (llListFindList(names, [msg]) != -1) {
                 llMessageLinked(LINK_SET, 206, msg, id);
+            }
+        }
+    }
+    
+    timer() {
+        // Check if we need to clear status message
+        if (statusTimer > 0 && (llGetUnixTime() - statusTimer) >= STATUS_DISPLAY_TIME) {
+            // Clear the status and revert to title
+            statusTimer = 0;
+            lastStatus = "";
+            llRegionSay(-12345, "GAME_STATUS|Title");
+            llOwnerSay("📢 Status cleared - reverted to Title");
+            llSetTimerEvent(0); // Stop timer if no other timing needed
+        }
+        
+        // Handle dialog timeout warnings (existing code)
+        if (timeoutTimer > 0) {
+            integer elapsed = llGetUnixTime() - timeoutTimer;
+            if (elapsed >= TIMEOUT_SECONDS) {
+                llOwnerSay("⏰ Dialog timeout reached!");
+                llSetTimerEvent(0);
+                timeoutTimer = 0;
+            } else {
+                integer remaining = TIMEOUT_SECONDS - elapsed;
+                if (remaining <= warning2min && lastWarning < warning2min) {
+                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                    lastWarning = warning2min;
+                } else if (remaining <= warning5min && lastWarning < warning5min) {
+                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                    lastWarning = warning5min;
+                } else if (remaining <= warning9min && lastWarning < warning9min) {
+                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                    lastWarning = warning9min;
+                }
             }
         }
     }

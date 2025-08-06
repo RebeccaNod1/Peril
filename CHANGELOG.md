@@ -1,6 +1,58 @@
 # Changelog
 
 All notable changes to Peril Dice will be documented in this file.
+## [2.3.0] - 2025-08-05
+
+
+### 🏆 Visual Scoreboard System
+- **Dynamic Player Grid**: Real-time visual scoreboard displaying all players with profile pictures and heart count
+- **Profile Picture Integration**: Automatic fetching of Second Life avatar profile pictures via HTTP requests
+- **Heart Texture Display**: Visual life representation using custom heart textures (3, 2, 1, 0 hearts)
+- **Bot Profile Support**: Special profile texture for TestBot players
+- **Immediate Updates**: Hearts update instantly when lives change, before any dialogs appear
+
+### 🎭 Enhanced Status Display System
+- **Visual Status Actions**: Large action prim displaying current game status with custom textures
+- **Specific Status Messages**:
+  - **Direct Hit**: When peril player picks their own rolled number
+  - **No Shield**: When nobody picks the rolled number
+  - **Plot Twist**: When peril switches to a new player
+  - **Elimination**: When a player is eliminated
+  - **Victory**: When someone wins the game
+  - **Peril Selected**: When a new peril player is chosen
+  - **Title**: Default/idle state
+
+### ⚡ Perfect Status Timing
+- **Protected Display Time**: Each status shows for 8 seconds with automatic clearing
+- **Strategic Delays**: 2-second delays after status messages prevent overwriting
+- **Sequential Flow**: Elimination → 6.4s delay → Victory → 9s delay → Reset
+- **Immediate Visual Feedback**: Hearts and status update instantly, delays protect display time
+
+### 🎯 Comprehensive Leaderboard
+- **Persistent Win Tracking**: Player victories saved across game sessions
+- **XyzzyText Integration**: Three-prim text display system for leaderboard
+- **Automatic Sorting**: Top players by win count with formatted display
+- **Separate Reset Options**: Game reset vs. leaderboard reset vs. complete reset
+
+### 🎮 Enhanced User Interface
+- **Categorized Owner Menus**: Organized into Game Control, Player Management, Reset Options, etc.
+- **Dialog Recovery**: Players can recover lost dialogs by touching the controller
+- **Admin Menu Access**: Owner can access admin functions during gameplay
+- **Improved Menu Flow**: Streamlined navigation with clear categorization
+
+### 🔧 Technical Improvements
+- **Multi-Object Architecture**: Scoreboard and leaderboard as separate linked objects
+- **HTTP Profile Fetching**: Robust system for retrieving avatar profile pictures
+- **Texture Caching**: Profile pictures cached to avoid repeated HTTP requests
+- **Region-Based Communication**: Cross-object messaging using `llRegionSay`
+- **Elimination Sequence**: Visual 0-hearts display before player removal
+
+### 🐛 Critical Fixes
+- **Heart Update Timing**: Fixed hearts not updating until after next-turn dialog
+- **Victory Overwriting Elimination**: Added proper delay between elimination and victory status
+- **Status Message Conflicts**: All status messages now have protective delays
+- **Profile Picture Fallbacks**: Proper handling of failed HTTP requests
+- **Scoreboard Reset**: Fixed scoreboard not clearing when game resets
 
 ## [2.2.0] - 2025-08-04
 

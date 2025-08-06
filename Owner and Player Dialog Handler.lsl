@@ -15,18 +15,42 @@ integer MSG_TOGGLE_READY = 202;
 integer MSG_QUERY_READY_STATE = 210;
 integer MSG_READY_STATE_RESULT = 211;
 integer MSG_CLEANUP_ALL_FLOATERS = 212;
+integer MSG_GET_CURRENT_DIALOG = 302;
 
-// Owner-specific options shown when pressing the "Owner" button
-list ownerOptions = ["Join Game", "Leave Game", "Add Test Player", "Manage Picks", "Start Game", "Reset Game", "Dump Players", "Cleanup Floaters"];
+// Categorized owner menu system
+list mainOwnerOptions = ["🎮 Game Participation", "👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "⬅️ Back to Game"];
+
+// Sub-menu options for each category
+list gameParticipationOptions = ["Join Game", "Leave Game", "⬅️ Back to Main"];
+list playerManagementOptions = ["Add Test Player", "⬅️ Back to Main"];
+list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu
 key pendingMenuPlayer = NULL_KEY;
 integer pendingMenuIsStarter = FALSE;
 integer pendingMenuIsOwner = FALSE;
 
-// Display the debug/owner menu
+// Display the main categorized owner menu
 showOwnerMenu(key id) {
-    llDialog(id, "🔧 Owner Menu", ownerOptions, DIALOG_CHANNEL);
+    llDialog(id, "🔧 Owner Menu - Select Category", mainOwnerOptions, DIALOG_CHANNEL);
+}
+
+// Display category sub-menus
+showGameParticipationMenu(key id) {
+    llDialog(id, "🎮 Game Participation", gameParticipationOptions, DIALOG_CHANNEL);
+}
+
+showPlayerManagementMenu(key id) {
+    llDialog(id, "👥 Player Management", playerManagementOptions, DIALOG_CHANNEL);
+}
+
+showResetOptionsMenu(key id) {
+    llDialog(id, "🔄 Reset Options", resetOptions, DIALOG_CHANNEL);
+}
+
+showTroubleshootingMenu(key id) {
+    llDialog(id, "🛠️ Troubleshooting", troubleshootingOptions, DIALOG_CHANNEL);
 }
 
 // Display the combined Ready/Leave menu for both players and owners
@@ -114,6 +138,19 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset dialog state
+            pendingMenuPlayer = NULL_KEY;
+            pendingMenuIsStarter = FALSE;
+            pendingMenuIsOwner = FALSE;
+            currentPickList = [];
+            currentPickTarget = "";
+            currentPickLimit = 3;
+            llOwnerSay("🎭 Owner and Player Dialog Handler reset!");
+            return;
+        }
+        
         if (num == MSG_SHOW_MENU) {
             llOwnerSay("📨 Received MSG_SHOW_MENU with: " + str);
             list args = llParseString2List(str, ["|"], []);
@@ -124,8 +161,11 @@ default {
             string targetType = llList2String(args, 0);
             integer isStarter = (integer)llList2String(args, 1);
             if (targetType == "owner") {
+                // Both starter and non-starter owners get ready/leave menu with Owner button
+                llOwnerSay("DEBUG: Owner menu request - isStarter=" + (string)isStarter + ", calling showReadyLeaveMenu");
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
+                llOwnerSay("DEBUG: Player menu request - isStarter=" + (string)isStarter + ", calling showReadyLeaveMenu");
                 showReadyLeaveMenu(id, isStarter, FALSE);
             }
         }
@@ -137,11 +177,17 @@ default {
                 integer isReady = (integer)llList2String(parts, 1);
                 integer isBot = (integer)llList2String(parts, 2);
                 
+                llOwnerSay("DEBUG: Ready state result for " + playerName + ": ready=" + (string)isReady + ", bot=" + (string)isBot);
+                llOwnerSay("DEBUG: Pending menu - starter=" + (string)pendingMenuIsStarter + ", owner=" + (string)pendingMenuIsOwner);
+                
                 // Show menu with the current ready state
                 if (pendingMenuPlayer == id) {
+                    llOwnerSay("DEBUG: Calling showReadyLeaveMenuWithState");
                     showReadyLeaveMenuWithState(pendingMenuPlayer, pendingMenuIsStarter, pendingMenuIsOwner, isReady, isBot);
                     // Reset pending state
                     pendingMenuPlayer = NULL_KEY;
+                } else {
+                    llOwnerSay("DEBUG: Pending menu player mismatch: expected " + (string)pendingMenuPlayer + ", got " + (string)id);
                 }
             }
             return;
@@ -176,6 +222,27 @@ default {
         // Handle "Owner" button to show owner options
         if (msg == "Owner") {
             showOwnerMenu(id);
+        }
+        // Handle category menu navigation
+        else if (msg == "🎮 Game Participation") {
+            showGameParticipationMenu(id);
+        }
+        else if (msg == "👥 Player Management") {
+            showPlayerManagementMenu(id);
+        }
+        else if (msg == "🔄 Reset Options") {
+            showResetOptionsMenu(id);
+        }
+        else if (msg == "🛠️ Troubleshooting") {
+            showTroubleshootingMenu(id);
+        }
+        else if (msg == "⬅️ Back to Main") {
+            showOwnerMenu(id);
+        }
+        else if (msg == "⬅️ Back to Game") {
+            // Return to the owner's ready/leave menu
+            // Need to determine if owner is starter
+            llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|1", id); // Assume starter for now, will be corrected by main controller
         }
         // Owner joins the game: register and rez a float for them
         else if (msg == "Join Game") {

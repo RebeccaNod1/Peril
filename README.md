@@ -6,6 +6,23 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 ## Key Features
 
+### 🏆 Visual Scoreboard System
+- **Real-Time Player Grid**: Visual scoreboard showing all players with profile pictures and hearts
+- **Profile Picture Integration**: Automatic avatar profile fetching from Second Life
+- **Heart Texture Display**: Visual life representation (3, 2, 1, 0 hearts)
+- **Instant Updates**: Hearts change immediately when lives are lost
+
+### 🎭 Enhanced Status Display
+- **Visual Status Actions**: Large status prim with custom textures for each game event
+- **Specific Status Types**: Direct Hit, No Shield, Plot Twist, Elimination, Victory, etc.
+- **Perfect Timing**: 8-second display time with protective delays to prevent overwriting
+
+### 🎯 Comprehensive Leaderboard
+- **Persistent Win Tracking**: Player victories saved across sessions
+- **XyzzyText Display**: Professional 3-prim text system for leaderboard
+- **Automatic Sorting**: Top players by win count
+
+### 🎮 Core Game Features
 - **🎯 Dynamic Player Management**: Players can join at runtime (owner and other avatars)
 - **🤖 Bot Support**: Add AI bots for testing and gameplay variety  
 - **📱 Floating HUD Display**: Real-time stats for each player
@@ -69,18 +86,34 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 | 5–6          | d20       |
 | 7–10         | d30       |
 
-## Recent Improvements (v2.2.0)
+## Recent Improvements (v2.3.0)
 
-- **🎭 Dramatic Messaging**: All game events now use thematic, immersive language
-- **📢 Public Announcements**: Players can see all major game events in public chat
-- **🎲 Enhanced Dice Messages**: Rolls show both dice type (d6, d8, etc.) and result
-- **🔧 Bug Fixes**: Resolved StatFloat duplication and duplicate message handling issues
+### 🏆 Visual Scoreboard Revolution
+- **Real-Time Visual Display**: Complete visual overhaul with player grid showing profile pictures and hearts
+- **Instant Heart Updates**: Hearts change immediately when lives are lost, before any dialogs appear
+- **Profile Picture Fetching**: Automatic HTTP requests to get actual Second Life avatar pictures
+- **0-Hearts Display**: Shows elimination sequence visually before player removal
+
+### 🎭 Enhanced Status System
+- **Specific Status Types**: Separate textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
+- **Perfect Timing**: 8-second display with 2-second protective delays prevent status overwriting
+- **Visual Impact**: Large action prim displays current game status with custom textures
+
+### 🎯 Comprehensive Leaderboard
+- **Persistent Win Tracking**: Player victories saved across game sessions using linkset data
+- **Professional Display**: XyzzyText 3-prim system for clean leaderboard presentation
+- **Flexible Reset Options**: Separate commands for game reset, leaderboard reset, or complete reset
+
+### 🔧 Critical Fixes
+- **Heart Update Timing**: Fixed hearts not updating until after next-turn dialog
+- **Status Conflicts**: All status messages now have protective delays to prevent overwriting
+- **Victory/Elimination Flow**: Proper 6.4-second delay between elimination and victory status
 
 ## Version
 
-**Current Version**: 2.2.0  
-**Last Updated**: August 2025  
-**Status**: Stable - Enhanced UX with dramatic messaging system
+**Current Version**: 2.3.0  
+**Last Updated**: August 5, 2025  
+**Status**: Stable - Complete visual scoreboard system with enhanced status display
 
 ---
 

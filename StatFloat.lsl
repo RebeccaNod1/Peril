@@ -40,8 +40,13 @@ default {
 
     on_rez(integer start_param) {
         llListen(start_param, "", NULL_KEY, "");
+        // Wait a moment for the description to be set
+        llSleep(0.1);
         myName = llGetObjectDesc();
-        llOwnerSay("📱 Listening on channel " + (string)start_param + " for " + myName);
+        if (myName == "" || myName == "(No Description)") {
+            myName = "UnknownPlayer" + (string)start_param;
+        }
+// StatFloat ready and listening
     }
 
     listen(integer channel, string name, key id, string message) {
@@ -50,12 +55,52 @@ default {
             if (llGetListLength(parts) >= 2) {
                 target = (key)llGetSubString(llList2String(parts, 0), 6, -1);
                 displayText = llList2String(parts, 1);
+                
+                // Extract life count from the display text to set heart texture
+                // Look for "Lives: X" pattern in the text
+                integer livesPos = llSubStringIndex(displayText, "Lives: ");
+                if (livesPos != -1) {
+                    string livesStr = llGetSubString(displayText, livesPos + 7, livesPos + 7);
+                    integer lifeCount = (integer)livesStr;
+                    string heartTexture = (string)lifeCount + "_hearts";
+                    // Set heart texture based on current life count
+                    llSetTexture(heartTexture, 1); // Face 1 (right side)
+                    llSetTexture(heartTexture, 2); // Face 2 (back)
+                    llSetTexture(heartTexture, 3); // Face 3 (left side)
+                    llSetTexture(heartTexture, 4); // Face 4 (front)
+                    // Set white background for all faces to eliminate gaps without tinting
+                    llSetColor(<1.0, 1.0, 1.0>, 1); // White background for right side
+                    llSetColor(<1.0, 1.0, 1.0>, 2); // White background for back
+                    llSetColor(<1.0, 1.0, 1.0>, 3); // White background for left side
+                    llSetColor(<1.0, 1.0, 1.0>, 4); // White background for front
+                    llSetColor(<0.2, 0.2, 0.2>, 0); // Dark gray for top
+                    llSetColor(<0.2, 0.2, 0.2>, 5); // Dark gray for bottom
+                    
+                    // Remove "Lives: X" from display text since hearts show it
+                    list lines = llParseString2List(displayText, ["\n"], []);
+                    list filteredLines = [];
+                    integer i;
+                    for (i = 0; i < llGetListLength(lines); i++) {
+                        string line = llList2String(lines, i);
+                        if (llSubStringIndex(line, "Lives: ") != 0) {
+                            filteredLines += [line];
+                        }
+                    }
+                    displayText = llDumpList2String(filteredLines, "\n");
+                }
+                
                 llSetText(displayText, <1,1,1>, 1.0);
             }
         }
         else if (message == "CLEANUP") {
             llOwnerSay("🪟 Cleaning up...");
             llDie();
+        }
+        else if (llSubStringIndex(message, "SET_NAME:") == 0) {
+            myName = llGetSubString(message, 9, -1);
+            // Name successfully received and set
+            // Update the object description as well for consistency
+            llSetObjectDesc(myName);
         }
     }
 
@@ -101,7 +146,10 @@ default {
 
             string picksDisplay = llList2CSV(picks);
 
-            string txt = "🎲 Peril Dice\n👤 " + myName + "\n❤️ Lives: " + (string)lifeCount + "\n🢍 Peril: " + perilDisplay + "\n🔢 Picks: " + picksDisplay;
+            // Note: Heart texture is set via listen() path to avoid conflicts
+            
+            // Update text display (lives now shown by heart textures)
+            string txt = "🎲 Peril Dice\n👤 " + myName + "\n🢍 Peril: " + perilDisplay + "\n🔢 Picks: " + picksDisplay;
             llSetText(txt, <1,1,1>, 1.0);
         }
     }

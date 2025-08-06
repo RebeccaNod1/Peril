@@ -5,6 +5,9 @@
 integer LISTEN_CHANNEL = -9999; // Change if needed to match main controller
 integer MSG_SYNC_GAME_STATE = 107;
 
+// Bot timing configuration to prevent dialog system overload
+float BOT_RESPONSE_DELAY = 1.5;  // Delay before bot responds to commands
+
 // Track game state to validate bot commands
 list names = [];
 list lives = [];
@@ -56,6 +59,9 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
         llOwnerSay("[Bot Manager] ⚠️ WARNING: " + botName + " only picked " + (string)llGetListLength(picks) + "/" + (string)count + " numbers after " + (string)attempts + " attempts");
     }
     
+    // Add delay before responding to prevent dialog system overload
+    llSleep(BOT_RESPONSE_DELAY);
+    
     string pickString = llDumpList2String(picks, ";");
     string response = "BOT_PICKED:" + botName + ":" + pickString;
     llMessageLinked(LINK_SET, -9997, response, NULL_KEY);
@@ -81,6 +87,9 @@ doBotRoll(string botName, integer diceMax) {
         return;
     }
     
+    // Add delay before rolling to prevent dialog system overload
+    llSleep(BOT_RESPONSE_DELAY);
+    
     integer roll = 1 + (integer)(llFrand((float)diceMax));
     llRegionSay(LISTEN_CHANNEL, "BOT_ROLL:" + botName + ":" + (string)roll);
 }
@@ -94,6 +103,16 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle full reset from main controller
+        if (num == -99999 && str == "FULL_RESET") {
+            // Reset bot manager state
+            names = [];
+            lives = [];
+            perilPlayer = "";
+            llOwnerSay("[Bot Manager] Reset complete!");
+            return;
+        }
+        
         // Handle game state sync to track player eliminations
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
