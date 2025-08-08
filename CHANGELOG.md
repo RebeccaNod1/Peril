@@ -2,6 +2,28 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [2.5.0] - 2025-08-08
+
+### 🛡️ Registration Security Fixes
+- **Duplicate Registration Prevention**: Fixed critical bug where players could register multiple times by rapid clicking
+  - Added `pendingRegistrations` list to track registration requests in progress
+  - Prevents duplicate registration messages from being sent while first registration processes
+  - Automatic cleanup of pending registrations after completion or timeout
+- **Startup Sequence Protection**: Fixed bug allowing player joins during game initialization
+  - Added `gameStarting` flag to block registrations immediately when "Start Game" is clicked
+  - Eliminates timing window between game start and `roundStarted` flag activation
+  - Maintains owner exception for admin menu access during gameplay
+
+### 🎮 Improved Game Flow Control
+- **Enhanced Touch Handler**: Better handling of registration status with user feedback
+- **State Management**: Proper cleanup of both `gameStarting` and `pendingRegistrations` during reset
+- **User Experience**: Clear messaging when registration attempts are blocked during active periods
+
+### 🐛 Critical Bug Fixes
+- **Race Condition Resolution**: Eliminated duplicate player entries from rapid multiple touches
+- **Game Disruption Prevention**: Stopped unwanted joins during critical game startup phase
+- **Consistent Game State**: All registration paths now properly validate timing and prevent duplicates
+
 ## [2.4.0] - 2025-08-08
 
 ### 📍 Position Management System

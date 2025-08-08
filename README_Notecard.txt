@@ -87,8 +87,17 @@ Player Count | Dice Type
 5–6          | d20
 7–10         | d30
 
-RECENT IMPROVEMENTS (V2.4.0)
+RECENT IMPROVEMENTS (V2.5.0)
 ============================
+
+🛡️ REGISTRATION SECURITY FIXES
+- Duplicate Registration Prevention: Fixed critical bug where rapid clicking could create duplicate player entries
+- Startup Sequence Protection: Eliminated timing window allowing unwanted joins during game initialization
+- Enhanced Game Flow Control: Better state management and user feedback during registration processes
+- Race Condition Resolution: Comprehensive fixes for all registration-related race conditions
+
+PREVIOUS IMPROVEMENTS (V2.4.0)
+==============================
 
 📍 POSITION MANAGEMENT SYSTEM
 - Master-Follower Architecture: Controller object manages position of all game components
@@ -105,9 +114,9 @@ RECENT IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 2.4.0
+Current Version: 2.5.0
 Last Updated: August 8, 2025
-Status: Production Ready - Debug-free codebase with comprehensive visual systems
+Status: Production Ready - Enhanced security with registration protection and race condition fixes
 
 ORIGINAL GAME RULES CREDIT
 ==========================

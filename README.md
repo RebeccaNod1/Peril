@@ -87,7 +87,15 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 | 5–6          | d20       |
 | 7–10         | d30       |
 
-## Recent Improvements (v2.4.0)
+## Recent Improvements (v2.5.0)
+
+### 🛡️ Registration Security Fixes
+- **Duplicate Registration Prevention**: Fixed critical bug where rapid clicking could create duplicate player entries
+- **Startup Sequence Protection**: Eliminated timing window allowing unwanted joins during game initialization
+- **Enhanced Game Flow Control**: Better state management and user feedback during registration processes
+- **Race Condition Resolution**: Comprehensive fixes for all registration-related race conditions
+
+## Previous Improvements (v2.4.0)
 
 ### 📍 Position Management System
 - **Master-Follower Architecture**: Controller object manages position of all game components
@@ -126,9 +134,9 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 2.4.0  
+**Current Version**: 2.5.0  
 **Last Updated**: August 8, 2025  
-**Status**: Production Ready - Debug-free codebase with comprehensive visual systems
+**Status**: Production Ready - Enhanced security with registration protection and race condition fixes
 
 ---
 

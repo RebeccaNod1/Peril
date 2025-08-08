@@ -198,10 +198,12 @@ resetGame() {
     // Reset all game state variables
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
     floaterChannels = []; // Clear the tracked channels
+    pendingRegistrations = []; // Clear pending registrations
     perilPlayer = "";
     pickQueue = [];
     currentPickerIdx = 0;
     roundStarted = FALSE; // Reset round flag
+    gameStarting = FALSE; // Reset game starting flag
     currentPicker = NULL_KEY; // Reset current picker
     timeoutTimer = 0; // Reset timeout timer
     lastWarning = 0; // Reset warning timer
@@ -412,6 +414,11 @@ showNextPickerDialog() {
 }
 
 integer roundStarted = FALSE;
+integer gameStarting = FALSE;  // Track when game is in startup sequence
+
+// Prevent duplicate registration by tracking pending registrations
+list pendingRegistrations = [];  // Keys of players who have registration in progress
+integer REGISTRATION_TIMEOUT = 10;  // Seconds to keep pending registration
 
 default {
     state_entry() {
@@ -485,6 +492,12 @@ if (toucher == llGetOwner() && roundStarted) {
             // Determine if this will be the first registered player (starter) before registration
             integer isStarter = FALSE;
             if (idx == -1) {
+                // Check if registration is already pending for this player
+                if (llListFindList(pendingRegistrations, [toucher]) != -1) {
+                    llOwnerSay("⏳ Registration already in progress for " + llKey2Name(toucher));
+                    return;
+                }
+                
                 // No index found; the owner is not yet registered.
                 // Owner becomes starter if there are no existing human players (excluding bots)
                 isStarter = TRUE;  // Default to TRUE for owner
@@ -497,6 +510,8 @@ if (toucher == llGetOwner() && roundStarted) {
                     }
                 }
                 string ownerName = llKey2Name(toucher);
+                // Add to pending registrations
+                pendingRegistrations += [toucher];
                 // Send a registration request; Main.lsl will handle adding them and rezzing a float
                 llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, ownerName + "|" + (string)toucher, NULL_KEY);
             } else {
@@ -534,6 +549,14 @@ if (toucher == llGetOwner() && roundStarted) {
             // Unregistered non-owner player - register them and show menu
             string playerName = llKey2Name(toucher);
             if (playerName != "") {
+                // Check if registration is already pending for this player
+                if (llListFindList(pendingRegistrations, [toucher]) != -1) {
+                    llOwnerSay("⏳ Registration already in progress for " + playerName);
+                    return;
+                }
+                
+                // Add to pending registrations
+                pendingRegistrations += [toucher];
                 // Send a registration request; Main.lsl will handle adding them and rezzing a float
                 llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, playerName + "|" + (string)toucher, NULL_KEY);
                 // Determine if this will be the first human player (starter)
@@ -660,8 +683,8 @@ if (toucher == llGetOwner() && roundStarted) {
             string newName = llList2String(parts, 0);
             key newKey = (key)llList2String(parts, 1);
             
-            // Prevent joining game in progress (except owner accessing menu)
-            if (roundStarted && newKey != llGetOwner()) {
+            // Prevent joining game in progress or during startup (except owner accessing menu)
+            if ((roundStarted || gameStarting) && newKey != llGetOwner()) {
                 llOwnerSay("🚫 " + newName + " cannot join - the killing game has begun!");
                 llRegionSayTo(newKey, 0, "🚫 The killing game has already begun! Wait for the current game to end.");
                 return;
@@ -712,6 +735,12 @@ if (toucher == llGetOwner() && roundStarted) {
                 updateHelpers();
                 // Notify owner of registration
                 llOwnerSay("🔔 Added player: " + newName);
+            }
+            
+            // Remove from pending registrations whether successful or not
+            integer pendingIdx = llListFindList(pendingRegistrations, [newKey]);
+            if (pendingIdx != -1) {
+                pendingRegistrations = llDeleteSubList(pendingRegistrations, pendingIdx, pendingIdx);
             }
             return;
         }
@@ -1242,6 +1271,7 @@ llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
                 }
                 
                 // All checks passed, start the game
+                gameStarting = TRUE; // Prevent new players from joining during startup
                 llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
                 
                 // Change controller display to show game is active
