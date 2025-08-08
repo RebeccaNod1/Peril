@@ -95,6 +95,8 @@ RECENT IMPROVEMENTS (V2.5.0)
 - Startup Sequence Protection: Eliminated timing window allowing unwanted joins during game initialization
 - Enhanced Game Flow Control: Better state management and user feedback during registration processes
 - Race Condition Resolution: Comprehensive fixes for all registration-related race conditions
+- Duplicate Pick Prevention: Fixed intermittent duplicate number picks caused by data corruption in globalPickedNumbers
+- Data Integrity: Enhanced continueCurrentRound() function to properly rebuild pick tracking with uniqueness validation
 
 PREVIOUS IMPROVEMENTS (V2.4.0)
 ==============================

@@ -259,10 +259,23 @@ continueCurrentRound() {
         if (llGetListLength(parts) >= 2) {
             string picks = llList2String(parts, 1);
             if (picks != "") {
-                // Handle semicolon encoding for picks
-                string decodedPicks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-                list playerPicks = llParseString2List(decodedPicks, [","], []);
-                globalPickedNumbers += playerPicks;
+                // Handle both comma and semicolon delimiters
+                list playerPicks = [];
+                if (llSubStringIndex(picks, ";") != -1) {
+                    // Bot picks use semicolons
+                    playerPicks = llParseString2List(picks, [";"], []);
+                } else {
+                    // Human picks use commas
+                    playerPicks = llParseString2List(picks, [","], []);
+                }
+                // Add picks to global list, avoiding duplicates
+                integer j;
+                for (j = 0; j < llGetListLength(playerPicks); j++) {
+                    string pick = llStringTrim(llList2String(playerPicks, j), STRING_TRIM);
+                    if (pick != "" && llListFindList(globalPickedNumbers, [pick]) == -1) {
+                        globalPickedNumbers += [pick];
+                    }
+                }
             }
         }
     }

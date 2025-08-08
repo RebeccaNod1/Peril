@@ -23,6 +23,9 @@ All notable changes to Peril Dice will be documented in this file.
 - **Race Condition Resolution**: Eliminated duplicate player entries from rapid multiple touches
 - **Game Disruption Prevention**: Stopped unwanted joins during critical game startup phase
 - **Consistent Game State**: All registration paths now properly validate timing and prevent duplicates
+- **Duplicate Pick Prevention**: Fixed `continueCurrentRound()` function to properly rebuild `globalPickedNumbers` with uniqueness checks
+- **Data Corruption Fix**: Resolved issue where `globalPickedNumbers` could contain duplicates, causing inconsistent bot pick validation
+- **Delimiter Handling**: Enhanced parsing to correctly handle both comma (human) and semicolon (bot) pick delimiters
 
 ## [2.4.0] - 2025-08-08
 
