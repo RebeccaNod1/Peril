@@ -1,0 +1,54 @@
+PERIL GAME POSITION RESET KIT
+=============================
+
+If your leaderboard, scoreboard, or dice display gets knocked out of position, 
+use this simple tool to recalibrate them.
+
+WHAT'S INCLUDED:
+- Position_Reset_Tool.lsl (temporary calibration script)
+- config (updated configuration notecard)
+
+HOW TO RECALIBRATE POSITIONS:
+============================
+
+1. POSITION YOUR DISPLAYS
+   - Move each display object to where you want it positioned
+   - Make sure they're all within 20 meters of the controller
+
+2. DROP RESET TOOL IN CONTROLLER
+   - Put Position_Reset_Tool.lsl into your controller object
+   
+3. SCAN POSITIONS
+   - Click the controller object
+   - It will scan and give you new config values like:
+     scoreboard_offset=<1.234, 5.678, 0.000>
+     leaderboard_offset=<-2.345, 0.000, 1.500>
+     dice_offset=<3.456, 0.000, 0.000>
+   
+4. UPDATE CONFIG NOTECARDS
+   - Edit the "config" notecard in each display object
+   - Replace the old offset values with the new ones
+   - Save the notecard
+   
+5. CLEAN UP
+   - Remove Position_Reset_Tool.lsl from your controller
+   - Your displays will automatically move to the new positions!
+
+EXAMPLE:
+=======
+If the reset tool says:
+scoreboard_offset=<0.500, 2.800, 0.100>
+
+Then in your scoreboard's config notecard, change:
+scoreboard_offset=<0.000, 3.000, 0.000>
+to:
+scoreboard_offset=<0.500, 2.800, 0.100>
+
+TROUBLESHOOTING:
+===============
+- Make sure displays are within 20 meters during scanning
+- The config notecard must be named exactly "config" (lowercase)
+- After editing config, the objects should move automatically
+- If they don't move, try resetting the display objects
+
+That's it! No script editing required - just update the config values!

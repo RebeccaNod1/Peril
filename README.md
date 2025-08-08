@@ -33,6 +33,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **⚡ Performance Optimized**: Reduced lag with selective particle effects
 - **🛡️ Robust Error Handling**: Comprehensive game state synchronization
 - **🚫 Game Protection**: Prevents joining games in progress
+- **📍 Position Management System**: Coordinated movement of all game components
 
 ## Game Rules
 
@@ -86,20 +87,33 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 | 5–6          | d20       |
 | 7–10         | d30       |
 
-## Recent Improvements (v2.3.0)
+## Recent Improvements (v2.4.0)
 
-### 🏆 Visual Scoreboard Revolution
+### 📍 Position Management System
+- **Master-Follower Architecture**: Controller object manages position of all game components
+- **Automatic Position Sync**: Scoreboard, leaderboard, and displays move with main controller
+- **Config-Based Setup**: Position offsets and rotations defined in notecard configuration
+- **Position Reset Tools**: Easy recalibration system for repositioning game components
+- **Coordinated Movement**: All objects maintain relative positions when game is moved
+
+### 🧹 Production Code Cleanup
+- **Debug Code Removal**: Complete removal of all debug logging and test messages for production deployment
+- **Syntax Error Fixes**: Resolved critical syntax errors including missing braces in conditional blocks
+- **Code Optimization**: Cleaner, more maintainable codebase without development artifacts
+- **Performance Enhancement**: Reduced script memory usage and execution overhead
+
+### 🏆 Visual Scoreboard Revolution (v2.3.0)
 - **Real-Time Visual Display**: Complete visual overhaul with player grid showing profile pictures and hearts
 - **Instant Heart Updates**: Hearts change immediately when lives are lost, before any dialogs appear
 - **Profile Picture Fetching**: Automatic HTTP requests to get actual Second Life avatar pictures
 - **0-Hearts Display**: Shows elimination sequence visually before player removal
 
-### 🎭 Enhanced Status System
+### 🎭 Enhanced Status System (v2.3.0)
 - **Specific Status Types**: Separate textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
 - **Perfect Timing**: 8-second display with 2-second protective delays prevent status overwriting
 - **Visual Impact**: Large action prim displays current game status with custom textures
 
-### 🎯 Comprehensive Leaderboard
+### 🎯 Comprehensive Leaderboard (v2.3.0)
 - **Persistent Win Tracking**: Player victories saved across game sessions using linkset data
 - **Professional Display**: XyzzyText 3-prim system for clean leaderboard presentation
 - **Flexible Reset Options**: Separate commands for game reset, leaderboard reset, or complete reset
@@ -108,12 +122,13 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 - **Heart Update Timing**: Fixed hearts not updating until after next-turn dialog
 - **Status Conflicts**: All status messages now have protective delays to prevent overwriting
 - **Victory/Elimination Flow**: Proper 6.4-second delay between elimination and victory status
+- **Syntax Errors**: Fixed missing braces and other LSL compilation issues
 
 ## Version
 
-**Current Version**: 2.3.0  
-**Last Updated**: August 5, 2025  
-**Status**: Stable - Complete visual scoreboard system with enhanced status display
+**Current Version**: 2.4.0  
+**Last Updated**: August 8, 2025  
+**Status**: Production Ready - Debug-free codebase with comprehensive visual systems
 
 ---
 

@@ -120,6 +120,9 @@ default {
                 // Send message to main controller to get the player's key and show dialog
                 llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
             } else {
+                // Clear dice display before showing new roll dialog
+                llRegionSay(-12345, "CLEAR_DICE");
+                
                 llOwnerSay("🎲 Prompting " + str + " to roll the dice.");
                 // Check if this is a bot (TestBot names)
                 if (llSubStringIndex(str, "TestBot") == 0) {
@@ -138,6 +141,9 @@ default {
             integer result = rollDice(diceType);
             string resultStr = (string)result;
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
+
+            // Send dice roll to scoreboard for display on dice screen
+            llRegionSay(-12345, "DICE_ROLL|" + perilPlayer + "|" + resultStr);
 
             string newPeril = "";
             integer matched = FALSE;

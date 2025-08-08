@@ -142,9 +142,6 @@ updateHelpers() {
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, serialized, NULL_KEY);
     llMessageLinked(LINK_SET, MSG_SYNC_PICKQUEUE, llList2CSV(pickQueue), NULL_KEY);
     
-    // Send a test message first to verify scoreboard communication
-    llRegionSay(-12345, "GAME_STATUS|Testing communication...");
-    llOwnerSay("DEBUG: Sent test message to scoreboard");
     
     // Send player updates to scoreboard
     integer j;
@@ -158,7 +155,6 @@ updateHelpers() {
         
         // Send PLAYER_UPDATE message to scoreboard
         string updateMsg = "PLAYER_UPDATE|" + playerName + "|" + (string)playerLives + "|" + profileUUID;
-        llOwnerSay("DEBUG: Sending to scoreboard: " + updateMsg);
         llRegionSay(-12345, updateMsg);
     }
 }
@@ -476,7 +472,6 @@ if (toucher == llGetOwner() && roundStarted) {
     
     // If no active dialogs, just show admin menu directly
     if (!hasActiveDialog) {
-        llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner during gameplay");
         llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", toucher);
         return;
     }
@@ -514,17 +509,14 @@ if (toucher == llGetOwner() && roundStarted) {
                     // If there's a human player before the owner, owner is not starter
                     if (llSubStringIndex(existingName, "TestBot") != 0) {
                         isStarter = FALSE;
-                        llOwnerSay("DEBUG: Found human player before owner at index " + (string)k + ": " + existingName);
                     }
                 }
                 // Special case: if owner is at index 0, they are definitely the starter
                 if (idx == 0) {
                     isStarter = TRUE;
-                    llOwnerSay("DEBUG: Owner is at index 0, definitely starter");
                 }
             }
             // Show the owner menu with the appropriate starter flag
-            llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner, isStarter=" + (string)isStarter + ", idx=" + (string)idx);
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
         } else if (idx != -1) {
             // For non-owner players, check if they're the first human player
@@ -840,7 +832,6 @@ resetGame();
                     integer perilStillInGame = llListFindList(names, [perilPlayer]) != -1;
                     if (perilStillInGame) {
                         return; // Don't process this sync update
-                    } else {
                     }
                 }
                 
@@ -871,9 +862,6 @@ resetGame();
                     string newPerilPlayer = llList2String(parts, 2);
                     list newNames = llCSV2List(llList2String(parts, 3));
                     
-                    // Debug peril player changes
-                    if (perilPlayer != newPerilPlayer) {
-                    }
                     
                     // Update our game state with the new data
                     lives = newLives;
@@ -1160,7 +1148,6 @@ resetGame();
                     return;
                 }
                 else if (msg == "🔧 Admin Menu") {
-                    llOwnerSay("DEBUG: Sending MSG_SHOW_MENU for owner admin during gameplay");
                     llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", id);
                     return;
                 }

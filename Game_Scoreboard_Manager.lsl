@@ -35,6 +35,7 @@ list playerProfiles = []; // Maps to profile texture UUIDs
 // Leaderboard data (persistent - stored in linkset data)
 list leaderboardNames = []; // Loaded from linkset data at startup
 list leaderboardWins = []; // Loaded from linkset data at startup
+list leaderboardLosses = []; // Loaded from linkset data at startup
 
 // HTTP tracking
 list profileRequests = []; // Track which profile requests belong to which player
@@ -47,17 +48,17 @@ integer profile_key_prefix_length;
 integer profile_img_prefix_length;
 
 // Grid layout settings - dual prim approach
-float PRIM_WIDTH = 0.2;   // Smaller width for individual prims
-float PRIM_HEIGHT = 0.3;
+float PRIM_WIDTH = .4;   // Smaller width for individual prims
+float PRIM_HEIGHT = .4;
 float PRIM_DEPTH = 0;
-float SPACING_X = 0.7;    // Space between player pairs
-float SPACING_Y = 0.25;
-float PRIM_OFFSET = 0.16; // Distance between profile and heart prims
+float SPACING_X = 1;    // Space between player pairs
+float SPACING_Y = .5;
+float PRIM_OFFSET = 0.2; // Distance between profile and heart prims
 integer GRID_COLS = 2;    // 2 columns, 5 rows for 10 players
 
 // Additional prims settings
-float BACKGROUND_WIDTH = 4.0;
-float BACKGROUND_HEIGHT = 3;
+float BACKGROUND_WIDTH = 6;
+float BACKGROUND_HEIGHT = 4;
 float BACKGROUND_DEPTH = 0.01;
 float ACTIONS_WIDTH = 4;
 float ACTIONS_HEIGHT = 0.4;
@@ -78,7 +79,6 @@ setupPlayerGrid() {
     // Create/position prims: 3 UI prims + 10 player slots (20 prims) = 23 prims total
     integer totalPrims = llGetNumberOfPrims();
     
-    llOwnerSay("DEBUG: Total prims detected: " + (string)totalPrims);
     
     // Need 23 prims total: 1 root + 2 UI (background, actions) + 20 player prims (2 per player)
     // Note: Leaderboard is now a separate object
@@ -92,7 +92,6 @@ setupPlayerGrid() {
     // Setup UI prims first
     setupUIPrims();
     
-    llOwnerSay("DEBUG: Starting to position " + (string)totalPrims + " prims...");
     
     // Position prims for each player (2 prims per player)
     integer i;
@@ -101,9 +100,9 @@ setupPlayerGrid() {
         integer col = i % GRID_COLS;
         
         // Calculate base position for this player slot (relative to root prim)
-        vector basePos = <col * SPACING_X - (GRID_COLS-1) * SPACING_X * 1.8,
+        vector basePos = <col * SPACING_X - (GRID_COLS-1) * SPACING_X * 2.2,
                           0.0,
-                          row * SPACING_Y - 1.0 * SPACING_Y + -1.5>;
+                          row * SPACING_Y - 2.5 * SPACING_Y + -1.5>;
         
         // Profile prim (left side)
         vector profilePos = basePos + <-PRIM_OFFSET, 0.0, 0.0>;
@@ -115,7 +114,6 @@ setupPlayerGrid() {
         
         // Set profile prim properties
         if (profilePrimIndex <= totalPrims) {
-            llOwnerSay("DEBUG: Setting profile prim " + (string)profilePrimIndex + " for player " + (string)i);
             llSetLinkPrimitiveParamsFast(profilePrimIndex, [
                 PRIM_POSITION, profilePos,
                 PRIM_ROTATION, <-0.707107, 0.0, 0.0, 0.707107>, // Back to upright portrait rotation
@@ -124,8 +122,6 @@ setupPlayerGrid() {
                 PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0, // Fully opaque white
                 PRIM_TEXT, "", <1,1,1>, 0.0
             ]);
-        } else {
-            llOwnerSay("DEBUG: Skipping profile prim " + (string)profilePrimIndex + " (exceeds total prims)");
         }
         
         // Set hearts prim properties
@@ -144,8 +140,7 @@ setupPlayerGrid() {
 
 setupUIPrims() {
     // Background prim - centered behind the player grid
-    vector bgPosition = <0.0, 0.04, -1.6>;
-    llOwnerSay("DEBUG: Setting background prim " + (string)BACKGROUND_PRIM + " to position " + (string)bgPosition);
+    vector bgPosition = <0.0, 0.05, -2>;
     llSetLinkPrimitiveParamsFast(BACKGROUND_PRIM, [
         PRIM_POSITION, bgPosition, // Behind the board and higher up
         PRIM_ROTATION, <0.0, 0.0, -0.04, 1.0>, // No rotation
@@ -167,7 +162,6 @@ setupUIPrims() {
     
     // Note: Leaderboard is now a separate object
     
-    llOwnerSay("DEBUG: UI prims setup complete");
 }
 
 // Update actions prim with appropriate status texture
@@ -191,7 +185,6 @@ updateActionsPrim(string status) {
     } else if (status == "Title") {
         textureToUse = TEXTURE_TITLE;
     } else {
-        llOwnerSay("DEBUG: Unrecognized status '" + status + "' - keeping current texture");
         return; // Don't change texture for unrecognized statuses
     }
     
@@ -204,86 +197,122 @@ updateActionsPrim(string status) {
 // XyzzyText Communication Constants
 integer DISPLAY_STRING = 204000;
 integer DISPLAY_EXTENDED = 204001;
+integer DICE_CHANNEL = -12347; // Channel for dice roll display
 
-// Generate leaderboard text for triple XyzzyText display (15 characters per line split across 3 prims)
+// Generate leaderboard text for quad XyzzyText display (40 characters per line split across 4 prims)
 generateLeaderboardText() {
     list sortedData = getSortedLeaderboard();
-    integer maxDisplay = llGetListLength(sortedData);
-    if (maxDisplay > 11) maxDisplay = 11; // Show top 11 entries to fit in display
+    integer dataCount = llGetListLength(sortedData);
     
-    // Triple prim approach - split lines between left, middle, and right prims
-    string leftText = "WINS:";
-    string middleText = "     "; // 5 spaces to align with left prim
-    string rightText = "     "; // 5 spaces to align with left prim
+    // Quad prim approach - split lines between left, middle-left, middle-right, and right prims
+    // Header: "LEADERBOARD" (11 chars) + spaces to make 40 total, then split into 10-char chunks
+    string headerLine = "LEADERBOARD                             "; // Exactly 40 chars: LEADERBOARD (11) + 29 spaces
     
+    // Split header into 4 parts of 10 characters each
+    string leftText = llGetSubString(headerLine, 0, 9);    // Characters 0-9: "LEADERBOAR" (first 10 chars)
+    string middleLeftText = llGetSubString(headerLine, 10, 19);  // Characters 10-19: "          " (10 spaces)
+    string middleRightText = llGetSubString(headerLine, 20, 29); // Characters 20-29: "          " (10 spaces)
+    string rightText = llGetSubString(headerLine, 30, 39);  // Characters 30-39: "          " (10 spaces)
+    
+    // Show positions 1-11, filling in player data where available
     integer i;
-    for (i = 0; i < maxDisplay; i++) {
-        list playerData = llParseString2List(llList2String(sortedData, i), [":"], []);
-        string playerName = llList2String(playerData, 0);
-        string winsText = llList2String(playerData, 1);
+    for (i = 0; i < 11; i++) {
+        string fullLine;
         
-        // Create 15-character line: "PlayerNameHere  Wins" (player name + padding + wins)
-        // Truncate name to max 12 characters to leave room for wins
-        if (llStringLength(playerName) > 12) {
-            playerName = llGetSubString(playerName, 0, 11);
-        }
-        
-        // Format the complete line (15 chars total)
-        string fullLine = playerName;
-        
-        // Add padding spaces
-        integer padding = 13 - llStringLength(playerName); // Leave 2 chars for wins
-        integer j;
-        for (j = 0; j < padding; j++) {
-            fullLine += " ";
-        }
-        
-        // Add wins (max 2 digits)
-        if (llStringLength(winsText) > 2) {
-            winsText = llGetSubString(winsText, 0, 1); // Truncate to 2 digits
-        }
-        fullLine += winsText;
-        
-        // Ensure exactly 15 characters
-        if (llStringLength(fullLine) > 15) {
-            fullLine = llGetSubString(fullLine, 0, 14);
-        } else if (llStringLength(fullLine) < 15) {
-            // Pad with spaces if needed
-            while (llStringLength(fullLine) < 15) {
+        if (i < dataCount) {
+            // We have data for this position
+            list playerData = llParseString2List(llList2String(sortedData, i), [":"], []);
+            string playerName = llList2String(playerData, 0);
+            string winsText = llList2String(playerData, 1);
+            string lossesText = llList2String(playerData, 2);
+            
+            // Format: "1. PlayerName               W:xx L:yy"
+            // With 40 chars: position(3) + name(27) + stats(10) = 40 total
+            string position;
+            if (i < 9) {
+                position = (string)(i + 1) + ". "; // "1. ", "2. ", etc.
+            } else {
+                position = (string)(i + 1) + "."; // "10.", "11." (no extra space)
+            }
+            
+            // Format wins and losses with 2-digit limit
+            if (llStringLength(winsText) > 2) {
+                winsText = llGetSubString(winsText, 0, 1);
+            }
+            if (llStringLength(lossesText) > 2) {
+                lossesText = llGetSubString(lossesText, 0, 1);
+            }
+            
+            string statsText = "W:" + winsText + " L:" + lossesText; // e.g., "W:12 L:3"
+            
+            // Calculate max name length (40 - position - stats - padding)
+            integer maxNameLength = 40 - llStringLength(position) - llStringLength(statsText) - 1; // -1 for space
+            
+            if (llStringLength(playerName) > maxNameLength) {
+                playerName = llGetSubString(playerName, 0, maxNameLength - 1);
+            }
+            
+            fullLine = position + playerName;
+            
+            // Add padding spaces before stats
+            integer padding = 40 - llStringLength(fullLine) - llStringLength(statsText);
+            integer j;
+            for (j = 0; j < padding && padding > 0; j++) {
+                fullLine += " ";
+            }
+            
+            fullLine += statsText;
+        } else {
+            // No data for this position, show empty slot
+            string position;
+            if (i < 9) {
+                position = (string)(i + 1) + ". "; // "1. ", "2. ", etc.
+            } else {
+                position = (string)(i + 1) + "."; // "10.", "11." (no extra space)
+            }
+            fullLine = position;
+            // Pad to 40 characters
+            while (llStringLength(fullLine) < 40) {
                 fullLine += " ";
             }
         }
         
-        // Split the 15-character line: 5 chars each to left, middle, right prims
-        string leftPart = llGetSubString(fullLine, 0, 4);   // Characters 0-4
-        string middlePart = llGetSubString(fullLine, 5, 9);  // Characters 5-9
-        string rightPart = llGetSubString(fullLine, 10, 14); // Characters 10-14
+        // Ensure exactly 40 characters
+        if (llStringLength(fullLine) > 40) {
+            fullLine = llGetSubString(fullLine, 0, 39);
+        } else if (llStringLength(fullLine) < 40) {
+            while (llStringLength(fullLine) < 40) {
+                fullLine += " ";
+            }
+        }
+        
+        // Split the 40-character line: 10 chars each to left, middle-left, middle-right, right prims
+        string leftPart = llGetSubString(fullLine, 0, 9);   // Characters 0-9
+        string middleLeftPart = llGetSubString(fullLine, 10, 19);  // Characters 10-19
+        string middleRightPart = llGetSubString(fullLine, 20, 29); // Characters 20-29
+        string rightPart = llGetSubString(fullLine, 30, 39); // Characters 30-39
         
         leftText += "\n" + leftPart;
-        middleText += "\n" + middlePart;
+        middleLeftText += "\n" + middleLeftPart;
+        middleRightText += "\n" + middleRightPart;
         rightText += "\n" + rightPart;
     }
     
-    // If no data, show empty message
-    if (maxDisplay == 0) {
-        leftText = "NO   ";
-        middleText = "GAMES";
-        rightText = "     ";
-    }
+    // We always show exactly 12 lines (header + 11 positions)
+    integer totalLines = 12;
+    integer currentLines = 12; // Header + 11 positions
     
     // Send to separate leaderboard object via chat
-    llOwnerSay("DEBUG: Sending to LEFT XyzzyText: " + leftText);
-    llOwnerSay("DEBUG: Sending to MIDDLE XyzzyText: " + middleText);
-    llOwnerSay("DEBUG: Sending to RIGHT XyzzyText: " + rightText);
     
     // Send to leaderboard bridge in separate object
     llRegionSay(LEADERBOARD_CHANNEL, "LEFT_TEXT|" + leftText);
-    llRegionSay(LEADERBOARD_CHANNEL, "MIDDLE_TEXT|" + middleText);
+    llRegionSay(LEADERBOARD_CHANNEL, "MIDDLE_LEFT_TEXT|" + middleLeftText);
+    llRegionSay(LEADERBOARD_CHANNEL, "MIDDLE_RIGHT_TEXT|" + middleRightText);
     llRegionSay(LEADERBOARD_CHANNEL, "RIGHT_TEXT|" + rightText);
     
     // Also create combined floating text as backup display method
-    string combinedText = "WINS:\n";
-    for (i = 0; i < maxDisplay; i++) {
+    string combinedText = "Leaderboard:\n";
+    for (i = 0; i < dataCount; i++) {
         list playerData = llParseString2List(llList2String(sortedData, i), [":"], []);
         string playerName = llList2String(playerData, 0);
         string winsText = llList2String(playerData, 1);
@@ -292,11 +321,11 @@ generateLeaderboardText() {
             playerName = llGetSubString(playerName, 0, 11);
         }
         
-        combinedText += playerName + ": " + winsText + "\n";
+        combinedText += (string)(i + 1) + ". " + playerName + ": " + winsText + "\n";
     }
     
-    if (maxDisplay == 0) {
-        combinedText = "No games played yet";
+    if (dataCount == 0) {
+        combinedText = "Leaderboard: No games played yet";
     }
     
     // Note: Leaderboard is now in separate object - no prim to update here
@@ -307,6 +336,48 @@ updateLeaderboard(list topPlayers) {
     generateLeaderboardText();
 }
 
+// Generate dice roll display text for dual XyzzyText display (20 characters total: 10 chars per prim)
+generateDiceRollText(string playerName, integer diceValue, string rollType) {
+    string fullLine;
+    
+    if (rollType == "CLEAR") {
+        // Clear the dice display
+        fullLine = "                    "; // 20 spaces
+    } else {
+        // Format: "Bob rolled 6" or "TestBot1 rolled 12" etc.
+        string diceStr = (string)diceValue;
+        string displayName = playerName;
+        
+        // Calculate available space: 20 total - " rolled " (8) - dice value (1-2 chars) = 11-10 chars for name
+        integer maxNameLength = 20 - 8 - llStringLength(diceStr); // -8 for " rolled "
+        
+        if (llStringLength(displayName) > maxNameLength) {
+            displayName = llGetSubString(displayName, 0, maxNameLength - 1);
+        }
+        
+        fullLine = displayName + " rolled " + diceStr;
+        
+        // Pad to exactly 20 characters
+        while (llStringLength(fullLine) < 20) {
+            fullLine += " ";
+        }
+    }
+    
+    // Ensure exactly 20 characters
+    if (llStringLength(fullLine) > 20) {
+        fullLine = llGetSubString(fullLine, 0, 19);
+    }
+    
+    // Split into 2 parts: 10 chars each for left and right prims
+    string leftPart = llGetSubString(fullLine, 0, 9);   // Characters 0-9
+    string rightPart = llGetSubString(fullLine, 10, 19); // Characters 10-19
+    
+    
+    // Send to dice display XyzzyText prims
+    llRegionSay(DICE_CHANNEL, "DICE_LEFT|" + leftPart);
+    llRegionSay(DICE_CHANNEL, "DICE_RIGHT|" + rightPart);
+}
+
 // Handle game won message
 handleGameWon(string winnerName) {
     integer playerIndex = llListFindList(leaderboardNames, [winnerName]);
@@ -314,9 +385,34 @@ handleGameWon(string winnerName) {
     if (playerIndex == -1) {
         leaderboardNames += [winnerName];
         leaderboardWins += [1];
+        leaderboardLosses += [0]; // No losses for new winner
     } else {
         integer currentWins = llList2Integer(leaderboardWins, playerIndex);
         leaderboardWins = llListReplaceList(leaderboardWins, [currentWins + 1], playerIndex, playerIndex);
+    }
+    
+    saveLeaderboardData();
+    updateLeaderboard(leaderboardNames);
+}
+
+// Handle game lost message
+handleGameLost(string loserName) {
+    integer playerIndex = llListFindList(leaderboardNames, [loserName]);
+    
+    if (playerIndex == -1) {
+        leaderboardNames += [loserName];
+        leaderboardWins += [0]; // No wins for new loser
+        leaderboardLosses += [1];
+    } else {
+        integer currentLosses = 0;
+        if (playerIndex < llGetListLength(leaderboardLosses)) {
+            currentLosses = llList2Integer(leaderboardLosses, playerIndex);
+        }
+        // Extend losses list if needed
+        while (llGetListLength(leaderboardLosses) <= playerIndex) {
+            leaderboardLosses += [0];
+        }
+        leaderboardLosses = llListReplaceList(leaderboardLosses, [currentLosses + 1], playerIndex, playerIndex);
     }
     
     saveLeaderboardData();
@@ -331,7 +427,11 @@ list getSortedLeaderboard() {
     for (i = 0; i < llGetListLength(leaderboardNames); i++) {
         string playerName = llList2String(leaderboardNames, i);
         integer wins = llList2Integer(leaderboardWins, i);
-        combined += [playerName + ":" + (string)wins];
+        integer losses = 0;
+        if (i < llGetListLength(leaderboardLosses)) {
+            losses = llList2Integer(leaderboardLosses, i);
+        }
+        combined += [playerName + ":" + (string)wins + ":" + (string)losses];
     }
     
     integer n = llGetListLength(combined);
@@ -366,8 +466,10 @@ saveLeaderboardData() {
     for (i = 0; i < llGetListLength(leaderboardNames); i++) {
         string playerName = llList2String(leaderboardNames, i);
         integer wins = llList2Integer(leaderboardWins, i);
+        integer losses = llList2Integer(leaderboardLosses, i);
         llLinksetDataWrite("lb_player_" + (string)i, playerName);
         llLinksetDataWrite("lb_wins_" + (string)i, (string)wins);
+        llLinksetDataWrite("lb_losses_" + (string)i, (string)losses);
     }
 }
 
@@ -379,13 +481,16 @@ loadLeaderboardData() {
     integer count = (integer)countStr;
     leaderboardNames = [];
     leaderboardWins = [];
+    leaderboardLosses = [];
     integer i;
     for (i = 0; i < count; i++) {
         string playerName = llLinksetDataRead("lb_player_" + (string)i);
         string winsStr = llLinksetDataRead("lb_wins_" + (string)i);
+        string lossesStr = llLinksetDataRead("lb_losses_" + (string)i);
         if (playerName != "" && winsStr != "") {
             leaderboardNames += [playerName];
             leaderboardWins += [(integer)winsStr];
+            leaderboardLosses += [(integer)lossesStr]; // Default to 0 if empty
         }
     }
 }
@@ -394,10 +499,12 @@ loadLeaderboardData() {
 resetLeaderboard() {
     leaderboardNames = [];
     leaderboardWins = [];
+    leaderboardLosses = [];
     integer i;
     for (i = 0; i < 100; i++) {
         llLinksetDataDelete("lb_player_" + (string)i);
         llLinksetDataDelete("lb_wins_" + (string)i);
+        llLinksetDataDelete("lb_losses_" + (string)i);
     }
     llLinksetDataDelete("lb_count");
     updateLeaderboard([]);
@@ -405,7 +512,6 @@ resetLeaderboard() {
 
 // Clear all current players from the scoreboard
 clearAllPlayers() {
-    llOwnerSay("DEBUG: Clearing all players from scoreboard");
     
     // Clear ONLY current game player data lists (NOT leaderboard data)
     playerNames = [];
@@ -452,6 +558,7 @@ string getHeartTexture(integer lives) {
     else return TEXTURE_3_HEARTS; // 3 or more
 }
 
+
 // Update player display on the grid
 updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     // Find existing player or add new one
@@ -470,14 +577,12 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
         playerLives += [lives];
         playerProfiles += [profileUUID];
         
-        llOwnerSay("DEBUG: Added new player " + playerName + " at slot " + (string)playerIndex);
     } else {
         // Update existing player
         playerLives = llListReplaceList(playerLives, [lives], playerIndex, playerIndex);
         // Don't overwrite cached profile texture with original UUID on updates
         // playerProfiles = llListReplaceList(playerProfiles, [profileUUID], playerIndex, playerIndex);
         
-        llOwnerSay("DEBUG: Updated player " + playerName + " at slot " + (string)playerIndex + " with " + (string)lives + " lives");
     }
     
     // Update the physical prims for this player
@@ -494,7 +599,6 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
             cachedTexture != TEXTURE_DEFAULT_PROFILE && cachedTexture != TEXTURE_BOT_PROFILE) {
             // We have a previously fetched profile picture, use it
             profileTexture = cachedTexture;
-            llOwnerSay("DEBUG: Using cached profile texture for " + playerName);
         }
     }
     
@@ -502,21 +606,15 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     if (profileTexture == profileUUID) {
         if (isBot(playerName)) {
             profileTexture = TEXTURE_BOT_PROFILE;
-            llOwnerSay("DEBUG: Using bot profile texture for " + playerName);
         } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
             profileTexture = TEXTURE_DEFAULT_PROFILE;
-            llOwnerSay("DEBUG: Using default profile texture for " + playerName);
         } else {
             // Request profile picture via HTTP (the correct method!)
-            llOwnerSay("DEBUG: Requesting profile picture via HTTP for avatar UUID: " + profileUUID);
             string URL_RESIDENT = "https://world.secondlife.com/resident/";
             key httpRequestID = llHTTPRequest(URL_RESIDENT + profileUUID, [HTTP_METHOD, "GET"], "");
             
             // Store the HTTP request mapping: requestID -> playerIndex
             httpRequests += [httpRequestID, playerIndex];
-            
-            // For now, use the avatar UUID directly as texture
-            llOwnerSay("DEBUG: Setting temporary profile texture: " + profileTexture);
         }
     }
     
@@ -546,14 +644,15 @@ default {
         
         llListen(SCOREBOARD_CHANNEL, "", "", "");
         llListen(LEADERBOARD_CHANNEL, "", "", "");
+        llListen(DICE_CHANNEL, "", "", "");
+        llListen(-999, "", "", ""); // Dialog menu channel
         loadLeaderboardData();
-        setupPlayerGrid();
         
         // Generate initial leaderboard texture
-        llSetTimerEvent(1.0); // Short delay to ensure prims are set up
+        llSetTimerEvent(1.0); // Short delay for leaderboard generation
         
-        llOwnerSay("Game Scoreboard Manager ready - Grid layout initialized");
-        llOwnerSay("Touch me to re-run setup.");
+        llOwnerSay("Game Scoreboard Manager ready - Touch for menu");
+        llOwnerSay("Use dialog menu to setup prims if needed.");
     }
     
     timer() {
@@ -562,11 +661,35 @@ default {
     }
     
     listen(integer channel, string senderName, key id, string message) {
+        if (channel == -999) {
+            // Handle dialog menu responses
+            if (id == llGetOwner()) {
+                if (message == "Setup Prims") {
+                    llOwnerSay("Running prim setup...");
+                    setupPlayerGrid();
+                } else if (message == "Clear Game") {
+                    llOwnerSay("Clearing game...");
+                    clearAllPlayers();
+                    updateActionsPrim("Title");
+                    llRegionSay(LEADERBOARD_CHANNEL, "CLEAR_LEADERBOARD");
+                    generateLeaderboardText();
+                } else if (message == "Reset Board") {
+                    llOwnerSay("Resetting leaderboard...");
+                    resetLeaderboard();
+                } else if (message == "Gen Leaderboard") {
+                    llOwnerSay("Generating leaderboard...");
+                    generateLeaderboardText();
+                } else if (message == "Cancel") {
+                    llOwnerSay("Menu cancelled.");
+                }
+            }
+            return;
+        }
+        
         if (channel == SCOREBOARD_CHANNEL) {
             if (llSubStringIndex(message, "PLAYER_UPDATE|") == 0) {
                 // Handle player updates here if needed
                 // Format: PLAYER_UPDATE|PlayerName|Lives|ProfileUUID
-                llOwnerSay("DEBUG: Received player update: " + message);
                 
                 list parts = llParseString2List(message, ["|"], []);
                 if (llGetListLength(parts) >= 4) {
@@ -581,6 +704,10 @@ default {
                 // Reset to default state
                 clearAllPlayers(); // Clear all current players
                 updateActionsPrim("Title"); // Reset to title instead of "Game Cleared"
+                
+                // Clear the leaderboard display completely
+                llRegionSay(LEADERBOARD_CHANNEL, "CLEAR_LEADERBOARD");
+                
                 generateLeaderboardText(); // Refresh leaderboard display
             }
             else if (llSubStringIndex(message, "GAME_START|") == 0) {
@@ -605,6 +732,24 @@ default {
                     string winnerName = llList2String(parts, 1);
                     handleGameWon(winnerName);
                 }
+            } else if (llSubStringIndex(message, "GAME_LOST|") == 0) {
+                list parts = llParseString2List(message, ["|"], []);
+                if (llGetListLength(parts) >= 2) {
+                    string loserName = llList2String(parts, 1);
+                    handleGameLost(loserName);
+                }
+            } else if (llSubStringIndex(message, "DICE_ROLL|") == 0) {
+                // Handle dice roll display
+                // Format: DICE_ROLL|PlayerName|DiceValue
+                list parts = llParseString2List(message, ["|"], []);
+                if (llGetListLength(parts) >= 3) {
+                    string playerName = llList2String(parts, 1);
+                    integer diceValue = (integer)llList2String(parts, 2);
+                    generateDiceRollText(playerName, diceValue, "SHOW");
+                }
+            } else if (llSubStringIndex(message, "CLEAR_DICE") == 0) {
+                // Clear dice roll display
+                generateDiceRollText("", 0, "CLEAR");
             } else if (llSubStringIndex(message, "RESET_LEADERBOARD") == 0) {
                 resetLeaderboard();
             }
@@ -612,10 +757,17 @@ default {
     }
     
     touch_start(integer total_number) {
-        // Owner can touch to manually re-run setup
+        // Owner can access dialog menu
         if (llDetectedKey(0) == llGetOwner()) {
-            llOwnerSay("Owner touched - re-running setup...");
-            setupPlayerGrid();
+            llDialog(llDetectedKey(0), "Scoreboard Manager Options:", [
+                "Setup Prims",
+                "Clear Game", 
+                "Reset Board",
+                "Gen Leaderboard",
+                "Cancel"
+            ], -999);
+        } else {
+            llSay(0, "Only the owner can access this menu.");
         }
     }
     
@@ -627,11 +779,9 @@ default {
             integer playerIndex = llList2Integer(profileRequests, requestIndex + 1);
             integer dataType = llList2Integer(profileRequests, requestIndex + 2);
             
-            llOwnerSay("DEBUG: Data type " + (string)dataType + " returned: '" + data + "' for player at index " + (string)playerIndex);
             
             // Check if this looks like a valid texture UUID (36 characters, proper format)
             if (llStringLength(data) == 36 && llSubStringIndex(data, "-") != -1) {
-                llOwnerSay("*** FOUND IT! Data type " + (string)dataType + " returned valid UUID: " + data + " ***");
                 
                 // Update the profile texture for this player
                 integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);
@@ -641,10 +791,8 @@ default {
                     PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
                 ]);
                 
-                llOwnerSay("Profile picture updated successfully for " + llList2String(playerNames, playerIndex));
             } else {
                 // Not a valid UUID, continue testing other data types
-                llOwnerSay("Data type " + (string)dataType + " did not return valid UUID");
             }
             
             // Clean up the completed request (3 elements: requestID, playerIndex, dataType)
@@ -658,7 +806,6 @@ default {
         if (requestIndex != -1) {
             integer playerIndex = llList2Integer(httpRequests, requestIndex + 1);
             
-            llOwnerSay("DEBUG: HTTP response received for player at index " + (string)playerIndex + ", status: " + (string)status);
             
             if (status == 200) {
                 // Try to extract profile picture UUID from HTML
@@ -669,14 +816,11 @@ default {
                     // Second try with img tag
                     s1 = llSubStringIndex(body, profile_img_prefix);
                     s1l = profile_img_prefix_length;
-                    llOwnerSay("DEBUG: Trying img tag method for profile picture extraction");
                 } else {
-                    llOwnerSay("DEBUG: Found meta tag with profile image");
                 }
                 
                 if (s1 == -1) {
                     // Still no match - use default texture
-                    llOwnerSay("DEBUG: No profile picture found in HTML for player " + llList2String(playerNames, playerIndex));
                     
                     integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);
                     llSetLinkPrimitiveParamsFast(profilePrimIndex, [
@@ -689,14 +833,12 @@ default {
                     key profileUUID = llGetSubString(body, s1, s1 + 35);
                     
                     if (profileUUID == NULL_KEY) {
-                        llOwnerSay("DEBUG: Extracted NULL_KEY, using default texture");
                         integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);
                         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
                             PRIM_TEXTURE, ALL_SIDES, TEXTURE_DEFAULT_PROFILE, <1,1,0>, <0,0,0>, 0.0,
                             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
                         ]);
                     } else {
-                        llOwnerSay("*** SUCCESS! Found profile picture UUID: " + (string)profileUUID + " for player " + llList2String(playerNames, playerIndex) + " ***");
                         
                         // Cache the profile picture UUID
                         playerProfiles = llListReplaceList(playerProfiles, [(string)profileUUID], playerIndex, playerIndex);
@@ -710,7 +852,6 @@ default {
                     }
                 }
             } else {
-                llOwnerSay("DEBUG: HTTP request failed with status " + (string)status + " for player " + llList2String(playerNames, playerIndex));
                 
                 // Use default texture on HTTP failure
                 integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);

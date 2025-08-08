@@ -1,6 +1,48 @@
 # Changelog
 
 All notable changes to Peril Dice will be documented in this file.
+
+## [2.4.0] - 2025-08-08
+
+### 📍 Position Management System
+- **Master-Follower Architecture**: Complete position synchronization system for all game components
+- **Position Controller Script**: Main controller object manages movement of scoreboard, leaderboard, and displays
+- **Follower Script Template**: Generic follower script that reads position settings from config notecard
+- **Config-Based Positioning**: Position offsets and rotations defined in "config" notecard for easy customization
+- **Automatic Movement Sync**: When controller moves, all linked objects maintain relative positions
+- **Position Reset Tools**: Built-in recalibration system for repositioning knocked-out components
+- **Multi-Object Coordination**: Seamless movement of entire game system as single unit
+
+### 🧹 Production Code Cleanup
+- **Debug Code Removal**: Complete removal of all debug logging statements and test messages
+  - Removed `llOwnerSay("DEBUG: ...)` calls throughout Main.lsl (lines 147, 161, 479, 517, 523, 527, 874, 1163)
+  - Eliminated development-time diagnostic messages and empty debug blocks
+  - Cleaner, more professional game experience without debug clutter
+- **Syntax Error Fixes**: 
+  - Fixed critical missing closing brace on line 835 in Main.lsl causing compilation failure
+  - Resolved LSL syntax errors that prevented script execution
+  - All scripts now compile cleanly without warnings or errors
+
+### 🛠️ Development Quality Improvements
+- **Production Readiness**: Scripts optimized for live deployment without development artifacts
+- **Performance Enhancement**: Eliminated unnecessary debug output reducing execution overhead
+- **Memory Optimization**: Reduced script memory footprint by removing debug string operations
+- **Code Maintainability**: Cleaner codebase structure for future development
+- **Professional Polish**: Game system ready for production deployment
+
+### 🔧 Technical Improvements
+- **LSL Compliance**: All scripts pass Second Life LSL compilation standards
+- **Execution Efficiency**: Faster script performance without debug processing overhead
+- **Position Synchronization**: Robust communication system for coordinated object movement
+- **Config System**: Flexible notecard-based configuration for easy position adjustments
+- **Error Resolution**: Fixed all syntax issues preventing proper game operation
+
+### 📚 Documentation Updates
+- **Position System Guide**: Comprehensive instructions for setting up position management
+- **Reset Tools Documentation**: Step-by-step guide for recalibrating positions
+- **Version Tracking**: Updated to semantic versioning 2.4.0
+- **Change History**: Detailed tracking of all modifications and improvements
+
 ## [2.3.0] - 2025-08-05
 
 

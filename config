@@ -1,0 +1,25 @@
+# Peril Game Display Configuration
+# Edit the values below to adjust your display positions
+# Use the Position Reset Tool to generate new values if needed
+
+# Scoreboard display position and rotation
+scoreboard_offset=<0.000, 3.000, 0.000>
+scoreboard_rotation=<0.000, 0.000, 0.000, 1.000>
+
+# Leaderboard display position and rotation  
+leaderboard_offset=<-3.000, 0.000, 1.500>
+leaderboard_rotation=<0.000, 0.000, 0.000, 1.000>
+
+# Dice display position and rotation
+dice_offset=<3.000, 0.000, 0.000>  
+dice_rotation=<0.000, 0.000, 0.000, 1.000>
+
+# Channel settings (usually don't need to change these)
+scoreboard_channel=-54321
+leaderboard_channel=-54321
+dice_channel=-54321
+
+# Game data channels (separate from position sync)
+scoreboard_data_channel=-12345
+leaderboard_data_channel=-12346
+dice_data_channel=-12347

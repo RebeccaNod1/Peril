@@ -1,0 +1,190 @@
+PERIL DICE CHANGELOG
+===================
+
+All notable changes to Peril Dice are documented in this file.
+
+[2.4.0] - 2025-08-08
+====================
+
+📍 POSITION MANAGEMENT SYSTEM
+- Master-Follower Architecture: Complete position synchronization system for all game components
+- Position Controller Script: Main controller object manages movement of scoreboard, leaderboard, and displays
+- Follower Script Template: Generic follower script that reads position settings from config notecard
+- Config-Based Positioning: Position offsets and rotations defined in "config" notecard for easy customization
+- Automatic Movement Sync: When controller moves, all linked objects maintain relative positions
+- Position Reset Tools: Built-in recalibration system for repositioning knocked-out components
+- Multi-Object Coordination: Seamless movement of entire game system as single unit
+
+🧹 PRODUCTION CODE CLEANUP
+- Debug Code Removal: Complete removal of all debug logging statements and test messages
+  * Removed llOwnerSay("DEBUG: ...) calls throughout Main.lsl (lines 147, 161, 479, 517, 523, 527, 874, 1163)
+  * Eliminated development-time diagnostic messages and empty debug blocks
+  * Cleaner, more professional game experience without debug clutter
+- Syntax Error Fixes: 
+  * Fixed critical missing closing brace on line 835 in Main.lsl causing compilation failure
+  * Resolved LSL syntax errors that prevented script execution
+  * All scripts now compile cleanly without warnings or errors
+
+🛠️ DEVELOPMENT QUALITY IMPROVEMENTS
+- Production Readiness: Scripts optimized for live deployment without development artifacts
+- Performance Enhancement: Eliminated unnecessary debug output reducing execution overhead
+- Memory Optimization: Reduced script memory footprint by removing debug string operations
+- Code Maintainability: Cleaner codebase structure for future development
+- Professional Polish: Game system ready for production deployment
+
+🔧 TECHNICAL IMPROVEMENTS
+- LSL Compliance: All scripts pass Second Life LSL compilation standards
+- Execution Efficiency: Faster script performance without debug processing overhead
+- Position Synchronization: Robust communication system for coordinated object movement
+- Config System: Flexible notecard-based configuration for easy position adjustments
+- Error Resolution: Fixed all syntax issues preventing proper game operation
+
+📚 DOCUMENTATION UPDATES
+- Position System Guide: Comprehensive instructions for setting up position management
+- Reset Tools Documentation: Step-by-step guide for recalibrating positions
+- Version Tracking: Updated to semantic versioning 2.4.0
+- Change History: Detailed tracking of all modifications and improvements
+
+[2.3.0] - 2025-08-05
+====================
+
+🏆 VISUAL SCOREBOARD SYSTEM
+- Dynamic Player Grid: Real-time visual scoreboard displaying all players with profile pictures and heart count
+- Profile Picture Integration: Automatic fetching of Second Life avatar profile pictures via HTTP requests
+- Heart Texture Display: Visual life representation using custom heart textures (3, 2, 1, 0 hearts)
+- Bot Profile Support: Special profile texture for TestBot players
+- Immediate Updates: Hearts update instantly when lives change, before any dialogs appear
+
+🎭 ENHANCED STATUS DISPLAY SYSTEM
+- Visual Status Actions: Large action prim displaying current game status with custom textures
+- Specific Status Messages:
+  * Direct Hit: When peril player picks their own rolled number
+  * No Shield: When nobody picks the rolled number
+  * Plot Twist: When peril switches to a new player
+  * Elimination: When a player is eliminated
+  * Victory: When someone wins the game
+  * Peril Selected: When a new peril player is chosen
+  * Title: Default/idle state
+
+⚡ PERFECT STATUS TIMING
+- Protected Display Time: Each status shows for 8 seconds with automatic clearing
+- Strategic Delays: 2-second delays after status messages prevent overwriting
+- Sequential Flow: Elimination → 6.4s delay → Victory → 9s delay → Reset
+- Immediate Visual Feedback: Hearts and status update instantly, delays protect display time
+
+🎯 COMPREHENSIVE LEADERBOARD
+- Persistent Win Tracking: Player victories saved across game sessions
+- XyzzyText Integration: Three-prim text display system for leaderboard
+- Automatic Sorting: Top players by win count with formatted display
+- Separate Reset Options: Game reset vs. leaderboard reset vs. complete reset
+
+🎮 ENHANCED USER INTERFACE
+- Categorized Owner Menus: Organized into Game Control, Player Management, Reset Options, etc.
+- Dialog Recovery: Players can recover lost dialogs by touching the controller
+- Admin Menu Access: Owner can access admin functions during gameplay
+- Improved Menu Flow: Streamlined navigation with clear categorization
+
+🔧 TECHNICAL IMPROVEMENTS
+- Multi-Object Architecture: Scoreboard and leaderboard as separate linked objects
+- HTTP Profile Fetching: Robust system for retrieving avatar profile pictures
+- Texture Caching: Profile pictures cached to avoid repeated HTTP requests
+- Region-Based Communication: Cross-object messaging using llRegionSay
+- Elimination Sequence: Visual 0-hearts display before player removal
+
+🐛 CRITICAL FIXES
+- Heart Update Timing: Fixed hearts not updating until after next-turn dialog
+- Victory Overwriting Elimination: Added proper delay between elimination and victory status
+- Status Message Conflicts: All status messages now have protective delays
+- Profile Picture Fallbacks: Proper handling of failed HTTP requests
+- Scoreboard Reset: Fixed scoreboard not clearing when game resets
+
+[2.2.0] - 2025-08-04
+====================
+
+🎭 MAJOR UX/PRESENTATION IMPROVEMENTS
+- Dramatic Messaging System: Complete overhaul of game messages with thematic styling
+- Public Announcements: Key game events now visible to all players in public chat
+- Context-Rich Roll Messages: Dice rolls now show both dice type and result
+- Split Hit Messages: Different messages for "picked own doom" vs "no shield" scenarios
+
+🎮 ENHANCED PLAYER EXPERIENCE
+- Player Join Messages: "💀 PlayerName has entered the deadly game! Welcome to your potential doom! 💀"
+- Ready State Messages: 
+  * "👑 PlayerName steps forward as the game master - automatically ready for the deadly challenge! 👑"
+  * "⚔️ PlayerName steels themselves for the deadly challenge ahead! ⚔️"
+  * "🏃 PlayerName loses their nerve and backs away from the challenge! 🏃"
+- Pick Announcements: "🎯 PlayerName stakes their life on numbers: 1, 2, 3 🎲"
+- Game Start: "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡"
+
+🎲 IMPROVED ROLL MESSAGES
+- Main Roll: "🎲 THE D6 OF FATE! PlayerName rolled a 5 on the 6-sided die! 🎲"
+- Plot Twist: "⚡ PLOT TWIST! PlayerName picked 5 (rolled on d6) and is now in ULTIMATE PERIL! ⚡"
+- Direct Hit: "🩸 DIRECT HIT! PlayerName picked their own doom - the d6 landed on 5! 🩸"
+- No Shield: "🩸 NO SHIELD! Nobody picked 5 - PlayerName takes the hit from the d6! 🩸"
+
+🔧 CRITICAL BUG FIXES
+- StatFloat Duplication: Fixed bug where new StatFloat objects were created on every life loss instead of updating existing ones
+- Duplicate Message Handling: Removed duplicate HUMAN_PICKED handlers that caused double processing
+- Malformed Entry Warnings: Fixed LSL parsing issues with empty picks entries
+- Cleanup Optimization: Reduced excessive StatFloat cleanup messages during reset
+
+🛠️ TECHNICAL IMPROVEMENTS
+- Debug Message Cleanup: Removed excessive debug output while preserving essential error reporting
+- Message Handler Optimization: Streamlined communication between scripts
+- LSL Parsing Fixes: Better handling of trailing empty elements in data parsing
+- Memory Management: Improved StatFloat lifecycle management
+
+[2.1.0] - 2025-08-03
+====================
+
+✨ MAJOR FEATURES ADDED
+- Ready State System: Players must mark themselves ready before games can start
+- Game Protection: Prevents players from joining games in progress
+- Performance Optimization: Reduced lag by limiting confetti to wins only
+- Enhanced Bot Intelligence: Improved bot behavior and duplicate number avoidance
+
+🔧 CORE FIXES
+- Complete Game Flow: Fixed end-to-end gameplay from start to finish
+- Elimination Logic: Proper handling of player elimination and game continuation
+- Win Condition: Fixed victory detection and game ending
+- Data Synchronization: Resolved corruption in pick data between scripts
+- Peril Player Assignment: Fixed race conditions in peril player transitions
+
+🎮 GAMEPLAY IMPROVEMENTS
+- Dynamic Picking: Number of picks now properly based on peril player's lives
+- Duplicate Prevention: Enhanced system to prevent duplicate number selection
+- Dialog Pagination: Improved number selection interface for d30 dice
+- Floater Updates: Real-time HUD updates throughout gameplay
+- Bot Continuation: Bots now properly continue games when humans are eliminated
+
+🛠️ TECHNICAL ENHANCEMENTS
+- Modular Communication: Improved inter-script messaging system
+- Error Handling: Comprehensive validation and error recovery
+- Memory Management: Better floater cleanup and channel tracking
+- Data Encoding: Fixed CSV conflicts with semicolon encoding system
+- State Management: Robust game state synchronization across modules
+
+🐛 BUG FIXES
+- Fixed missing pick dialogs after game events
+- Resolved duplicate message issues between scripts
+- Fixed lives reset problems between rounds
+- Corrected floater display inconsistencies
+- Fixed bot confusion during player elimination
+- Resolved pick data corruption issues
+- Fixed peril player variable sync problems
+
+⚡ PERFORMANCE
+- Removed confetti from life loss (keeping only victory confetti)
+- Optimized debug output to reduce lag
+- Improved floater management efficiency
+- Enhanced bot processing speed
+
+---
+
+DEVELOPMENT NOTES
+================
+
+CREDITS
+- Original Game Design: Noose the Bunny (djmusica28) - Second Life
+- Automation & Development: Enhanced for automated gameplay
+- Architecture: Modular LSL system for scalability and maintainability
