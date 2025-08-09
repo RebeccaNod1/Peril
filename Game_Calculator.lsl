@@ -1,4 +1,5 @@
-// === Game Helper Functions Module (Max 10 players) ===
+// === Game Calculator Module (Max 10 players) ===
+// Calculates dice types, pick requirements, and other game mechanics
 // This version chooses a dice size based on the number of players,
 // ensuring at least three numbers are available per player.
 
@@ -109,8 +110,9 @@ integer showPickManager(string player, key id) {
         }
     }
 
-    llOwnerSay("🛠 Showing pick dialog to: " + (string)id);
-    llDialog(id, "🛠 Managing picks for: " + searchName + "\nCurrent: " + llList2CSV(currentPicks), buttons, -88888);
+    // Don't show hardcoded dialog - let the Owner Dialog Handler manage this
+    llOwnerSay("🧮 Calculator delegating pick management to dialog handler for: " + (string)id);
+    // Return without showing dialog - this should be handled by the proper dialog handler
 
     // Return dummy value since LSL does not have a void return type
     return 0;
@@ -118,7 +120,7 @@ integer showPickManager(string player, key id) {
 
 default {
     state_entry() {
-        llOwnerSay("🧮 Helper Module ready!");
+        llOwnerSay("🧮 Game Calculator ready!");
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -130,30 +132,44 @@ default {
             perilPlayer = "";
             names = [];
             pickQueue = [];
-            llOwnerSay("🧘 Helper Module reset!");
+            llOwnerSay("🧮 Calculator Module reset!");
             return;
         }
         
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) < 4) {
+                llOwnerSay("⚠️ Game Calculator: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
+                return;
+            }
             lives = llCSV2List(llList2String(parts, 0));
-            picksData = llCSV2List(llList2String(parts, 1));
-            perilPlayer = llList2String(parts, 2);
+            // Use ^ delimiter for picksData to avoid comma conflicts
+            string picksDataStr = llList2String(parts, 1);
+            if (picksDataStr == "" || picksDataStr == "EMPTY") {
+                picksData = [];
+            } else {
+                picksData = llParseString2List(picksDataStr, ["^"], []);
+            }
+            string receivedPeril = llList2String(parts, 2);
+            if (receivedPeril == "NONE") {
+                perilPlayer = "";
+            } else {
+                perilPlayer = receivedPeril;
+            }
             names = llCSV2List(llList2String(parts, 3));
+            
+            llOwnerSay("🔄 Calculator synced: lives=" + (string)llGetListLength(lives) + ", picks=" + (string)llGetListLength(picksData) + ", names=" + (string)llGetListLength(names) + ", peril=" + perilPlayer);
         }
         else if (num == MSG_SYNC_PICKQUEUE) {
             pickQueue = llCSV2List(str);
         }
         else if (num == MSG_GET_DICE_TYPE) {
             integer playerCount = (integer)str;
-            llOwnerSay("📊 playerCount received: " + (string)playerCount);
+            llOwnerSay("📈 Calculator: Calculating dice type for " + (string)playerCount + " players");
             integer result = getDiceType(playerCount);
-            // Broadcast the dice type result across the entire linkset so that
-            // the main game controller can receive it.  Using LINK_THIS
-            // restricted the message to the helper's prim, preventing the
-            // controller from seeing MSG_DICE_TYPE_RESULT and causing the
-            // game not to start.
-            llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
+            // Send result ONLY back to the requesting script to prevent duplicate processing
+            // Main Controller will forward it to Game Manager as needed
+            llMessageLinked(sender, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
         }
         else if (num == MSG_GET_PICKS_REQUIRED) {
             integer result = getPicksRequiredFromName(str);

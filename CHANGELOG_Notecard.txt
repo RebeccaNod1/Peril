@@ -3,6 +3,65 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[2.6.0] - 2025-08-09
+====================
+
+📡 ADVANCED CHANNEL MANAGEMENT SYSTEM
+- Dynamic Channel Calculation: Implemented sophisticated channel assignment system to prevent conflicts
+  * Channels calculated using combined hash of owner key + object key for uniqueness
+  * Prevents interference between multiple game tables owned by same person
+  * Each game instance gets completely unique channel space
+  * MD5-based hash generation creates 0-255 range offsets for channel distribution
+- Multi-Instance Support: Multiple game tables can now operate simultaneously without channel conflicts
+- Automatic Channel Assignment: 
+  * Main Controller: ~-78000 range (CHANNEL_BASE - offset - hash)
+  * Dialog Handler: ~-79000 range
+  * Roll Module: ~-80000 range  
+  * Bot Manager: ~-81000 range
+  * Scoreboard: ~-83000 range
+  * Leaderboard: ~-84000 range
+  * Position System: ~-85000 range
+  * Floater Base: ~-86000 range (with per-player offsets)
+- Channel Debugging: Owner receives detailed channel assignments on startup for troubleshooting
+
+🧹 DEBUG OUTPUT CLEANUP CAMPAIGN
+- Main Controller Noise Reduction: Removed verbose debug messages causing chat spam
+  * Eliminated touch event logging ("DEBUG: touch_start - sender: X")
+  * Removed dice type result debug output ("DEBUG: Roll result: X on dY")
+  * Cleaned up excessive state change notifications
+  * Preserved essential error messages and critical game flow information
+- Floater Manager Debug Cleanup: Significantly reduced verbose owner messages
+  * Removed detailed picks data logging from getPicksFor() function calls
+  * Eliminated floater cleanup debug messages (channel, index, player data confirmations)
+  * Removed sync state debug information showing counts of lives, picks, and names
+  * Maintained important error reporting for malformed data and critical issues
+- Professional Operation Standards: Game now operates with minimal console noise
+
+🎯 ENHANCED USER EXPERIENCE
+- Reduced Log Spam: Console output now focuses on meaningful information only
+- Essential Information Preserved: Error messages and critical game events still logged
+- Clean Monitoring: Easier to spot actual issues without debug noise overwhelming chat
+- Multi-Table Deployment: Support for running multiple game instances without interference
+
+🛠️ TECHNICAL INFRASTRUCTURE IMPROVEMENTS
+- Performance Enhancement: Reduced string processing overhead from debug output removal
+- Memory Optimization: Less memory usage from debug string concatenation and storage
+- Channel Architecture: Robust system for managing communication channels across components
+- Hash-Based Uniqueness: Cryptographically sound channel assignment preventing collisions
+- Maintainability: Cleaner codebase easier to debug when real issues occur
+
+🔧 SYSTEM RELIABILITY
+- Conflict Prevention: Eliminates channel conflicts that could cause cross-talk between games
+- Instance Isolation: Each game table operates in completely isolated channel space
+- Debugging Tools: Built-in channel reporting for troubleshooting communication issues
+- Production Ready: Professional-grade logging levels suitable for live deployment
+
+📋 IMPLEMENTATION DETAILS
+- Channel Calculation Function: calculateChannel(offset) in all major scripts
+- Initialization Reporting: Detailed channel assignments logged on script startup
+- Cross-Script Consistency: All components use same channel calculation method
+- Owner Transparency: Clear visibility into assigned channels for admin purposes
+
 [2.5.0] - 2025-08-08
 ====================
 
@@ -28,6 +87,22 @@ All notable changes to Peril Dice are documented in this file.
 - Duplicate Pick Prevention: Fixed continueCurrentRound() function to properly rebuild globalPickedNumbers with uniqueness checks
 - Data Corruption Fix: Resolved issue where globalPickedNumbers could contain duplicates, causing inconsistent bot pick validation
 - Delimiter Handling: Enhanced parsing to correctly handle both comma (human) and semicolon (bot) pick delimiters
+- Server-Side Pick Validation: Added robust server-side validation in Main.lsl to prevent duplicate picks from being accepted
+  * Human picks are now validated against globalPickedNumbers before acceptance
+  * Invalid picks are rejected with clear error messaging to the player
+  * Player receives new dialog with updated available numbers after rejection
+  * Eliminates client-side bypass vulnerabilities in duplicate prevention
+- Loss Tracking: Fixed missing loss records in leaderboard when players are eliminated
+  * Added GAME_LOST| message broadcast when players are eliminated
+  * Eliminated players now properly appear in leaderboard with loss counts
+  * Provides complete game statistics showing both wins and losses
+- Enhanced Display Name Handling: Implemented robust player name resolution with fallback system
+  * Added getPlayerName(key id) helper function in all scripts (Main.lsl, Dialog Handler, StatFloat)
+  * Prioritizes modern llGetDisplayName() for better user experience
+  * Falls back to legacy llKey2Name() when display names are unavailable
+  * Handles network issues, offline avatars, and viewer compatibility problems
+  * Ensures no player is ever shown as blank or missing name
+  * Consistent name handling across all game components and messages
 
 [2.4.0] - 2025-08-08
 ====================

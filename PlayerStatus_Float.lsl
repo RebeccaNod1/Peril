@@ -1,7 +1,20 @@
-// === StatFloat Enhanced ===
+// === Player Status Float - Enhanced Display ===
+
+// Helper function to get display name with fallback to username
+string getPlayerName(key id) {
+    string displayName = llGetDisplayName(id);
+    if (displayName == "") {
+        // Fallback to legacy username if display name is unavailable
+        displayName = llKey2Name(id);
+    }
+    return displayName;
+}
 key target;
 string displayText;
 string myName;
+
+// Listen handle management
+integer listenHandle = -1;
 
 integer MSG_SYNC_GAME_STATE = 107;
 
@@ -39,14 +52,20 @@ default {
     }
 
     on_rez(integer start_param) {
-        llListen(start_param, "", NULL_KEY, "");
+        // Clean up any existing listeners
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Set up managed listener
+        listenHandle = llListen(start_param, "", NULL_KEY, "");
         // Wait a moment for the description to be set
         llSleep(0.1);
         myName = llGetObjectDesc();
         if (myName == "" || myName == "(No Description)") {
             myName = "UnknownPlayer" + (string)start_param;
         }
-// StatFloat ready and listening
+// PlayerStatus_Float ready and listening
     }
 
     listen(integer channel, string name, key id, string message) {
@@ -155,7 +174,7 @@ default {
     }
 
     timer() {
-        if (target != NULL_KEY && llKey2Name(target) != "") {
+        if (target != NULL_KEY && getPlayerName(target) != "") {
             vector pos = llList2Vector(llGetObjectDetails(target, [OBJECT_POS]), 0) + <1,0,1>;
             llSetRegionPos(pos);
         }

@@ -2,7 +2,47 @@
 
 integer MSG_SHOW_DIALOG = 101;
 integer MSG_GET_CURRENT_DIALOG = 302;
-integer numberPickChannel = -77888;
+
+// =============================================================================
+// DYNAMIC CHANNEL CONFIGURATION
+// =============================================================================
+
+// Base channel offset - should match Main.lsl
+integer CHANNEL_BASE = -77000;
+
+// Calculate channels dynamically to avoid hardcoded conflicts
+integer calculateChannel(integer offset) {
+    // Use BOTH owner's key AND object's key to make channels unique per game instance
+    // This prevents interference when same owner has multiple game tables
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetKey();
+    string combinedStr = ownerStr + objectStr;
+    
+    // Create a more unique hash using both keys
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2; // Creates 0-255 range
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Dynamic channel variables
+integer NUMBERPICK_CHANNEL;
+
+// Channel initialization function
+initializeChannels() {
+    NUMBERPICK_CHANNEL = calculateChannel(2);     // ~-77200 range to match Main.lsl
+    
+    // Report channel to owner for debugging
+    llOwnerSay("🔧 [Number Picker Dialog] Dynamic channel initialized:");
+    llOwnerSay("  Number Pick: " + (string)NUMBERPICK_CHANNEL);
+}
+
+integer numberPickChannel; // Legacy variable, will be set dynamically
+
+// Listen handle management
+integer listenHandle = -1;
 
 // Pagination and picking state
 string currentPlayer = "";
@@ -42,6 +82,8 @@ list getNumbersForPage(integer page, integer diceType) {
 }
 
 showPickDialog(string name, key id, integer diceType, integer picks) {
+    llOwnerSay("📋 [NumberPicker] showPickDialog called for " + name + ", dice:" + (string)diceType + ", picks:" + (string)picks);
+    
     if (diceType <= 0) {
         llOwnerSay("⚠️ Cannot show dialog: diceType is 0 or invalid.");
         return;
@@ -49,12 +91,15 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
 
     // Initialize or update picking session
     if (currentPlayer != name) {
+        llOwnerSay("📋 [NumberPicker] Starting new session for " + name);
         currentPlayer = name;
         currentPlayerKey = id;
         currentDiceType = diceType;
         picksNeeded = picks;
         currentPicks = [];
         currentPage = 0;
+    } else {
+        llOwnerSay("📋 [NumberPicker] Updating existing session for " + name);
     }
 
     list options;
@@ -111,11 +156,35 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
 
 default {
     state_entry() {
+        // Initialize dynamic channels
+        initializeChannels();
+        numberPickChannel = NUMBERPICK_CHANNEL; // Set legacy variable
+        
+        // Clean up any existing listeners
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Set up managed listener with dynamic channel
+        listenHandle = llListen(numberPickChannel, "", NULL_KEY, "");
         llOwnerSay("🎮 Number Picker Dialog Handler ready!");
-        llListen(numberPickChannel, "", NULL_KEY, "");
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle dialog close command
+        if (num == -9999 && str == "CLOSE_ALL_DIALOGS") {
+            llOwnerSay("🚫 [NumberPicker] CLOSE_ALL_DIALOGS received! currentPlayer: " + currentPlayer + ", key: " + (string)currentPlayerKey);
+            if (currentPlayerKey != NULL_KEY) {
+                llOwnerSay("🚫 [NumberPicker] Forced dialog close for " + currentPlayer);
+                currentPlayer = "";
+                currentPlayerKey = NULL_KEY;
+                currentPicks = [];
+            } else {
+                llOwnerSay("🚫 [NumberPicker] No active dialog to close");
+            }
+            return;
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset all dialog state
@@ -170,6 +239,33 @@ default {
     }
 
     listen(integer channel, string name, key id, string message) {
+        // Ignore any responses if no active dialog session
+        if (currentPlayerKey == NULL_KEY || currentPlayer == "") {
+            llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response (no active session). Player: " + name + ", Key: " + (string)id + ", Message: " + message);
+            return;
+        }
+        
+        // Ignore responses from wrong player
+        if (id != currentPlayerKey) {
+            llOwnerSay("🚫 [NumberPicker] Ignoring dialog response from wrong player. Expected: " + (string)currentPlayerKey + ", Got: " + (string)id + ", Message: " + message);
+            return;
+        }
+        
+        // Additional validation: if this is a number selection, make sure it's still valid
+        integer messageNum = (integer)message;
+        if (messageNum > 0 && messageNum <= currentDiceType) {
+            // This looks like a number selection - verify it's not already globally picked
+            if (llListFindList(globallyPickedNumbers, [message]) != -1) {
+                llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already globally picked. Player: " + name);
+                return;
+            }
+            
+            // Also verify it's not already in current picks
+            if (llListFindList(currentPicks, [message]) != -1) {
+                llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already in current picks. Player: " + name);
+                return;
+            }
+        }
         
         // Handle navigation
         if (message == "◀ Prev") {
@@ -194,11 +290,14 @@ default {
         
         // Handle completion
         if (message == "✅ Done") {
+            llOwnerSay("📋 [NumberPicker] Done button clicked by " + name + ", currentPicks: " + llList2CSV(currentPicks) + ", needed: " + (string)picksNeeded);
             if (llGetListLength(currentPicks) >= picksNeeded) {
                 string picksStr = llList2CSV(currentPicks);
                 string response = "HUMAN_PICKED:" + currentPlayer + ":" + picksStr;
+                llOwnerSay("📤 [NumberPicker] SENDING HUMAN_PICKED: " + response);
                 llMessageLinked(LINK_SET, -9998, response, NULL_KEY);
                 // Reset state
+                llOwnerSay("📋 [NumberPicker] Resetting session state for " + currentPlayer);
                 currentPlayer = "";
                 currentPlayerKey = NULL_KEY;
                 currentPicks = [];

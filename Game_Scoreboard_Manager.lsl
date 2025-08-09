@@ -1,8 +1,103 @@
 // Game Scoreboard Manager - Shows current game players in grid layout
 // Each player gets a prim showing profile picture + heart texture (lives)
 
+// =============================================================================
+// CONTROLLER DISCOVERY SYSTEM
+// =============================================================================
+
+// Fixed discovery channel for finding controller
+integer DISCOVERY_CHANNEL = -77000;
+
+// Base channel offset - should match Main.lsl
+integer CHANNEL_BASE = -77000;
+
+// Controller discovery state
+key CONTROLLER_KEY = NULL_KEY;
+integer DISCOVERY_ATTEMPTS = 0;
+integer MAX_DISCOVERY_ATTEMPTS = 10;
+float MAX_CONTROLLER_DISTANCE = 75.0; // Maximum distance to accept controller (meters)
+integer INITIALIZED = FALSE; // Flag to prevent multiple initializations
+
+// Calculate channels dynamically using controller key for consistency
+integer calculateChannelWithController(integer offset, key controllerKey) {
+    // Use owner's key AND CONTROLLER's key to ensure all objects use same channels
+    string ownerStr = (string)llGetOwner();
+    string controllerStr = (string)controllerKey;
+    string combinedStr = ownerStr + controllerStr;
+    
+    // Create a more unique hash using both keys
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2; // Creates 0-255 range
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Legacy function for backward compatibility (uses own key)
+integer calculateChannel(integer offset) {
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetKey();
+    string combinedStr = ownerStr + objectStr;
+    
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2;
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Dynamic channel variables
+integer SCOREBOARD_CHANNEL;
+integer SCOREBOARD_CHANNEL_2; 
+integer SCOREBOARD_CHANNEL_3;
+integer LEADERBOARD_CHANNEL; // Dynamic replacement for hardcoded channel
+integer DICE_CHANNEL; // Dynamic replacement for hardcoded channel
+
+// Controller discovery function
+startControllerDiscovery() {
+    llOwnerSay("📡 [Scoreboard] Starting controller discovery...");
+    
+    // Listen on discovery channel
+    llListen(DISCOVERY_CHANNEL, "", "", "");
+    
+    // Broadcast discovery request
+    llRegionSay(DISCOVERY_CHANNEL, "FIND_CONTROLLER|scoreboard");
+    
+    // Reset discovery attempts
+    DISCOVERY_ATTEMPTS = 0;
+    
+    // Set timer for retry if needed
+    llSetTimerEvent(5.0);
+}
+
+// Channel initialization function (with controller discovery)
+initializeChannels() {
+    if (CONTROLLER_KEY != NULL_KEY) {
+        // Use controller-based channels for consistency
+        SCOREBOARD_CHANNEL = calculateChannelWithController(6, CONTROLLER_KEY);     // ~-83000 range (Status messages)
+        SCOREBOARD_CHANNEL_2 = calculateChannelWithController(7, CONTROLLER_KEY);   // ~-84000 range (Player updates)  
+        SCOREBOARD_CHANNEL_3 = calculateChannelWithController(8, CONTROLLER_KEY);   // ~-85000 range (Dice rolls)
+    } else {
+        // Fallback to legacy channels during discovery
+        SCOREBOARD_CHANNEL = calculateChannel(6);     // ~-83000 range (Status messages)
+        SCOREBOARD_CHANNEL_2 = calculateChannel(7);   // ~-84000 range (Player updates)  
+        SCOREBOARD_CHANNEL_3 = calculateChannel(8);   // ~-85000 range (Dice rolls)
+    }
+    
+    // Use same channels for different purposes but with clear naming
+    LEADERBOARD_CHANNEL = SCOREBOARD_CHANNEL_2;   // Use player update channel for leaderboard messages
+    DICE_CHANNEL = SCOREBOARD_CHANNEL_3;          // Use dice channel for dice display
+    
+    // Report channels to owner for debugging
+    llOwnerSay("🔧 [Scoreboard] Dynamic channels initialized:");
+    llOwnerSay("  Status (CH1): " + (string)SCOREBOARD_CHANNEL);
+    llOwnerSay("  Players (CH2): " + (string)SCOREBOARD_CHANNEL_2);
+    llOwnerSay("  Dice (CH3): " + (string)SCOREBOARD_CHANNEL_3);
+}
+
 // Heart texture UUIDs - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
-integer LEADERBOARD_CHANNEL = -12346;
 list playerWins = []; // Store wins data for persistent leaderboard
 string TEXTURE_0_HEARTS = "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b"; // 0 hearts (dead)
 string TEXTURE_1_HEARTS = "6605d25f-8e2d-2870-eb87-77c58cd47fa9"; // 1 heart
@@ -72,8 +167,13 @@ integer BACKGROUND_PRIM = 2;
 integer ACTIONS_PRIM = 3;
 integer FIRST_PLAYER_PRIM = 4; // Player prims start from index 4 (no leaderboard prim)
 
-// Communication
-integer SCOREBOARD_CHANNEL = -12345;
+// Communication - channels are now set dynamically
+
+// Listen handle management
+integer scoreboardHandle = -1;
+integer leaderboardHandle = -1;
+integer diceHandle = -1;
+integer dialogHandle = -1;
 
 setupPlayerGrid() {
     // Create/position prims: 3 UI prims + 10 player slots (20 prims) = 23 prims total
@@ -197,7 +297,7 @@ updateActionsPrim(string status) {
 // XyzzyText Communication Constants
 integer DISPLAY_STRING = 204000;
 integer DISPLAY_EXTENDED = 204001;
-integer DICE_CHANNEL = -12347; // Channel for dice roll display
+// DICE_CHANNEL now set dynamically in initializeChannels()
 
 // Generate leaderboard text for quad XyzzyText display (40 characters per line split across 4 prims)
 generateLeaderboardText() {
@@ -633,8 +733,52 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     ]);
 }
 
+// Function to initialize after controller discovery
+initializeAfterDiscovery() {
+    if (CONTROLLER_KEY != NULL_KEY) {
+        llOwnerSay("✅ [Scoreboard] Controller found! Initializing channels and listeners...");
+    } else {
+        llOwnerSay("⚠️ [Scoreboard] Initializing in legacy mode (no controller found)...");
+    }
+    
+    // Initialize dynamic channels with controller key (or legacy channels if NULL)
+    initializeChannels();
+    
+    // Clean up any existing listeners
+    if (scoreboardHandle != -1) llListenRemove(scoreboardHandle);
+    if (leaderboardHandle != -1) llListenRemove(leaderboardHandle);
+    if (diceHandle != -1) llListenRemove(diceHandle);
+    if (dialogHandle != -1) llListenRemove(dialogHandle);
+    
+    // Set up managed listeners with dynamic channels
+    scoreboardHandle = llListen(SCOREBOARD_CHANNEL, "", "", "");     // Status messages
+    leaderboardHandle = llListen(SCOREBOARD_CHANNEL_2, "", "", "");   // Player updates  
+    diceHandle = llListen(SCOREBOARD_CHANNEL_3, "", "", "");          // Dice rolls
+    dialogHandle = llListen(-999, "", "", ""); // Dialog menu channel
+    
+    // Only set timer for leaderboard generation if we have a controller
+    // Don't set timer in legacy mode to avoid discovery loop
+    if (CONTROLLER_KEY != NULL_KEY) {
+        llSetTimerEvent(1.0); // Short delay for leaderboard generation
+    } else {
+        // In legacy mode, generate leaderboard immediately without timer
+        generateLeaderboardText();
+    }
+    
+    // Mark as initialized to prevent repeated initialization
+    INITIALIZED = TRUE;
+    
+    llOwnerSay("✅ Game Scoreboard Manager ready - Touch for menu");
+    llOwnerSay("Use dialog menu to setup prims if needed.");
+}
+
 default {
     state_entry() {
+        llOwnerSay("🎮 [Scoreboard] Starting and discovering controller...");
+        
+        // Start controller discovery first
+        startControllerDiscovery();
+        
         // Clear any old floating text on root prim
         llSetText("", <1,1,1>, 0.0);
         
@@ -642,25 +786,109 @@ default {
         profile_key_prefix_length = llStringLength(profile_key_prefix);
         profile_img_prefix_length = llStringLength(profile_img_prefix);
         
-        llListen(SCOREBOARD_CHANNEL, "", "", "");
-        llListen(LEADERBOARD_CHANNEL, "", "", "");
-        llListen(DICE_CHANNEL, "", "", "");
-        llListen(-999, "", "", ""); // Dialog menu channel
         loadLeaderboardData();
         
-        // Generate initial leaderboard texture
-        llSetTimerEvent(1.0); // Short delay for leaderboard generation
-        
-        llOwnerSay("Game Scoreboard Manager ready - Touch for menu");
-        llOwnerSay("Use dialog menu to setup prims if needed.");
+        llOwnerSay("Game Scoreboard Manager initializing - controller discovery in progress...");
     }
     
     timer() {
-        llSetTimerEvent(0.0); // Stop timer
-        generateLeaderboardText(); // Generate initial leaderboard
+        // Handle controller discovery retries
+        if (CONTROLLER_KEY == NULL_KEY) {
+            DISCOVERY_ATTEMPTS++;
+            
+            if (DISCOVERY_ATTEMPTS <= MAX_DISCOVERY_ATTEMPTS) {
+                llOwnerSay("⏱️ [Scoreboard] Controller discovery retry " + (string)DISCOVERY_ATTEMPTS + "/" + (string)MAX_DISCOVERY_ATTEMPTS);
+                
+                // Broadcast discovery request again
+                llRegionSay(DISCOVERY_CHANNEL, "FIND_CONTROLLER|scoreboard");
+                
+                // Set timer for next retry (exponential backoff: 5s, 10s, 15s, etc.)
+                llSetTimerEvent(5.0 * DISCOVERY_ATTEMPTS);
+            } else {
+                llOwnerSay("❌ [Scoreboard] Controller discovery failed after " + (string)MAX_DISCOVERY_ATTEMPTS + " attempts");
+                llOwnerSay("   Operating in legacy mode with owner-based channels");
+                
+                // Stop timer and initialize with legacy channels
+                llSetTimerEvent(0.0);
+                initializeAfterDiscovery(); // This will use legacy channels since CONTROLLER_KEY is NULL
+            }
+        } else {
+            // Controller found, generate initial leaderboard
+            llSetTimerEvent(0.0); // Stop timer
+            generateLeaderboardText(); // Generate initial leaderboard
+        }
     }
     
     listen(integer channel, string senderName, key id, string message) {
+        // Handle controller discovery responses
+        if (channel == DISCOVERY_CHANNEL) {
+            if (llSubStringIndex(message, "CONTROLLER_FOUND|") == 0) {
+                list parts = llParseString2List(message, ["|"], []);
+                key controllerKey = (key)llList2String(parts, 1);
+                
+                // Check proximity - only accept nearby controllers
+                vector myPos = llGetPos();
+                vector controllerPos = llList2Vector(llGetObjectDetails(controllerKey, [OBJECT_POS]), 0);
+                float distance = llVecDist(myPos, controllerPos);
+                
+                if (distance <= MAX_CONTROLLER_DISTANCE) {
+                    CONTROLLER_KEY = controllerKey;
+                    
+                    llOwnerSay("✅ [Scoreboard] Controller discovered: " + (string)CONTROLLER_KEY + " (distance: " + (string)llRound(distance) + "m)");
+                    
+                    // Notify controller that we've connected
+                    llRegionSay(DISCOVERY_CHANNEL, "CLIENT_CONNECTED|scoreboard|" + (string)llGetKey());
+                    
+                    // Cancel discovery timer
+                    llSetTimerEvent(0.0);
+                    
+                    // Initialize with controller key
+                    initializeAfterDiscovery();
+                    return;
+                } else {
+                    llOwnerSay("📍 [Scoreboard] Controller too far (" + (string)llRound(distance) + "m > " + (string)llRound(MAX_CONTROLLER_DISTANCE) + "m), ignoring");
+                }
+            }
+            else if (llSubStringIndex(message, "CONTROLLER_AVAILABLE|") == 0) {
+                // Handle broadcast availability messages - but only if not already initialized
+                if (INITIALIZED) {
+                    // Already initialized, ignore repeated availability messages
+                    return;
+                }
+                
+                // Set flag IMMEDIATELY to prevent race conditions from multiple broadcasts
+                INITIALIZED = TRUE;
+                
+                list parts = llParseString2List(message, ["|"], []);
+                key controllerKey = (key)llList2String(parts, 1);
+                
+                // Check proximity - only accept nearby controllers
+                vector myPos = llGetPos();
+                vector controllerPos = llList2Vector(llGetObjectDetails(controllerKey, [OBJECT_POS]), 0);
+                float distance = llVecDist(myPos, controllerPos);
+                
+                if (distance <= MAX_CONTROLLER_DISTANCE) {
+                    CONTROLLER_KEY = controllerKey;
+                    
+                    llOwnerSay("✅ [Scoreboard] Controller available: " + (string)CONTROLLER_KEY + " (distance: " + (string)llRound(distance) + "m)");
+                    
+                    // Notify controller that we've connected
+                    llRegionSay(DISCOVERY_CHANNEL, "CLIENT_CONNECTED|scoreboard|" + (string)llGetKey());
+                    
+                    // Cancel discovery timer
+                    llSetTimerEvent(0.0);
+                    
+                    // Initialize with controller key (flag already set above)
+                    initializeAfterDiscovery();
+                    return;
+                } else {
+                    llOwnerSay("📍 [Scoreboard] Controller too far (" + (string)llRound(distance) + "m > " + (string)llRound(MAX_CONTROLLER_DISTANCE) + "m), ignoring");
+                    // Reset flag if we rejected this controller
+                    INITIALIZED = FALSE;
+                }
+            }
+        }
+        
         if (channel == -999) {
             // Handle dialog menu responses
             if (id == llGetOwner()) {
@@ -686,7 +914,8 @@ default {
             return;
         }
         
-        if (channel == SCOREBOARD_CHANNEL) {
+        // Handle messages from all three scoreboard channels
+        if (channel == SCOREBOARD_CHANNEL || channel == SCOREBOARD_CHANNEL_2 || channel == SCOREBOARD_CHANNEL_3) {
             if (llSubStringIndex(message, "PLAYER_UPDATE|") == 0) {
                 // Handle player updates here if needed
                 // Format: PLAYER_UPDATE|PlayerName|Lives|ProfileUUID

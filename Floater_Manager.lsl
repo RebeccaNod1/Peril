@@ -9,6 +9,45 @@ integer MSG_REZ_FLOAT = 105;
 integer MSG_REGISTER_PLAYER = 106;
 integer MSG_SYNC_GAME_STATE = 107;
 
+// =============================================================================
+// DYNAMIC CHANNEL CONFIGURATION FOR FLOATERS
+// =============================================================================
+
+// Base channel offset - should match Main.lsl
+integer CHANNEL_BASE = -77000;
+
+// Calculate channels dynamically to avoid hardcoded conflicts
+integer calculateChannel(integer offset) {
+    // Use BOTH owner's key AND object's key to make channels unique per game instance
+    // This prevents interference when same owner has multiple game tables
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetKey();
+    string combinedStr = ownerStr + objectStr;
+    
+    // Create a more unique hash using both keys
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2; // Creates 0-255 range
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Dynamic channel variables
+integer FLOATER_BASE_CHANNEL;
+
+// Channel initialization function
+initializeChannels() {
+    FLOATER_BASE_CHANNEL = calculateChannel(9);   // ~-86000 range base for floaters
+    
+    // Report channel to owner for debugging
+    llOwnerSay("🔧 [Floater Manager] Dynamic channels initialized:");
+    llOwnerSay("  Floater Base: " + (string)FLOATER_BASE_CHANNEL);
+    llOwnerSay("  Player 0 channel: " + (string)(FLOATER_BASE_CHANNEL + 0));
+    llOwnerSay("  Player 1 channel: " + (string)(FLOATER_BASE_CHANNEL + 1));
+    llOwnerSay("  Player 9 channel: " + (string)(FLOATER_BASE_CHANNEL + 9));
+}
+
 // Maximum number of players allowed in the game
 integer MAX_PLAYERS = 10;
 
@@ -69,7 +108,12 @@ string getNameFromKey(key id) {
 // Main event handler
 default {
     state_entry() {
+        // Initialize dynamic channels
+        initializeChannels();
+        
+        // Verify channel consistency with Main Controller
         llOwnerSay("📦 Floater Manager ready!");
+        llOwnerSay("📦 Using FLOATER_BASE_CHANNEL: " + (string)FLOATER_BASE_CHANNEL);
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -137,7 +181,7 @@ default {
                 // This prevents them from spawning directly on the leaderboard.
                 pos = basePos + <-4.0 - (float)idx * 1.0, 2.0 + (float)idx * 0.8, 1>;
             }
-            integer ch = -777000 + idx;
+            integer ch = FLOATER_BASE_CHANNEL + idx;
             llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
             // Wait a moment then set the description
             llSleep(0.2);
@@ -159,7 +203,7 @@ default {
             integer idx = llListFindList(names, [name]);
             if (idx == -1) return;
             key avKey = llList2Key(players, idx);
-            integer ch = -777000 + idx;
+            integer ch = FLOATER_BASE_CHANNEL + idx;
             integer lifeCount = llList2Integer(lives, idx);
 
             list picks = getPicksFor(name);
@@ -184,7 +228,7 @@ default {
         }
         else if (num == MSG_CLEANUP_FLOAT) {
             integer ch = (integer)str;
-            integer idx = ch - (-777000);
+            integer idx = ch - FLOATER_BASE_CHANNEL;
             
             // Always send cleanup message to the channel (even for orphaned floaters)
             llRegionSay(ch, "CLEANUP");
@@ -200,6 +244,10 @@ default {
         else if (num == MSG_SYNC_GAME_STATE) {
             // Synchronize the lists for lives and picksData when receiving a new game state
             list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) < 4) {
+                llOwnerSay("⚠️ Floater Manager: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
+                return;
+            }
             string livesStr = llList2String(parts, 0);
             lives = llCSV2List(livesStr);
             // Use ^ delimiter for picksData to avoid comma conflicts
@@ -216,7 +264,9 @@ default {
             } else {
                 perilPlayer = receivedPeril;
             }
-            
+            // IMPORTANT: Also sync the names list to prevent desynchronization
+            string namesStr = llList2String(parts, 3);
+            names = llCSV2List(namesStr);
 
             // After synchronizing the game state, update all existing floats so
             // they reflect the current peril status.  Without this, floats

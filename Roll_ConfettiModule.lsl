@@ -8,7 +8,52 @@ integer MSG_REZ_FLOAT = 105;
 integer MSG_SYNC_GAME_STATE = 107;
 integer MSG_SHOW_ROLL_DIALOG = 301;
 
-integer rollDialogChannel = -77999;
+// =============================================================================
+// DYNAMIC CHANNEL CONFIGURATION
+// =============================================================================
+
+// Base channel offset - should match Main.lsl
+integer CHANNEL_BASE = -77000;
+
+// Calculate channels dynamically to avoid hardcoded conflicts
+integer calculateChannel(integer offset) {
+    // Use BOTH owner's key AND object's key to make channels unique per game instance
+    // This prevents interference when same owner has multiple game tables
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetKey();
+    string combinedStr = ownerStr + objectStr;
+    
+    // Create a more unique hash using both keys
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2; // Creates 0-255 range
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Dynamic channel variables
+integer ROLLDIALOG_CHANNEL;
+integer SCOREBOARD_CHANNEL_1;
+integer SCOREBOARD_CHANNEL_3;
+
+// Channel initialization function
+initializeChannels() {
+    ROLLDIALOG_CHANNEL = calculateChannel(3);     // ~-77300 range
+    SCOREBOARD_CHANNEL_1 = calculateChannel(6);   // ~-77600 range
+    SCOREBOARD_CHANNEL_3 = calculateChannel(8);   // ~-77800 range
+    
+    // Report channels to owner for debugging
+    llOwnerSay("🔧 [Roll Confetti] Dynamic channels initialized:");
+    llOwnerSay("  Roll Dialog: " + (string)ROLLDIALOG_CHANNEL);
+    llOwnerSay("  Scoreboard 1: " + (string)SCOREBOARD_CHANNEL_1);
+    llOwnerSay("  Scoreboard 3: " + (string)SCOREBOARD_CHANNEL_3);
+}
+
+integer rollDialogChannel; // Legacy variable, will be set dynamically
+
+// Listen handle management
+integer listenHandle = -1;
 
 list names = [];
 list lives = [];
@@ -63,11 +108,32 @@ confetti() {
 
 default {
     state_entry() {
+        // Initialize dynamic channels
+        initializeChannels();
+        rollDialogChannel = ROLLDIALOG_CHANNEL; // Set legacy variable
+        
+        // Clean up any existing listeners
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Set up managed listener with dynamic channel
+        listenHandle = llListen(rollDialogChannel, "", NULL_KEY, "");
         llOwnerSay("🎲 Roll Confetti Module ready!");
-        llListen(rollDialogChannel, "", NULL_KEY, "");
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Debug: Log critical messages to see if Roll Module is working
+        if (num == MSG_SHOW_ROLL_DIALOG) {
+            llOwnerSay("🎲 [Roll Module] RECEIVED MSG_SHOW_ROLL_DIALOG: " + str + " id: " + (string)id);
+        }
+        if (num == 301) {
+            llOwnerSay("🎲 [Roll Module] RECEIVED 301: " + str + " id: " + (string)id);
+        }
+        if (num == 996) {
+            llOwnerSay("🎲 [Roll Module] RECEIVED GET_DICE_TYPE: " + str);
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset roll confetti module state
@@ -121,9 +187,12 @@ default {
                 llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
             } else {
                 // Clear dice display before showing new roll dialog
-                llRegionSay(-12345, "CLEAR_DICE");
+                llRegionSay(SCOREBOARD_CHANNEL_3, "CLEAR_DICE");
                 
-                llOwnerSay("🎲 Prompting " + str + " to roll the dice.");
+                // Update peril player from the roll dialog message
+                perilPlayer = str;
+                llOwnerSay("🎲 Prompting " + str + " to roll the dice. Setting perilPlayer to: " + perilPlayer);
+                
                 // Check if this is a bot (TestBot names)
                 if (llSubStringIndex(str, "TestBot") == 0) {
                     // Auto-roll for bots
@@ -143,7 +212,7 @@ default {
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
             // Send dice roll to scoreboard for display on dice screen
-            llRegionSay(-12345, "DICE_ROLL|" + perilPlayer + "|" + resultStr);
+            llRegionSay(SCOREBOARD_CHANNEL_3, "DICE_ROLL|" + perilPlayer + "|" + resultStr + "|" + (string)diceType);
 
             string newPeril = "";
             integer matched = FALSE;
@@ -176,7 +245,7 @@ default {
                 perilPlayer = newPeril;
                 
                 // Send Plot Twist status to scoreboard
-                llRegionSay(-12345, "GAME_STATUS|Plot Twist");
+                llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|Plot Twist");
                 // Add delay to let status display before next phase
                 llSleep(2.0);
                 
@@ -193,7 +262,7 @@ default {
                     key perilKey = NULL_KEY; // We don't have player keys in this module, use NULL_KEY
                     if (pidx < llGetListLength(names)) {
                         string updateMsg = "PLAYER_UPDATE|" + perilPlayer + "|" + (string)newLives + "|" + (string)perilKey;
-                        llRegionSay(-12345, updateMsg);
+                        llRegionSay(SCOREBOARD_CHANNEL_1, updateMsg);
                         llOwnerSay("💗 Immediate scoreboard update: " + perilPlayer + " now has " + (string)newLives + " lives");
                     }
                     
@@ -204,13 +273,13 @@ default {
                     if (perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
                         // Send Direct Hit status to scoreboard
-                        llRegionSay(-12345, "GAME_STATUS|Direct Hit");
+                        llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|Direct Hit");
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     } else {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
                         // Send No Shield status to scoreboard
-                        llRegionSay(-12345, "GAME_STATUS|No Shield");
+                        llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|No Shield");
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     }
@@ -221,7 +290,7 @@ default {
                     if (currentLives - 1 <= 0) {
                         // Show 0 hearts on scoreboard before elimination message
                         string eliminationUpdateMsg = "PLAYER_UPDATE|" + perilPlayer + "|0|" + (string)NULL_KEY;
-                        llRegionSay(-12345, eliminationUpdateMsg);
+                        llRegionSay(SCOREBOARD_CHANNEL_1, eliminationUpdateMsg);
                         llOwnerSay("💀 Elimination update: " + perilPlayer + " now shows 0 hearts");
                         
                         llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
@@ -236,40 +305,26 @@ default {
 
             // Note: Win condition checking is handled by Main Controller after elimination
 
-            // Encode picksData with semicolons to avoid comma conflicts
+            // IMPORTANT: After processing a roll, clear picks data for the next round
+            // The round is complete, so we should send empty picks to trigger next round logic
             list encodedPicksData = [];
             integer k;
-            for (k = 0; k < llGetListLength(picksData); k++) {
-                string entry = llList2String(picksData, k);
-                list parts = llParseString2List(entry, ["|"], []);
-                if (llGetListLength(parts) >= 2) {
-                    string playerName = llList2String(parts, 0);
-                    string picks = llList2String(parts, 1);
-                    // Only process picks if they're not empty
-                    if (picks != "") {
-                        // Parse picks, trim whitespace, then join with semicolons
-                        list pickList = llParseString2List(picks, [","], []);
-                        list cleanPickList = [];
-                        integer j;
-                        for (j = 0; j < llGetListLength(pickList); j++) {
-                            string pick = llStringTrim(llList2String(pickList, j), STRING_TRIM);
-                            if (pick != "") {
-                                cleanPickList += [pick];
-                            }
-                        }
-                        picks = llDumpList2String(cleanPickList, ";");
-                    }
-                    encodedPicksData += [playerName + "|" + picks];
-                } else if (llSubStringIndex(entry, "|") != -1) {
-                    // Handle entries with empty picks (e.g., "PlayerName|")
-                    encodedPicksData += [entry];
-                } else {
-                    // Skip malformed entries without pipe separator
-                    llOwnerSay("⚠️ Roll Module: Skipping malformed picksData entry: " + entry);
-                }
+            for (k = 0; k < llGetListLength(names); k++) {
+                string playerName = llList2String(names, k);
+                // Send empty picks for all players since round is complete
+                encodedPicksData += [playerName + "|"];
             }
-            string gameSync = llList2CSV(lives) + "~" + llDumpList2String(encodedPicksData, "^") + "~" + perilPlayer + "~" + llList2CSV(names);
-            llOwnerSay("📤 Roll module sending sync with peril player: " + perilPlayer);
+            // Validate perilPlayer is not empty before syncing
+            string perilForSync = perilPlayer;
+            if (perilForSync == "") {
+                perilForSync = "NONE";
+                llOwnerSay("⚠️ Roll Module: perilPlayer is empty, using NONE placeholder");
+            }
+            
+            string gameSync = llList2CSV(lives) + "~" + llDumpList2String(encodedPicksData, "^") + "~" + perilForSync + "~" + llList2CSV(names);
+            llOwnerSay("📤 Roll module sending sync with peril player: " + perilForSync);
+            llOwnerSay("🔍 DEBUG - encodedPicksData: " + llDumpList2String(encodedPicksData, " | "));
+            llOwnerSay("🔍 DEBUG - gameSync: " + gameSync);
             llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
             llSleep(0.2);
             
@@ -281,9 +336,9 @@ default {
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, fname, NULL_KEY);
             }
             
-            // Show start next round dialog to current peril player
-            // Get the peril player's key from the main controller
-            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer + "_NEXT_ROUND", NULL_KEY);
+            // Let Main Controller handle next round logic to avoid loops
+            // Don't immediately trigger next round dialog - let game flow naturally
+            llOwnerSay("🎯 Round complete, waiting for Main Controller to handle next phase...");
         }
     }
 

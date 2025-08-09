@@ -1,3 +1,6 @@
+// === System Debugger - Game State Validation ===
+// Validates game state consistency and reports issues
+
 integer MSG_SYNC_GAME_STATE = 107;
 
 list validatePicksData(list picksData, list names) {
@@ -66,14 +69,14 @@ list validatePicksData(list picksData, list names) {
 
 default {
     state_entry() {
-        llOwnerSay("🔍 Debugger ready!");
+        llOwnerSay("🔍 System Debugger ready!");
     }
     
     link_message(integer sender, integer num, string str, key id) {
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Debugger doesn't maintain state, but acknowledge reset
-            llOwnerSay("🔍 Debugger reset!");
+            llOwnerSay("🔍 System Debugger reset!");
             return;
         }
         

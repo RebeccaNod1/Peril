@@ -1,4 +1,14 @@
-// === Main Peril Dice Controller (Refactored with Game Helpers Integration, with dynamic player join) ===
+// === Main Controller - Peril Dice Game (Refactored with Modular Architecture) ===
+
+// Helper function to get display name with fallback to username
+string getPlayerName(key id) {
+    string displayName = llGetDisplayName(id);
+    if (displayName == "") {
+        // Fallback to legacy username if display name is unavailable
+        displayName = llKey2Name(id);
+    }
+    return displayName;
+}
 
 //
 // This version of the main game controller includes support for players (including
@@ -8,10 +18,80 @@
 // updated. This mirrors the behaviour used when adding a test player, but now
 // applies to any avatar joining the game via the dialog handler.
 
-integer syncChannel = -77777;
-integer numberPickChannel = -77888;
-integer rollDialogChannel = -77999;
-integer DIALOG_CHANNEL = -88888;
+// =============================================================================
+// DYNAMIC CHANNEL CONFIGURATION (replaces hardcoded channels)
+// =============================================================================
+
+// Base channel offset - change this to avoid conflicts with other objects
+integer CHANNEL_BASE = -77000;
+
+// Calculate channels dynamically to avoid hardcoded conflicts
+integer calculateChannel(integer offset) {
+    // Use BOTH owner's key AND object's key to make channels unique per game instance
+    // This prevents interference when same owner has multiple game tables
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetKey();
+    string combinedStr = ownerStr + objectStr;
+    
+    // Create a more unique hash using both keys
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2; // Creates 0-255 range
+    
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
+}
+
+// Dynamic channel variables
+integer SYNC_CHANNEL;
+integer NUMBERPICK_CHANNEL;
+integer ROLLDIALOG_CHANNEL; 
+integer MAIN_DIALOG_CHANNEL;
+integer BOT_COMMAND_CHANNEL;
+integer SCOREBOARD_CHANNEL_1;
+integer SCOREBOARD_CHANNEL_2;
+integer SCOREBOARD_CHANNEL_3;
+integer FLOATER_BASE_CHANNEL;
+
+// Legacy channel variables (for backward compatibility during transition)
+integer syncChannel;
+integer numberPickChannel;
+integer rollDialogChannel;
+integer DIALOG_CHANNEL;
+
+// Channel initialization function
+initializeChannels() {
+    SYNC_CHANNEL = calculateChannel(1);           // ~-77100 range
+    NUMBERPICK_CHANNEL = calculateChannel(2);     // ~-77200 range  
+    ROLLDIALOG_CHANNEL = calculateChannel(3);     // ~-77300 range
+    MAIN_DIALOG_CHANNEL = calculateChannel(4);    // ~-77400 range
+    BOT_COMMAND_CHANNEL = calculateChannel(5);    // ~-77500 range
+    
+    SCOREBOARD_CHANNEL_1 = calculateChannel(6);   // ~-77600 range
+    SCOREBOARD_CHANNEL_2 = calculateChannel(7);   // ~-77700 range  
+    SCOREBOARD_CHANNEL_3 = calculateChannel(8);   // ~-77800 range
+    
+    FLOATER_BASE_CHANNEL = calculateChannel(9);   // ~-77900 range
+    
+    // Set legacy variables for backward compatibility
+    syncChannel = SYNC_CHANNEL;
+    numberPickChannel = NUMBERPICK_CHANNEL;
+    rollDialogChannel = ROLLDIALOG_CHANNEL;
+    DIALOG_CHANNEL = MAIN_DIALOG_CHANNEL;
+    
+    // Report channels to owner for debugging
+    llOwnerSay("🔧 [Main Controller] Dynamic channels initialized:");
+    llOwnerSay("  Sync: " + (string)SYNC_CHANNEL);
+    llOwnerSay("  Dialog: " + (string)MAIN_DIALOG_CHANNEL);  
+    llOwnerSay("  Roll: " + (string)ROLLDIALOG_CHANNEL);
+    llOwnerSay("  Scoreboard: " + (string)SCOREBOARD_CHANNEL_1);
+    llOwnerSay("  Floater Base: " + (string)FLOATER_BASE_CHANNEL);
+}
+
+// Listen handle management
+integer dialogHandle = -1;
+integer botHandle = -1;
+integer rollHandle = -1;
 
 // Game timing settings to prevent dialog system overload
 float BOT_PICK_DELAY = 2.0;      // Delay after bot picks before next action
@@ -19,10 +99,28 @@ float HUMAN_PICK_DELAY = 1.0;    // Delay after human picks before next action
 float DIALOG_DELAY = 1.5;        // Delay before showing dialogs
 integer gameTimer = 0;           // Timer for game flow delays
 
+// Memory monitoring now handled by Controller_Memory.lsl helper script
+integer MSG_MEMORY_CHECK = 6001;
+integer MSG_MEMORY_STATS = 6002;
+integer MSG_MEMORY_CLEANUP = 6003;
+integer MSG_MEMORY_REPORT = 6004;
+integer MSG_EMERGENCY_CLEANUP = 6005;
+integer MSG_MEMORY_STATS_REQUEST = 6006;
+
+// Unified Timer System - prevents conflicts between multiple timer needs
+integer TIMER_IDLE = 0;
+integer TIMER_STATUS = 1;
+integer TIMER_TIMEOUT = 2;
+integer TIMER_DISCOVERY = 3;
+integer currentTimerMode = 0;    // Track what the timer is currently doing
+float timerInterval = 1.0;       // How often timer() is called for checks
+
 // Status message timing
 float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
 integer statusTimer = 0;         // Track when status messages were sent
 string lastStatus = "";          // Track last status sent
+
+// Discovery system now handled by Controller_Discovery.lsl helper script
 
 list players = [];
 list names = [];
@@ -80,82 +178,90 @@ integer lastWarning = 0;
 
 key currentPicker;
 
+// Memory monitoring functions now delegated to Controller_Memory.lsl helper script
+checkMemoryUsage(string context) {
+    // Delegate to memory monitor helper
+    llMessageLinked(LINK_SET, MSG_MEMORY_CHECK, context, NULL_KEY);
+}
+
+emergencyMemoryCleanup() {
+    llOwnerSay("🎆 [Main Controller] Emergency memory cleanup initiated!");
+    
+    // Clean up temporary variables and optimize lists
+    globalPickedNumbers = llListSort(globalPickedNumbers, 1, TRUE); // Remove duplicates
+    
+    // Force garbage collection by clearing and rebuilding critical lists
+    list tempPlayers = players;
+    list tempNames = names;
+    list tempLives = lives;
+    
+    players = [];
+    names = [];
+    lives = [];
+    
+    players = tempPlayers;
+    names = tempNames;
+    lives = tempLives;
+    
+    llOwnerSay("🎆 [Main Controller] Emergency cleanup complete - memory: " + 
+               (string)llGetUsedMemory() + " bytes");
+}
+
+reportMemoryStats() {
+    // Request memory stats report from helper, provide our stats as well
+    string statsData = (string)llGetUsedMemory() + "|" + 
+                       (string)llGetListLength(players) + "|" + 
+                       (string)llGetListLength(names) + "|" + 
+                       (string)llGetListLength(lives) + "|" + 
+                       (string)llGetListLength(picksData) + "|" + 
+                       (string)llGetListLength(readyPlayers) + "|" + 
+                       (string)llGetListLength(pickQueue) + "|" + 
+                       (string)llGetListLength(globalPickedNumbers) + "|" + 
+                       (string)llGetListLength(floaterChannels);
+    
+    // Send to memory monitor for comprehensive reporting
+    llMessageLinked(LINK_SET, MSG_MEMORY_STATS_REQUEST, statsData, NULL_KEY);
+    // Also request the helper to show its own stats
+    llMessageLinked(LINK_SET, MSG_MEMORY_STATS, "REQUEST_REPORT", NULL_KEY);
+}
+
 // Send status message to scoreboard with timing
 sendStatusMessage(string status) {
     statusTimer = llGetUnixTime();
     lastStatus = status;
-    llRegionSay(-12345, "GAME_STATUS|" + status);
+    llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|" + status);
     llOwnerSay("📢 Status: " + status + " (showing for " + (string)STATUS_DISPLAY_TIME + "s)");
     
-    // Start timer to automatically clear status after display time
+    // Start unified timer for status message clearing
+    currentTimerMode = TIMER_STATUS;
     llSetTimerEvent(STATUS_DISPLAY_TIME + 1.0); // Add 1 second buffer
 }
 
-// Forward game state to helpers when it changes
+// Forward game state to helpers when it changes - MEMORY OPTIMIZED
 updateHelpers() {
-    // Don't send peril player name if game hasn't started yet
-    string perilForSync = "NONE";  // Use placeholder instead of empty string
-    if (roundStarted) {
-        perilForSync = perilPlayer;
+    checkMemoryUsage("updateHelpers_start");
+    
+    string perilForSync = "NONE";
+    if (roundStarted) perilForSync = perilPlayer;
+    
+    // Simplified picks data processing
+    string picksDataStr = "EMPTY";
+    integer dataCount = llGetListLength(picksData);
+    if (dataCount > 0) {
+        picksDataStr = llDumpList2String(picksData, "^");
+        checkMemoryUsage("updateHelpers_after_picks_processing");
     }
-    // Encode picksData with a safe delimiter that won't conflict with player names or picks
-    // Replace commas in picks with semicolons to avoid CSV conflicts
-    list encodedPicksData = [];
+    
+    // Send core game state (now includes players list for dialog targeting)
+    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+        llList2CSV(lives) + "~" + picksDataStr + "~" + perilForSync + "~" + llList2CSV(names) + "~" + llList2CSV(players), NULL_KEY);
+    // Don't sync pickQueue from Main to Game Manager - Game Manager manages its own pickQueue
+    
+    // Simplified scoreboard updates
     integer i;
-    for (i = 0; i < llGetListLength(picksData); i++) {
-        string entry = llList2String(picksData, i);
-        // Replace commas with semicolons in the picks portion only
-        list parts = llParseString2List(entry, ["|"], []);
-        if (llGetListLength(parts) >= 2) {
-            string playerName = llList2String(parts, 0);
-            string picks = llList2String(parts, 1);
-            // Only process picks if they're not empty
-            if (picks != "") {
-                // Parse picks, trim whitespace, then join with semicolons
-                list pickList = llParseString2List(picks, [","], []);
-                list cleanPickList = [];
-                integer j;
-                for (j = 0; j < llGetListLength(pickList); j++) {
-                    string pick = llStringTrim(llList2String(pickList, j), STRING_TRIM);
-                    if (pick != "") {
-                        cleanPickList += [pick];
-                    }
-                }
-                picks = llDumpList2String(cleanPickList, ";");
-            }
-            encodedPicksData += [playerName + "|" + picks];
-        } else if (llSubStringIndex(entry, "|") != -1) {
-            // Handle entries with empty picks (e.g., "PlayerName|")
-            encodedPicksData += [entry];
-        } else {
-            // Skip malformed entries without pipe separator
-            llOwnerSay("⚠️ Skipping malformed picksData entry: " + entry);
-        }
-    }
-    string picksDataStr = llDumpList2String(encodedPicksData, "^");
-    // Ensure we always send valid format even with empty picks
-    if (picksDataStr == "") {
-        picksDataStr = "EMPTY";  // Use a clear placeholder for empty picks data
-    }
-    string serialized = llList2CSV(lives) + "~" + picksDataStr +
-        "~" + perilForSync + "~" + llList2CSV(names);
-    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, serialized, NULL_KEY);
-    llMessageLinked(LINK_SET, MSG_SYNC_PICKQUEUE, llList2CSV(pickQueue), NULL_KEY);
-    
-    
-    // Send player updates to scoreboard
-    integer j;
-    for (j = 0; j < llGetListLength(names); j++) {
-        string playerName = llList2String(names, j);
-        integer playerLives = llList2Integer(lives, j);
-        key playerKey = llList2Key(players, j);
-        
-        // Use the actual player key as the profile UUID
-        string profileUUID = (string)playerKey;
-        
-        // Send PLAYER_UPDATE message to scoreboard
-        string updateMsg = "PLAYER_UPDATE|" + playerName + "|" + (string)playerLives + "|" + profileUUID;
-        llRegionSay(-12345, updateMsg);
+    for (i = 0; i < llGetListLength(names); i++) {
+        llRegionSay(SCOREBOARD_CHANNEL_2, "PLAYER_UPDATE|" + llList2String(names, i) + "|" + 
+            (string)llList2Integer(lives, i) + "|" + (string)llList2Key(players, i));
     }
 }
 
@@ -176,24 +282,49 @@ string generateSerializedState() {
     return llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer + "~" + llList2CSV(names);
 }
 
+// Clean up listen handles
+cleanupListeners() {
+    if (dialogHandle != -1) {
+        llListenRemove(dialogHandle);
+        dialogHandle = -1;
+    }
+    if (botHandle != -1) {
+        llListenRemove(botHandle);
+        botHandle = -1;
+    }
+    if (rollHandle != -1) {
+        llListenRemove(rollHandle);
+        rollHandle = -1;
+    }
+}
+
+// Re-initialize listen handles
+initListeners() {
+    dialogHandle = llListen(DIALOG_CHANNEL, "", NULL_KEY, "");
+    botHandle = llListen(BOT_COMMAND_CHANNEL, "", NULL_KEY, ""); // Listen for bot responses
+    rollHandle = llListen(rollDialogChannel, "", NULL_KEY, ""); // Listen for roll dialog responses
+}
+
 resetGame() {
-    // Clean up all tracked floater channels
+    llOwnerSay("🧼 Debug - Starting resetGame(), players: " + (string)llGetListLength(players) + ", tracked channels: " + llList2CSV(floaterChannels));
+    
+    // Clean up listeners first
+    cleanupListeners();
+    
+    // UNIVERSAL CLEANUP: Always clean ALL possible floater channels regardless of tracked state
+    // This ensures cleanup works even after script resets destroy tracking data
+    llOwnerSay("🧼 Debug - Universal floater cleanup (0-" + (string)(MAX_PLAYERS-1) + ")");
     integer i;
-    for (i = 0; i < llGetListLength(floaterChannels); i++) {
-        integer ch = llList2Integer(floaterChannels, i);
+    for (i = 0; i < MAX_PLAYERS; i++) {
+        integer ch = FLOATER_BASE_CHANNEL + i;
+        llOwnerSay("🧼 Debug - Cleaning universal channel " + (string)i + ": " + (string)ch);
         llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
     }
     
-    // Only send cleanup for channels that might actually have floaters
-    // Check up to the number of players that were registered
-    integer maxUsedIdx = llGetListLength(names);
-    for (i = 0; i < maxUsedIdx; i++) {
-        integer ch = -777000 + i;
-        // Only send cleanup if not already in tracked channels
-        if (llListFindList(floaterChannels, [ch]) == -1) {
-            llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
-        }
-    }
+    llOwnerSay("🧼 Debug - Universal cleanup complete, waiting for floater processing...");
+    
+    // Give floater cleanup time to process BEFORE clearing state
+    llSleep(2.0);
     
     // Reset all game state variables
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
@@ -204,6 +335,7 @@ resetGame() {
     currentPickerIdx = 0;
     roundStarted = FALSE; // Reset round flag
     gameStarting = FALSE; // Reset game starting flag
+    diceTypeProcessed = FALSE; // Reset dice type processing flag
     currentPicker = NULL_KEY; // Reset current picker
     timeoutTimer = 0; // Reset timeout timer
     lastWarning = 0; // Reset warning timer
@@ -214,7 +346,9 @@ resetGame() {
     llSay(syncChannel, "RESET");
     
     // Send CLEAR_GAME message to scoreboard to reset display
-    llRegionSay(-12345, "CLEAR_GAME");
+    llRegionSay(SCOREBOARD_CHANNEL_1, "CLEAR_GAME");
+    // Clear dice display
+    llRegionSay(SCOREBOARD_CHANNEL_3, "CLEAR_DICE");
     llOwnerSay("🎮 Game reset! All state cleared (including scoreboard).");
     
     // Clear status tracking
@@ -227,207 +361,26 @@ resetGame() {
     
     llSleep(0.5); // Give other scripts time to process reset
     llSetTimerEvent(0);
+    
+    // Re-initialize listeners after reset
+    initListeners();
+    
     updateHelpers();
+    
+    llOwnerSay("🧼 Debug - resetGame() complete");
 }
 
-continueCurrentRound() {
-    // Continue the current round after elimination with existing picks intact
-    // This is different from startNextRound() which resets picks for a new round
-    llOwnerSay("🔄 Continuing current round with new peril player: " + perilPlayer);
-    
-    // Remove eliminated player's pick data but keep others
-    integer i;
-    list newPicksData = [];
-    for (i = 0; i < llGetListLength(picksData); i++) {
-        string entry = llList2String(picksData, i);
-        list parts = llParseString2List(entry, ["|"], []);
-        if (llGetListLength(parts) >= 1) {
-            string entryPlayerName = llList2String(parts, 0);
-            // Only keep picks from players still in the game
-            if (llListFindList(names, [entryPlayerName]) != -1) {
-                newPicksData += [entry];
-            }
-        }
-    }
-    picksData = newPicksData;
-    
-    // Update global picked numbers to match remaining players' picks
-    globalPickedNumbers = [];
-    for (i = 0; i < llGetListLength(picksData); i++) {
-        string entry = llList2String(picksData, i);
-        list parts = llParseString2List(entry, ["|"], []);
-        if (llGetListLength(parts) >= 2) {
-            string picks = llList2String(parts, 1);
-            if (picks != "") {
-                // Handle both comma and semicolon delimiters
-                list playerPicks = [];
-                if (llSubStringIndex(picks, ";") != -1) {
-                    // Bot picks use semicolons
-                    playerPicks = llParseString2List(picks, [";"], []);
-                } else {
-                    // Human picks use commas
-                    playerPicks = llParseString2List(picks, [","], []);
-                }
-                // Add picks to global list, avoiding duplicates
-                integer j;
-                for (j = 0; j < llGetListLength(playerPicks); j++) {
-                    string pick = llStringTrim(llList2String(playerPicks, j), STRING_TRIM);
-                    if (pick != "" && llListFindList(globalPickedNumbers, [pick]) == -1) {
-                        globalPickedNumbers += [pick];
-                    }
-                }
-            }
-        }
-    }
-    
-    // Check if all remaining players have picked
-    integer allPicked = TRUE;
-    for (i = 0; i < llGetListLength(names); i++) {
-        string playerName = llList2String(names, i);
-        // Check if this player has picks
-        integer hasPicksEntry = FALSE;
-        integer j;
-        for (j = 0; j < llGetListLength(picksData); j++) {
-            string entry = llList2String(picksData, j);
-            list parts = llParseString2List(entry, ["|"], []);
-            if (llGetListLength(parts) >= 1 && llList2String(parts, 0) == playerName) {
-                string picks = "";
-                if (llGetListLength(parts) >= 2) {
-                    picks = llList2String(parts, 1);
-                }
-                if (picks != "") {
-                    hasPicksEntry = TRUE;
-                }
-            }
-        }
-        if (!hasPicksEntry) {
-            allPicked = FALSE;
-        }
-    }
-    
-    if (allPicked) {
-        // All players have picked, prompt peril player to roll
-        llOwnerSay("✅ All remaining players have picks, prompting " + perilPlayer + " to roll");
-        integer perilIdx = llListFindList(names, [perilPlayer]);
-        if (perilIdx != -1) {
-            key perilKey = llList2Key(players, perilIdx);
-            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-        }
-    } else {
-        // Some players still need to pick, continue with pick phase
-        llOwnerSay("⏳ Some players still need to pick, continuing pick phase");
-        updateHelpers();
-        // Check if peril player needs to pick
-        showNextPickerDialog();
-    }
-}
+// continueCurrentRound() removed - handled by Game Manager
 
-startNextRound() {
-    // Do not start a round if there are fewer than 2 players. This guard prevents
-    // accidental starts when only one player is present (e.g. after a reset or
-    // before any other participants join).
-    if (llGetListLength(names) < 2) {
-        llOwnerSay("⚠️ Need at least 2 players to start the game.");
-        return;
-    }
-    // If somehow called with exactly one player, treat them as the winner and reset.
-if (llGetListLength(names) == 1) {
-string winner = llList2String(names, 0);
-llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
-// Trigger victory confetti and record win
-llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
-llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
-llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
-sendStatusMessage("Victory");  // Show victory status
-                        // Wait for victory status to display before reset
-                        llSleep(STATUS_DISPLAY_TIME + 1.0);
-resetGame();
-        return;
-    }
-    // DON'T reset round flag during continuation rounds - only reset for brand new games
-    // This prevents peril player from being lost during round transitions
-    
-    
-    // Select random initial peril player if none is set (only for very first round)
-    if (perilPlayer == "" || perilPlayer == "NONE") {
-        integer randomIdx = (integer)llFrand(llGetListLength(names));
-        perilPlayer = llList2String(names, randomIdx);
-        llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
-        sendStatusMessage("Peril Selected");  // Show peril selected status when peril player is chosen
-    } else {
-        // Continue showing peril selected status for existing peril player
-        sendStatusMessage("Peril Selected");
-        // Add delay to allow this status to display before next phase
-        llSleep(STATUS_DISPLAY_TIME * 0.6); // Wait 60% of status display time (~5 seconds)
-    }
-    picksData = [];
-    globalPickedNumbers = [];
-    // Create pick queue with peril player first, then all others
-    pickQueue = [perilPlayer];
-    integer i;
-    for (i = 0; i < llGetListLength(names); i++) {
-        string playerName = llList2String(names, i);
-        if (playerName != perilPlayer) {
-            pickQueue += [playerName];
-        }
-    }
-    currentPickerIdx = 0;
-    // Don't pre-populate picksData with empty entries - let them be added as picks are made
-    // This prevents encoding corruption with empty "|" entries
-    updateHelpers();
-    // requestDiceType(); // Removed to avoid recursion loop
-}
+// startNextRound() removed - handled by Game Manager
 
-showNextPickerDialog() {
-    if (diceType <= 0) {
-        llOwnerSay("❌ Cannot show picker dialog: diceType not set (" + (string)diceType + ")");
-        return;
-    }
-    
-    string firstName = llList2String(pickQueue, currentPickerIdx);
-    currentPicker = llList2Key(players, llListFindList(names, [firstName]));
-    
-    // Add delay before showing dialog to prevent system overload
-    llSleep(DIALOG_DELAY);
-    
-    // Check if this is a bot (TestBot names)
-    if (llSubStringIndex(firstName, "TestBot") == 0) {
-        // Get number of picks needed based on peril player's lives
-        integer perilIdx = llListFindList(names, [perilPlayer]);
-        integer perilLives = 3; // default
-        if (perilIdx != -1) {
-            perilLives = llList2Integer(lives, perilIdx);
-        }
-        // Pick count = 4 - peril player's lives (3 lives=1 pick, 2 lives=2 picks, 1 life=3 picks)
-        integer picksNeeded = 4 - perilLives;
-        
-        // Send command to Bot Manager to auto-pick numbers (include already picked numbers)
-        // CRITICAL: Use the most current globalPickedNumbers to prevent race conditions
-        string alreadyPicked = llList2CSV(globalPickedNumbers);
-        string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + alreadyPicked;
-        llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
-        llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)picksNeeded + " numbers...");
-    } else {
-        // Show dialog for human players - calculate picks needed
-        integer perilIdx = llListFindList(names, [perilPlayer]);
-        integer perilLives = 3; // default
-        if (perilIdx != -1) {
-            perilLives = llList2Integer(lives, perilIdx);
-        }
-        integer picksNeeded = 4 - perilLives;
-        
-        // Include already picked numbers so player can't pick duplicates
-        string alreadyPicked = llList2CSV(globalPickedNumbers);
-        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + alreadyPicked;
-        llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, currentPicker);
-        timeoutTimer = llGetUnixTime();
-        lastWarning = 0;
-        llSetTimerEvent(60.0);
-    }
-}
+// showNextPickerDialog() removed - handled by Game Manager
 
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;  // Track when game is in startup sequence
+integer diceTypeProcessed = FALSE;  // Track if we've already processed initial dice type
+
+// CONTINUE_ROUND logic now handled entirely by Game Manager
 
 // Prevent duplicate registration by tracking pending registrations
 list pendingRegistrations = [];  // Keys of players who have registration in progress
@@ -439,17 +392,27 @@ default {
         llOwnerSay("🎮 Main Controller key: " + (string)llGetKey());
         llOwnerSay("🎮 Main Controller position: " + (string)llGetPos());
         
+        // Initialize dynamic channel configuration
+        initializeChannels();
+        
         // Set the start image on the controller prim
         llSetTexture(TEXTURE_START, CONTROLLER_FACE);
         llSetText("🎮 PERIL DICE GAME\nTouch to play!", <1.0, 1.0, 0.0>, 1.0);
         
-        llListen(DIALOG_CHANNEL, "", NULL_KEY, "");
-        llListen(-9999, "", NULL_KEY, ""); // Listen for bot responses
-        llListen(rollDialogChannel, "", NULL_KEY, ""); // Listen for roll dialog responses
+        // Clean up any existing listeners
+        if (dialogHandle != -1) llListenRemove(dialogHandle);
+        if (botHandle != -1) llListenRemove(botHandle);
+        if (rollHandle != -1) llListenRemove(rollHandle);
+        
+        // Set up managed listeners with dynamic channels
+        dialogHandle = llListen(MAIN_DIALOG_CHANNEL, "", NULL_KEY, "");
+        botHandle = llListen(BOT_COMMAND_CHANNEL, "", NULL_KEY, ""); // Listen for bot responses
+        rollHandle = llListen(ROLLDIALOG_CHANNEL, "", NULL_KEY, ""); // Listen for roll dialog responses
+        
+        // Discovery system now handled by Controller_Discovery.lsl helper script
     }
 
     touch_start(integer total_number) {
-        llOwnerSay("Touched by: " + (string)llDetectedKey(0));
         key toucher = llDetectedKey(0);
         integer idx = llListFindList(players, [toucher]);
         
@@ -472,7 +435,7 @@ if (idx != -1 && toucher != llGetOwner() && roundStarted) {
 
 // Special handling for owner during gameplay
 if (toucher == llGetOwner() && roundStarted) {
-    string ownerName = llKey2Name(toucher);
+    string ownerName = getPlayerName(toucher);
     list options = [];
     string menuText = "Game in progress. What would you like to do?";
     
@@ -507,7 +470,7 @@ if (toucher == llGetOwner() && roundStarted) {
             if (idx == -1) {
                 // Check if registration is already pending for this player
                 if (llListFindList(pendingRegistrations, [toucher]) != -1) {
-                    llOwnerSay("⏳ Registration already in progress for " + llKey2Name(toucher));
+                    llOwnerSay("⏳ Registration already in progress for " + getPlayerName(toucher));
                     return;
                 }
                 
@@ -522,7 +485,7 @@ if (toucher == llGetOwner() && roundStarted) {
                         isStarter = FALSE;
                     }
                 }
-                string ownerName = llKey2Name(toucher);
+                string ownerName = getPlayerName(toucher);
                 // Add to pending registrations
                 pendingRegistrations += [toucher];
                 // Send a registration request; Main.lsl will handle adding them and rezzing a float
@@ -560,7 +523,7 @@ if (toucher == llGetOwner() && roundStarted) {
             llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
         } else {
             // Unregistered non-owner player - register them and show menu
-            string playerName = llKey2Name(toucher);
+            string playerName = getPlayerName(toucher);
             if (playerName != "") {
                 // Check if registration is already pending for this player
                 if (llListFindList(pendingRegistrations, [toucher]) != -1) {
@@ -591,51 +554,23 @@ if (toucher == llGetOwner() && roundStarted) {
     }
 
     link_message(integer sender, integer num, string str, key id) {
-        // Player list and pick list handling remain unchanged
-        if (num == 202 && str == "REQUEST_PLAYER_LIST") {
-            string namesCSV = llList2CSV(names);
-            llMessageLinked(LINK_SET, 203, namesCSV, id);
-            return;
-        }
-        if (num == 206) {
-            string targetName = str;
-            integer i;
-            for (i = 0; i < llGetListLength(picksData); i++) {
-                string rawEntry = llList2String(picksData, i);
-                list parts = llParseString2List(rawEntry, ["|"], []);
-                if (llList2String(parts, 0) == targetName) {
-                    llMessageLinked(LINK_SET, 205, targetName + "|" + llList2String(parts, 1), id);
-                    return;
-                }
-            }
-            llMessageLinked(LINK_SET, 205, targetName + "|", id);
-            return;
-        }
-        if (num == 208) {
-            string playerName = str;
-            integer idx = llListFindList(names, [playerName]);
-            if (idx != -1) {
-                string lifeVal = llList2String(lives, idx);
-                llMessageLinked(LINK_SET, 208, playerName + "|" + lifeVal, id);
-            }
-            return;
-        }
-        // Handle dice type result from helper
+        // Player list and pick data handling now delegated to Controller_MessageHandler.lsl
+        // Handle dice type result from helper - forward to Game Manager once
         if (num == MSG_DICE_TYPE_RESULT) {
-            if (!roundStarted) {
-                roundStarted = TRUE;
-                diceType = (integer)str;
-                llOwnerSay(" Dice type set to: " + str);
-                // Update helpers now that game has started - this will sync peril player
-                updateHelpers();
-                showNextPickerDialog();
-            } else {
-                // Game already started, but dice type changed (e.g., after elimination)
-                diceType = (integer)str;
-                llOwnerSay(" Dice type set to: " + str);
-                updateHelpers();
-                showNextPickerDialog();
+            // Prevent duplicate processing of the same dice type result
+            if (diceTypeProcessed) {
+                return;
             }
+            
+            diceType = (integer)str;
+            diceTypeProcessed = TRUE;
+            
+            // Set round started flag and update helpers
+            roundStarted = TRUE;
+            updateHelpers();
+            
+            // Forward to Game Manager ONCE
+            llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)diceType, NULL_KEY);
             return;
         }
         if (num == MSG_GET_PICKS_REQUIRED) {
@@ -653,44 +588,11 @@ if (toucher == llGetOwner() && roundStarted) {
             llOwnerSay(" Serialized game state: " + serialized);
             return;
         }
-        // Handle pick actions
-        if (num == 204) {
-            list parts = llParseString2List(str, ["~"], []);
-            string action = llList2String(parts, 0);
-            list args = llParseString2List(llList2String(parts, 1), ["|"], []);
-            string name = llList2String(args, 0);
-            string pick = llList2String(args, 1);
-            integer i;
-            for (i = 0; i < llGetListLength(picksData); i++) {
-                string entry = llList2String(picksData, i);
-                list pdParts = llParseString2List(entry, ["|"], []);
-                if (llList2String(pdParts, 0) == name) {
-                    list pickList = [];
-                    string rawPicks = llList2String(pdParts, 1);
-                    if (rawPicks != "") {
-                        pickList = llParseString2List(rawPicks, [","], []);
-                    }
-                    if (action == "ADD_PICK") {
-                        if (llListFindList(pickList, [pick]) == -1) {
-                            pickList += [pick];
-                            llOwnerSay("➕ Added " + pick + " to " + name);
-                        }
-                    } else if (action == "REMOVE_PICK") {
-                        integer idx = llListFindList(pickList, [pick]);
-                        if (idx != -1) {
-                            pickList = llDeleteSubList(pickList, idx, idx);
-                            llOwnerSay("➖ Removed " + pick + " from " + name);
-                        }
-                    }
-                    picksData = llListReplaceList(picksData, [name + "|" + llList2CSV(pickList)], i, i);
-                    updateHelpers();
-                    return;
-                }
-            }
-            return;
-        }
+        // Pick actions now delegated to Controller_MessageHandler.lsl
         // New: handle dynamic registration of players (owner or players) via MSG_REGISTER_PLAYER
         if (num == MSG_REGISTER_PLAYER) {
+            checkMemoryUsage("player_registration_start");
+            
             // str is in the format "Name|<key>"
             list parts = llParseString2List(str, ["|"], []);
             string newName = llList2String(parts, 0);
@@ -710,10 +612,12 @@ if (toucher == llGetOwner() && roundStarted) {
                 players += [newKey];
                 names += [newName];
                 lives += [3];
-                picksData += [newName + "|"];
+                // Don't create empty picks entries - they will be added when players actually pick
+                checkMemoryUsage("player_registration_after_list_additions");
+                
                 // Track the floater channel for this player
                 integer newPlayerIdx = llGetListLength(names) - 1;
-                integer ch = -777000 + newPlayerIdx;
+                integer ch = FLOATER_BASE_CHANNEL + newPlayerIdx;
                 floaterChannels += [ch];
                 // Auto-mark bots as ready, leave humans as not ready
                 if (llSubStringIndex(newName, "TestBot") == 0) {
@@ -776,6 +680,9 @@ if (toucher == llGetOwner() && roundStarted) {
                     
                     llOwnerSay("🗑️ Eliminated " + eliminatedPlayer + ". Remaining players: " + (string)llGetListLength(names));
                     
+                    // Record the loss in the leaderboard
+                    llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_LOST|" + eliminatedPlayer);
+                    
                     // Show elimination status when someone is actually eliminated
                     sendStatusMessage("Elimination");
                     
@@ -790,7 +697,7 @@ llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
 // Trigger victory confetti and record win
 llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
 llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
-llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
+llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_WON|" + winner); // Send winner info to scoreboard
                             // Wait for elimination status to display before showing victory
                             llSleep(STATUS_DISPLAY_TIME * 0.8); // Wait 80% of status display time (~6.4 seconds)
 sendStatusMessage("Victory");  // Show victory status
@@ -849,7 +756,7 @@ sendStatusMessage("Victory");  // Show victory status
             list parts = llParseString2List(str, ["|"], []);
             if (llList2String(parts, 0) == "GAME_WON") {
 string winner = llList2String(parts, 1);
-llRegionSay(-12346, "GAME_WON|" + winner); // Send winner info to scoreboard
+llRegionSay(SCOREBOARD_CHANNEL_3, "GAME_WON|" + winner); // Send winner info to scoreboard
 llSleep(2.0); // Let celebration message display
 resetGame();
             }
@@ -911,89 +818,43 @@ resetGame();
                     perilPlayer = newPerilPlayer;
                     names = newNames;
                     
+                    // Check if this is a post-roll state update and we need to start a new picking round
+                    // Only trigger if lives changed (indicating a roll occurred) and we have a valid peril player
+                    // Also check that all picks are empty (indicating this is after a roll, not during picking)
+                    integer allPicksEmpty = TRUE;
+                    integer i;
+                    for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
+                        string entry = llList2String(newPicksData, i);
+                        list parts = llParseString2List(entry, ["|"], []);
+                        if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
+                            allPicksEmpty = FALSE;
+                        }
+                    }
+                    
+                    // Main Controller no longer sends CONTINUE_ROUND messages
+                    // Game Manager handles all round continuation logic internally
+                    if (livesChanged && newPerilPlayer != "" && newPerilPlayer != "NONE" && roundStarted && allPicksEmpty) {
+                        llOwnerSay("🎯 Post-roll state update detected - Game Manager will handle round continuation");
+                    }
                     
                     // Don't call updateHelpers() here to avoid loop - other modules already have the data
                 }
             }
             return;
         }
-        // Handle start next round request
+        // Handle start next round request - delegate to Game Manager
         if (num == 997) {
-            if (str == "START_NEXT_ROUND") {
-                startNextRound();
-                requestDiceType();
+            // Additional protection against round start spam
+            if (roundStarted && str == "START_NEXT_ROUND") {
+                llOwnerSay("⚠️ [Main Controller] Round already in progress, ignoring START_NEXT_ROUND");
+                return;
             }
-            else if (llSubStringIndex(str, "START_NEXT_ROUND_DIALOG|") == 0) {
-                string playerName = llGetSubString(str, 24, -1); // Remove "START_NEXT_ROUND_DIALOG|" prefix
-                integer idx = llListFindList(names, [playerName]);
-                if (idx != -1) {
-                    key playerKey = llList2Key(players, idx);
-                    llOwnerSay("🎯 Showing next round dialog to " + playerName);
-                    // Check if it's a bot
-                    if (llSubStringIndex(playerName, "TestBot") == 0) {
-                        // Auto-start for bots with delay to allow sync to complete
-                        llOwnerSay("🤖 " + playerName + " (bot) auto-starting next round...");
-                        llSleep(0.5); // Give sync time to complete
-                        startNextRound();
-                        requestDiceType();
-                    } else {
-                        // Show dialog for humans
-                        llDialog(playerKey, "💀 YOU ARE IN ULTIMATE PERIL! Are you ready to face the deadly challenge?", ["BEGIN KILLING GAME"], -77999);
-                    }
-                }
-            }
+            // Forward the request to Game Manager
+            llMessageLinked(LINK_SET, num, str, id);
+            // Don't request dice type here - it's handled in the "Start Game" listener below
             return;
         }
-        // Handle dice type request from roll module
-        if (num == 996) {
-            if (str == "GET_DICE_TYPE") {
-                llOwnerSay("🎲 Main Controller sending dice type: " + (string)diceType);
-                llMessageLinked(LINK_SET, MSG_ROLL_RESULT, (string)diceType, NULL_KEY);
-            }
-            return;
-        }
-        // Handle leave game requests
-        if (num == 107) {
-            list parts = llParseString2List(str, ["|"], []);
-            if (llList2String(parts, 0) == "LEAVE_GAME") {
-                string leavingName = llList2String(parts, 1);
-                key leavingKey = (key)llList2String(parts, 2);
-                integer idx = llListFindList(players, [leavingKey]);
-                if (idx != -1) {
-                    // Remove player's float using the tracked channel
-                    integer ch = llList2Integer(floaterChannels, idx);
-                    llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
-                    // Remove from all lists including ready state
-                    players = llDeleteSubList(players, idx, idx);
-                    names = llDeleteSubList(names, idx, idx);
-                    lives = llDeleteSubList(lives, idx, idx);
-                    picksData = llDeleteSubList(picksData, idx, idx);
-                    floaterChannels = llDeleteSubList(floaterChannels, idx, idx);
-                    // Remove from ready list if present
-                    integer readyIdx = llListFindList(readyPlayers, [leavingName]);
-                    if (readyIdx != -1) {
-                        readyPlayers = llDeleteSubList(readyPlayers, readyIdx, readyIdx);
-                    }
-                    // Update helpers
-                    updateHelpers();
-                    llOwnerSay("👋 " + leavingName + " left the game");
-                    // Check if game should end (less than 2 players)
-if (llGetListLength(names) == 1) {
-string winner = llList2String(names, 0);
-llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
-// Trigger victory confetti and record win
-llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
-llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
-llRegionSay(-12345, "GAME_WON|" + winner); // Send winner info to scoreboard
-sendStatusMessage("Victory");  // Show victory status
-                        // Wait for victory status to display before reset
-                        llSleep(STATUS_DISPLAY_TIME + 1.0);
-resetGame();
-                    }
-                }
-            }
-            return;
-        }
+        // Dice type requests and leave game handling now delegated to Controller_MessageHandler.lsl
         // Handle ready state toggle
         if (num == MSG_TOGGLE_READY) {
             string playerName = str;
@@ -1020,10 +881,23 @@ resetGame();
         }
         // Handle ready state queries
         if (num == MSG_QUERY_READY_STATE) {
-            string playerName = str;
+            // Parse player name and optional request ID
+            list queryParts = llParseString2List(str, ["|"], []);
+            string playerName;
+            integer requestID = 0;
+            
+            if (llGetListLength(queryParts) >= 2) {
+                // New format with request ID
+                playerName = llList2String(queryParts, 0);
+                requestID = (integer)llList2String(queryParts, 1);
+            } else {
+                // Legacy format - just player name
+                playerName = str;
+            }
+            
             integer isReady = llListFindList(readyPlayers, [playerName]) != -1;
             integer isBot = llSubStringIndex(playerName, "TestBot") == 0;
-            string result = playerName + "|" + (string)isReady + "|" + (string)isBot;
+            string result = playerName + "|" + (string)isReady + "|" + (string)isBot + "|" + (string)requestID;
             llMessageLinked(LINK_SET, MSG_READY_STATE_RESULT, result, id);
             return;
         }
@@ -1031,7 +905,7 @@ resetGame();
         if (num == MSG_CLEANUP_ALL_FLOATERS) {
             integer i;
             for (i = 0; i < MAX_PLAYERS; i++) {
-                integer ch = -777000 + i;
+                integer ch = FLOATER_BASE_CHANNEL + i;
                 llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
                 // Also try some potential duplicate channels
                 llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)(ch + 100), NULL_KEY);
@@ -1041,124 +915,23 @@ resetGame();
             floaterChannels = [];
             return;
         }
-        // Handle HUMAN_PICKED messages from dialog handler
+        // Handle HUMAN_PICKED messages - no forwarding needed since NumberPicker sends to LINK_SET
         if (num == -9998 && llSubStringIndex(str, "HUMAN_PICKED:") == 0) {
-            list parts = llParseString2List(str, [":"], []);
-            if (llGetListLength(parts) >= 3) {
-                string playerName = llList2String(parts, 1);
-                string picksStr = llList2String(parts, 2);
-                
-                // Update the player's picks in picksData
-                integer idx = llListFindList(names, [playerName]);
-                if (idx != -1) {
-                    // Find existing picks entry or add new one
-                    integer picksIdx = -1;
-                    integer k;
-                    for (k = 0; k < llGetListLength(picksData); k++) {
-                        string entry = llList2String(picksData, k);
-                        if (llSubStringIndex(entry, playerName + "|") == 0) {
-                            picksIdx = k;
-                        }
-                    }
-                    string newEntry = playerName + "|" + picksStr;
-                    if (picksIdx == -1) {
-                        picksData += [newEntry];
-                    } else {
-                        picksData = llListReplaceList(picksData, [newEntry], picksIdx, picksIdx);
-                    }
-                    // Update global picked numbers list
-                    list newPicks = llParseString2List(picksStr, [","], []);
-                    integer i;
-                    for (i = 0; i < llGetListLength(newPicks); i++) {
-                        string pick = llList2String(newPicks, i);
-                        if (llListFindList(globalPickedNumbers, [pick]) == -1) {
-                            globalPickedNumbers += [pick];
-                        }
-                    }
-                    updateHelpers();
-                    llSay(0, "🎯 " + playerName + " stakes their life on numbers: " + picksStr + " 🎲");
-                    
-                    // Add delay before moving to next picker to prevent dialog system overload
-                    llSleep(HUMAN_PICK_DELAY);
-                    
-                    // Move to next picker
-                    currentPickerIdx++;
-                    if (currentPickerIdx < llGetListLength(pickQueue)) {
-                        showNextPickerDialog();
-                    } else {
-                        llOwnerSay("✅ All players have picked their numbers!");
-                        // Show roll dialog to peril player
-                        if (perilPlayer == "" || perilPlayer == "NONE") {
-                            llOwnerSay("❌ ERROR: Cannot show roll dialog - perilPlayer is invalid: '" + perilPlayer + "'");
-                            return;
-                        }
-                        key perilKey = llList2Key(players, llListFindList(names, [perilPlayer]));
-                        llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                    }
-                }
-            }
+            // No need to forward - Game Manager receives directly from NumberPicker
+            // Forwarding here creates an infinite loop!
             return;
         }
-        // Handle BOT_PICKED messages from Bot Manager
+        // Handle BOT_PICKED messages - no forwarding needed since Bot Manager sends to LINK_SET
         if (num == -9997 && llSubStringIndex(str, "BOT_PICKED:") == 0) {
-            list parts = llParseString2List(str, [":"], []);
-            if (llGetListLength(parts) >= 3) {
-                string playerName = llList2String(parts, 1);
-                string picksStr = llList2String(parts, 2);
-                
-                
-                // Update the player's picks in picksData
-                integer idx = llListFindList(names, [playerName]);
-                if (idx != -1) {
-                    // Find existing picks entry or add new one
-                    integer picksIdx = -1;
-                    integer k;
-                    for (k = 0; k < llGetListLength(picksData); k++) {
-                        string entry = llList2String(picksData, k);
-                        if (llSubStringIndex(entry, playerName + "|") == 0) {
-                            picksIdx = k;
-                        }
-                    }
-                    string newEntry = playerName + "|" + picksStr;
-                    if (picksIdx == -1) {
-                        picksData += [newEntry];
-                    } else {
-                        picksData = llListReplaceList(picksData, [newEntry], picksIdx, picksIdx);
-                    }
-                    // Update global picked numbers list - bot picks use semicolon delimiters
-                    list newPicks = llParseString2List(picksStr, [";"], []);
-                    integer j;
-                    for (j = 0; j < llGetListLength(newPicks); j++) {
-                        string pick = llList2String(newPicks, j);
-                        if (llListFindList(globalPickedNumbers, [pick]) == -1) {
-                            globalPickedNumbers += [pick];
-                        } else {
-                            llOwnerSay("⚠️ WARNING: " + playerName + " picked " + pick + " which was already in globalPickedNumbers!");
-                        }
-                    }
-                    updateHelpers();
-                    llSay(0, "🎯 " + playerName + " (bot) stakes their digital life on numbers: " + picksStr + " 🎲");
-                    
-                    // Add delay after bot picks to prevent dialog system overload
-                    llSleep(BOT_PICK_DELAY);
-                    
-                    // Move to next picker
-                    currentPickerIdx++;
-                    if (currentPickerIdx < llGetListLength(pickQueue)) {
-                        string nextPicker = llList2String(pickQueue, currentPickerIdx);
-                        showNextPickerDialog();
-                    } else {
-                        llOwnerSay("✅ All players have picked their numbers!");
-                        // Show roll dialog to peril player
-                        if (perilPlayer == "" || perilPlayer == "NONE") {
-                            llOwnerSay("❌ ERROR: Cannot show roll dialog - perilPlayer is invalid: '" + perilPlayer + "'");
-                            return;
-                        }
-                        key perilKey = llList2Key(players, llListFindList(names, [perilPlayer]));
-                        llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                    }
-                }
-            }
+            // No need to forward - Game Manager receives directly from Bot Manager
+            // Forwarding here creates an infinite loop!
+            return;
+        }
+        
+        // Handle memory monitor messages
+        if (num == MSG_EMERGENCY_CLEANUP) {
+            // Memory monitor is requesting emergency cleanup
+            emergencyMemoryCleanup();
             return;
         }
     }
@@ -1166,11 +939,19 @@ resetGame();
 
     listen(integer channel, string name, key id, string msg) {
         
+        // Discovery system now handled by Controller_Discovery.lsl helper script
+        
         if (channel == rollDialogChannel) {
             if (msg == "Start Next Round" || msg == "BEGIN KILLING GAME") {
+                // Prevent duplicate round starts
+                if (roundStarted) {
+                    llOwnerSay("⚠️ Round already in progress, ignoring duplicate round start from roll dialog");
+                    return;
+                }
+                
                 llSay(0, "⚡ THE KILLING GAME CONTINUES! " + perilPlayer + " begins the next deadly round!");
-                startNextRound();
-                requestDiceType();
+                // Delegate to Game Manager
+                llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND", NULL_KEY);
                 return;
             }
         }
@@ -1179,7 +960,7 @@ resetGame();
             // Handle owner choice dialog responses during gameplay
             if (id == llGetOwner() && roundStarted) {
                 if (msg == "🔄 Recover Pick Dialog") {
-                    string ownerName = llKey2Name(id);
+                    string ownerName = getPlayerName(id);
                     llRegionSayTo(id, 0, "🔄 Restoring your number picking dialog...");
                     llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, ownerName, id);
                     return;
@@ -1197,19 +978,23 @@ resetGame();
             
             // Owner-specific commands: only owner messages in the dialog should be processed here.
             if (id == llGetOwner()) {
-if (msg == "Reset Game") {
+                if (msg == "Reset Game") {
 resetGame(); // Only reset current game, keep leaderboard
                     return;
                 }
                 if (msg == "Reset Leaderboard") {
-llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset only leaderboard scores
+llRegionSay(SCOREBOARD_CHANNEL_1, "RESET_LEADERBOARD"); // Reset only leaderboard scores
                     llOwnerSay("🏆 Leaderboard scores reset - game wins cleared!");
                     return;
                 }
                 if (msg == "Reset All") {
                     resetGame(); // Reset current game
-llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
+llRegionSay(SCOREBOARD_CHANNEL_1, "RESET_LEADERBOARD"); // Reset leaderboard scores
                     llOwnerSay("🔄 Complete reset - game and leaderboard cleared!");
+                    return;
+                }
+                if (msg == "Memory Stats") {
+                    reportMemoryStats();
                     return;
                 }
                 // Note: do not handle "Start Game" here; allow the generic start logic below to apply,
@@ -1252,11 +1037,11 @@ llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
                 // Check if all non-starter players are ready
                 string starterName = "";
                 if (id == llGetOwner()) {
-                    starterName = llKey2Name(llGetOwner());
+                    starterName = getPlayerName(llGetOwner());
                 } else if (llGetListLength(players) > 0) {
                     key firstPlayer = llList2Key(players, 0);
                     if (id == firstPlayer) {
-                        starterName = llKey2Name(firstPlayer);
+                        starterName = getPlayerName(firstPlayer);
                     }
                 }
                 
@@ -1291,8 +1076,9 @@ llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
                 llSetText("🎮 GAME IN PROGRESS\nRound " + (string)(llGetListLength(names)) + " players", <1.0, 0.2, 0.2>, 1.0);
                 
                 sendStatusMessage("Title");  // Show title status at game start
-                startNextRound();
-                requestDiceType();
+                // Delegate to Game Manager
+                llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND", NULL_KEY);
+                // Don't request dice type here - let Game Manager handle it to avoid duplicate requests
             }
             // If the message text matches a player name, request their pick list
             if (llListFindList(names, [msg]) != -1) {
@@ -1302,36 +1088,41 @@ llRegionSay(-12345, "RESET_LEADERBOARD"); // Reset leaderboard scores
     }
     
     timer() {
-        // Check if we need to clear status message
-        if (statusTimer > 0 && (llGetUnixTime() - statusTimer) >= STATUS_DISPLAY_TIME) {
-            // Clear the status and revert to title
-            statusTimer = 0;
-            lastStatus = "";
-            llRegionSay(-12345, "GAME_STATUS|Title");
-            llOwnerSay("📢 Status cleared - reverted to Title");
-            llSetTimerEvent(0); // Stop timer if no other timing needed
-        }
-        
-        // Handle dialog timeout warnings (existing code)
-        if (timeoutTimer > 0) {
-            integer elapsed = llGetUnixTime() - timeoutTimer;
-            if (elapsed >= TIMEOUT_SECONDS) {
-                llOwnerSay("⏰ Dialog timeout reached!");
+        if (currentTimerMode == TIMER_STATUS) {
+            // Handle status message clearing
+            if (statusTimer > 0 && (llGetUnixTime() - statusTimer) >= STATUS_DISPLAY_TIME) {
+                statusTimer = 0;
+                lastStatus = "";
+                llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|Title");
+                llOwnerSay("📢 Status cleared - reverted to Title");
+                currentTimerMode = TIMER_IDLE;
                 llSetTimerEvent(0);
-                timeoutTimer = 0;
-            } else {
-                integer remaining = TIMEOUT_SECONDS - elapsed;
-                if (remaining <= warning2min && lastWarning < warning2min) {
-                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                    lastWarning = warning2min;
-                } else if (remaining <= warning5min && lastWarning < warning5min) {
-                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                    lastWarning = warning5min;
-                } else if (remaining <= warning9min && lastWarning < warning9min) {
-                    llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                    lastWarning = warning9min;
+            }
+        }
+        else if (currentTimerMode == TIMER_TIMEOUT) {
+            // Handle dialog timeout warnings
+            if (timeoutTimer > 0) {
+                integer elapsed = llGetUnixTime() - timeoutTimer;
+                if (elapsed >= TIMEOUT_SECONDS) {
+                    llOwnerSay("⏰ Dialog timeout reached!");
+                    timeoutTimer = 0;
+                    currentTimerMode = TIMER_IDLE;
+                    llSetTimerEvent(0);
+                } else {
+                    integer remaining = TIMEOUT_SECONDS - elapsed;
+                    if (remaining <= warning2min && lastWarning < warning2min) {
+                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                        lastWarning = warning2min;
+                    } else if (remaining <= warning5min && lastWarning < warning5min) {
+                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                        lastWarning = warning5min;
+                    } else if (remaining <= warning9min && lastWarning < warning9min) {
+                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
+                        lastWarning = warning9min;
+                    }
                 }
             }
         }
+        // Discovery timer handling now delegated to Controller_Discovery.lsl helper script
     }
 }

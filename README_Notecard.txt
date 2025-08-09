@@ -87,7 +87,31 @@ Player Count | Dice Type
 5–6          | d20
 7–10         | d30
 
-RECENT IMPROVEMENTS (V2.5.0)
+RECENT IMPROVEMENTS (V2.6.0)
+============================
+
+📡 ADVANCED CHANNEL MANAGEMENT SYSTEM
+- Dynamic Channel Calculation: Sophisticated channel assignment preventing conflicts between multiple game instances
+- Multi-Instance Support: Multiple game tables can operate simultaneously without channel interference
+- Hash-Based Uniqueness: MD5-based channel calculation using owner + object keys for complete isolation
+- Automatic Channel Assignment: All components get unique channel ranges (~-78000 to ~-86000)
+- Channel Debugging Tools: Detailed channel assignments reported to owner on startup
+
+🧹 DEBUG OUTPUT CLEANUP CAMPAIGN
+- Reduced Log Spam: Eliminated verbose debug messages causing console chat spam
+- Professional Operation: Game now operates with minimal noise, focusing on essential information
+- Performance Enhancement: Reduced string processing overhead from debug message removal
+- Clean Monitoring: Easier to spot actual issues without debug noise overwhelming chat
+- Production Ready: Professional-grade logging levels suitable for live deployment
+
+🛠️ TECHNICAL INFRASTRUCTURE IMPROVEMENTS
+- Channel Architecture: Robust system managing communication channels across all components
+- Conflict Prevention: Eliminates channel conflicts that could cause cross-talk between games
+- Instance Isolation: Each game table operates in completely isolated channel space
+- Memory Optimization: Less memory usage from debug string concatenation removal
+- System Reliability: Built-in channel reporting for troubleshooting communication issues
+
+PREVIOUS IMPROVEMENTS (V2.5.0)
 ============================
 
 🛡️ REGISTRATION SECURITY FIXES
@@ -97,6 +121,12 @@ RECENT IMPROVEMENTS (V2.5.0)
 - Race Condition Resolution: Comprehensive fixes for all registration-related race conditions
 - Duplicate Pick Prevention: Fixed intermittent duplicate number picks caused by data corruption in globalPickedNumbers
 - Data Integrity: Enhanced continueCurrentRound() function to properly rebuild pick tracking with uniqueness validation
+- Server-Side Pick Validation: Added robust validation to prevent duplicate number picks with immediate error feedback
+- Enhanced Display Name Handling: Robust player name resolution with smart fallback system
+  * Prioritizes modern display names for optimal user experience
+  * Automatically falls back to legacy usernames when display names unavailable
+  * Handles network issues, offline avatars, and viewer compatibility seamlessly
+  * Ensures consistent name display across all game components and messages
 
 PREVIOUS IMPROVEMENTS (V2.4.0)
 ==============================
@@ -116,9 +146,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 2.5.0
-Last Updated: August 8, 2025
-Status: Production Ready - Enhanced security with registration protection and race condition fixes
+Current Version: 2.6.0
+Last Updated: August 9, 2025
+Status: Production Ready - Enhanced with dynamic channel management and debug cleanup
 
 ORIGINAL GAME RULES CREDIT
 ==========================

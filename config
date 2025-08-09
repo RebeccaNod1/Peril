@@ -14,12 +14,15 @@ leaderboard_rotation=<0.000, 0.000, 0.000, 1.000>
 dice_offset=<3.000, 0.000, 0.000>  
 dice_rotation=<0.000, 0.000, 0.000, 1.000>
 
-# Channel settings (usually don't need to change these)
-scoreboard_channel=-54321
-leaderboard_channel=-54321
-dice_channel=-54321
+# Channel settings - DYNAMIC (auto-calculated per game instance)
+# These will be calculated dynamically based on owner+object keys
+# to prevent conflicts between multiple game tables
+scoreboard_channel=DYNAMIC
+leaderboard_channel=DYNAMIC
+dice_channel=DYNAMIC
 
-# Game data channels (separate from position sync)
-scoreboard_data_channel=-12345
-leaderboard_data_channel=-12346
-dice_data_channel=-12347
+# Game data channels - DYNAMIC (auto-calculated per game instance) 
+# These match the main game's dynamic channel system
+scoreboard_data_channel=DYNAMIC_SCOREBOARD
+leaderboard_data_channel=DYNAMIC_LEADERBOARD
+dice_data_channel=DYNAMIC_DICE
