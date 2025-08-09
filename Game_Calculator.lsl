@@ -158,7 +158,6 @@ default {
             }
             names = llCSV2List(llList2String(parts, 3));
             
-            llOwnerSay("🔄 Calculator synced: lives=" + (string)llGetListLength(lives) + ", picks=" + (string)llGetListLength(picksData) + ", names=" + (string)llGetListLength(names) + ", peril=" + perilPlayer);
         }
         else if (num == MSG_SYNC_PICKQUEUE) {
             pickQueue = llCSV2List(str);

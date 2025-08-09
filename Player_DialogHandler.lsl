@@ -259,7 +259,6 @@ default {
         }
         
         if (num == MSG_SHOW_MENU) {
-            llOwnerSay("📨 Received MSG_SHOW_MENU with: " + str);
             list args = llParseString2List(str, ["|"], []);
             if (llGetListLength(args) < 2) {
                 llOwnerSay("⚠️ Invalid message format: " + str);
@@ -269,10 +268,8 @@ default {
             integer isStarter = (integer)llList2String(args, 1);
             if (targetType == "owner") {
                 // Both starter and non-starter owners get ready/leave menu with Owner button
-                llOwnerSay("DEBUG: Owner menu request - isStarter=" + (string)isStarter + ", calling showReadyLeaveMenu");
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
-                llOwnerSay("DEBUG: Player menu request - isStarter=" + (string)isStarter + ", calling showReadyLeaveMenu");
                 showReadyLeaveMenu(id, isStarter, FALSE);
             }
         }
@@ -285,9 +282,6 @@ default {
                 integer isBot = (integer)llList2String(parts, 2);
                 integer responseRequestID = (integer)llList2String(parts, 3);
                 
-                llOwnerSay("DEBUG: Ready state result for " + playerName + ": ready=" + (string)isReady + ", bot=" + (string)isBot + ", requestID=" + (string)responseRequestID);
-                llOwnerSay("DEBUG: Pending menu - ID=" + (string)pendingMenuPlayer + ", expectedRequestID=" + (string)pendingMenuRequestID + ", starter=" + (string)pendingMenuIsStarter + ", owner=" + (string)pendingMenuIsOwner);
-                
                 // Validate that this response matches our pending request
                 if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
                     // Check for timeout
@@ -297,19 +291,10 @@ default {
                         return;
                     }
                     
-                    llOwnerSay("DEBUG: Valid response - showing menu");
                     showReadyLeaveMenuWithState(pendingMenuPlayer, pendingMenuIsStarter, pendingMenuIsOwner, isReady, isBot);
                     // Reset pending state
                     pendingMenuPlayer = NULL_KEY;
                     pendingMenuRequestID = 0;
-                } else {
-                    // Log the mismatch for debugging
-                    if (pendingMenuPlayer != id) {
-                        llOwnerSay("DEBUG: Player mismatch: expected " + (string)pendingMenuPlayer + ", got " + (string)id);
-                    }
-                    if (responseRequestID != pendingMenuRequestID) {
-                        llOwnerSay("DEBUG: Request ID mismatch: expected " + (string)pendingMenuRequestID + ", got " + (string)responseRequestID + " (ignoring stale response)");
-                    }
                 }
             } else {
                 llOwnerSay("⚠️ Invalid ready state result format - expected 4 parts, got " + (string)llGetListLength(parts));

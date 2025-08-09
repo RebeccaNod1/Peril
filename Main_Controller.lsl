@@ -306,22 +306,16 @@ initListeners() {
 }
 
 resetGame() {
-    llOwnerSay("🧼 Debug - Starting resetGame(), players: " + (string)llGetListLength(players) + ", tracked channels: " + llList2CSV(floaterChannels));
-    
     // Clean up listeners first
     cleanupListeners();
     
     // UNIVERSAL CLEANUP: Always clean ALL possible floater channels regardless of tracked state
     // This ensures cleanup works even after script resets destroy tracking data
-    llOwnerSay("🧼 Debug - Universal floater cleanup (0-" + (string)(MAX_PLAYERS-1) + ")");
     integer i;
     for (i = 0; i < MAX_PLAYERS; i++) {
         integer ch = FLOATER_BASE_CHANNEL + i;
-        llOwnerSay("🧼 Debug - Cleaning universal channel " + (string)i + ": " + (string)ch);
         llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
     }
-    
-    llOwnerSay("🧼 Debug - Universal cleanup complete, waiting for floater processing...");
     
     // Give floater cleanup time to process BEFORE clearing state
     llSleep(2.0);
@@ -366,8 +360,6 @@ resetGame() {
     initListeners();
     
     updateHelpers();
-    
-    llOwnerSay("🧼 Debug - resetGame() complete");
 }
 
 // continueCurrentRound() removed - handled by Game Manager
