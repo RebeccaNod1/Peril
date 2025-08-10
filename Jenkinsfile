@@ -4,7 +4,7 @@ pipeline {
     environment {
         LSL_TOOLS_PATH = '/opt/lsl-tools'
         PROJECT_NAME = 'peril'
-        NOTIFICATION_WEBHOOK = credentials('discord-webhook') // Optional
+        // NOTIFICATION_WEBHOOK = credentials('discord-webhook') // Optional - commented out until configured
     }
     
     triggers {
