@@ -24,7 +24,7 @@ pipeline {
             steps {
                 echo "🔧 Validating LSL syntax..."
                 sh '''
-                    python3 ${LSL_TOOLS_PATH}/lsl_validator.py /workspace/${PROJECT_NAME}/
+                    python3 ${LSL_TOOLS_PATH}/lsl_validator.py .
                 '''
             }
             post {
@@ -47,7 +47,6 @@ pipeline {
             steps {
                 echo "🔄 Preprocessing LSL files..."
                 sh '''
-                    cd /workspace/${PROJECT_NAME}
                     for file in *.lsl; do
                         if [[ -f "$file" ]]; then
                             echo "Processing $file..."
@@ -65,8 +64,6 @@ pipeline {
             steps {
                 echo "📦 Creating release package..."
                 sh '''
-                    cd /workspace/${PROJECT_NAME}
-                    
                     # Get version from git tag or use build number
                     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.6.${BUILD_NUMBER}")
                     echo "Creating release ${VERSION}"
@@ -96,7 +93,7 @@ pipeline {
                 
                 // Create GitHub release (if using GitHub plugin)
                 script {
-                    def version = sh(script: "cd /workspace/${PROJECT_NAME} && git describe --tags --abbrev=0 2>/dev/null || echo 'v2.6.${BUILD_NUMBER}'", returnStdout: true).trim()
+                    def version = sh(script: "git describe --tags --abbrev=0 2>/dev/null || echo 'v2.6.${BUILD_NUMBER}'", returnStdout: true).trim()
                     echo "Release ${version} created successfully!"
                 }
             }
@@ -109,8 +106,6 @@ pipeline {
             steps {
                 echo "📚 Updating project documentation..."
                 sh '''
-                    cd /workspace/${PROJECT_NAME}
-                    
                     # Generate function list from LSL files
                     echo "# Project Functions" > FUNCTIONS.md
                     echo "" >> FUNCTIONS.md
@@ -152,8 +147,8 @@ pipeline {
     
     post {
         always {
-            echo "🧹 Cleaning up workspace..."
-            cleanWs(cleanWhenAborted: false, cleanWhenFailure: false, cleanWhenNotBuilt: false, cleanWhenSuccess: true, cleanWhenUnstable: false)
+            echo "🧹 Pipeline completed"
+            // cleanWs moved to individual stages if needed
         }
         
         failure {
