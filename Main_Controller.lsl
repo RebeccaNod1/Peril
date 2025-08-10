@@ -133,8 +133,6 @@ list floaterChannels = []; // Track actual floater channels for cleanup
 
 list pickQueue = [];
 integer currentPickerIdx = 0;
-integer diceType = 6;
-
 integer MSG_SHOW_DIALOG = 101;
 integer MSG_ROLL_RESULT = 102;
 integer MSG_UPDATE_FLOAT = 103;
@@ -157,10 +155,9 @@ integer CONTROLLER_FACE = 1;  // Face to display start image on (front face)
 string TEXTURE_START = "title_start";  // Start image texture
 string TEXTURE_GAME_ACTIVE = "game_active";  // Optional: different texture during game
 
-integer MSG_GET_DICE_TYPE = 1001;
+// Dice type handling is now done by Game Manager directly
 integer MSG_GET_PICKS_REQUIRED = 1002;
 integer MSG_GET_PICKER_INDEX = 1003;
-integer MSG_DICE_TYPE_RESULT = 1005;
 integer MSG_SERIALIZE_GAME_STATE = 1004;
 integer MSG_SYNC_PICKQUEUE = 2001;
 
@@ -168,12 +165,13 @@ integer MSG_SYNC_PICKQUEUE = 2001;
 // mirror the value used in Floater Manager to avoid inconsistencies.
 integer MAX_PLAYERS = 10;
 
-integer TIMEOUT_SECONDS = 600;
+integer TIMEOUT_SECONDS = 120;  // Reduced from 600 (10 min) to 120 (2 min)
 integer timeoutTimer;
 
-integer warning2min = 120;
-integer warning5min = 300;
-integer warning9min = 540;
+// Updated warning times for 2-minute timeout
+integer warning30sec = 30;   // 30 seconds remaining
+integer warning1min = 60;    // 1 minute remaining
+integer warning90sec = 90;   // 1.5 minutes remaining
 integer lastWarning = 0;
 
 key currentPicker;
@@ -266,10 +264,6 @@ updateHelpers() {
 }
 
 // Request helper-calculated values
-requestDiceType() {
-    llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
-}
-
 requestPicksRequired(integer idx) {
     llMessageLinked(LINK_SET, MSG_GET_PICKS_REQUIRED, llList2String(names, idx), NULL_KEY);
 }
@@ -329,11 +323,9 @@ resetGame() {
     currentPickerIdx = 0;
     roundStarted = FALSE; // Reset round flag
     gameStarting = FALSE; // Reset game starting flag
-    diceTypeProcessed = FALSE; // Reset dice type processing flag
     currentPicker = NULL_KEY; // Reset current picker
     timeoutTimer = 0; // Reset timeout timer
     lastWarning = 0; // Reset warning timer
-    diceType = 6; // Reset dice type to default
     
     // Send reset message to all other scripts to clear their state
     llMessageLinked(LINK_SET, -99999, "FULL_RESET", NULL_KEY);
@@ -370,7 +362,6 @@ resetGame() {
 
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;  // Track when game is in startup sequence
-integer diceTypeProcessed = FALSE;  // Track if we've already processed initial dice type
 
 // CONTINUE_ROUND logic now handled entirely by Game Manager
 
@@ -547,24 +538,8 @@ if (toucher == llGetOwner() && roundStarted) {
 
     link_message(integer sender, integer num, string str, key id) {
         // Player list and pick data handling now delegated to Controller_MessageHandler.lsl
-        // Handle dice type result from helper - forward to Game Manager once
-        if (num == MSG_DICE_TYPE_RESULT) {
-            // Prevent duplicate processing of the same dice type result
-            if (diceTypeProcessed) {
-                return;
-            }
-            
-            diceType = (integer)str;
-            diceTypeProcessed = TRUE;
-            
-            // Set round started flag and update helpers
-            roundStarted = TRUE;
-            updateHelpers();
-            
-            // Forward to Game Manager ONCE
-            llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)diceType, NULL_KEY);
-            return;
-        }
+        // Main Controller no longer needs to handle dice type results
+        // Game Manager handles all dice type logic directly
         if (num == MSG_GET_PICKS_REQUIRED) {
             integer picksRequired = (integer)str;
             llOwnerSay(" Picks required: " + str);
@@ -704,41 +679,9 @@ sendStatusMessage("Victory");  // Show victory status
                         return;
                     }
                     
-                    // If the eliminated player was the peril player, assign a new one and continue game
-                    if (eliminatedPlayer == perilPlayer) {
-                        // Find first remaining alive player to be new peril player
-                        perilPlayer = "";
-                        integer k;
-                        for (k = 0; k < llGetListLength(names) && perilPlayer == ""; k++) {
-                            string candidateName = llList2String(names, k);
-                            if (llList2Integer(lives, k) > 0) {
-                                perilPlayer = candidateName;
-                                llOwnerSay("🔄 After elimination, new peril player: " + perilPlayer);
-                            }
-                        }
-                        
-                        // Continue the game with the new peril player (don't reset roundStarted)
-                        if (perilPlayer != "") {
-                            llOwnerSay("🎯 Continuing game with " + perilPlayer + " as new peril player");
-                            // Reset picks and queue for new round, but keep roundStarted = TRUE
-                            picksData = [];
-                            globalPickedNumbers = [];
-                            pickQueue = [perilPlayer];
-                            integer i;
-                            for (i = 0; i < llGetListLength(names); i++) {
-                                string playerName = llList2String(names, i);
-                                if (playerName != perilPlayer) {
-                                    pickQueue += [playerName];
-                                }
-                            }
-                            currentPickerIdx = 0;
-                            updateHelpers();
-                            requestDiceType();
-                        }
-                    } else {
-                        // Continue with existing peril player
-                        updateHelpers();
-                    }
+                    // Let Game Manager handle peril player reassignment after elimination
+                    // Just update helpers and let Game Manager detect the elimination via sync
+                    updateHelpers();
                 }
             }
             return;
@@ -836,11 +779,18 @@ resetGame();
         }
         // Handle start next round request - delegate to Game Manager
         if (num == 997) {
+            // Check sender to prevent infinite loops - don't process our own messages
+            if (sender == llGetLinkNumber()) {
+                return; // Ignore messages from ourself
+            }
+            
             // Additional protection against round start spam
             if (roundStarted && str == "START_NEXT_ROUND") {
                 llOwnerSay("⚠️ [Main Controller] Round already in progress, ignoring START_NEXT_ROUND");
                 return;
             }
+            // Game Manager will handle dice type processing for new round
+            llOwnerSay("🔄 [Main Controller] Starting new round - Game Manager will handle dice type");
             // Forward the request to Game Manager
             llMessageLinked(LINK_SET, num, str, id);
             // Don't request dice type here - it's handled in the "Start Game" listener below
@@ -1016,6 +966,31 @@ llRegionSay(SCOREBOARD_CHANNEL_1, "RESET_LEADERBOARD"); // Reset leaderboard sco
                     llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)ownerIsStarter, llGetOwner());
                     return;
                 }
+                if (msg == "Force Floaters") {
+                    // Force creation of floaters for all registered players
+                    llOwnerSay("🔧 Forcing floater creation for all " + (string)llGetListLength(names) + " players...");
+                    integer i;
+                    for (i = 0; i < llGetListLength(names); i++) {
+                        string playerName = llList2String(names, i);
+                        key playerKey = llList2Key(players, i);
+                        llMessageLinked(LINK_SET, MSG_REZ_FLOAT, playerName, playerKey);
+                        llSleep(0.3); // Brief delay between rezzing to prevent spam
+                    }
+                    llOwnerSay("✅ Floater creation requests sent for all players!");
+                    // Refresh owner menu
+                    integer ownerIdx = llListFindList(players, [llGetOwner()]);
+                    integer ownerIsStarter = TRUE;  // Default to TRUE for owner
+                    integer n;
+                    for (n = 0; n < ownerIdx && ownerIsStarter; n++) {
+                        string existingName = llList2String(names, n);
+                        // If there's a human player before the owner, owner is not starter
+                        if (llSubStringIndex(existingName, "TestBot") != 0) {
+                            ownerIsStarter = FALSE;
+                        }
+                    }
+                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)ownerIsStarter, llGetOwner());
+                    return;
+                }
             }
             // Allow the first registered player (index 0) or the owner to start the game.
             // When the starter clicks "Start Game", begin the round.
@@ -1102,15 +1077,15 @@ llRegionSay(SCOREBOARD_CHANNEL_1, "RESET_LEADERBOARD"); // Reset leaderboard sco
                     llSetTimerEvent(0);
                 } else {
                     integer remaining = TIMEOUT_SECONDS - elapsed;
-                    if (remaining <= warning2min && lastWarning < warning2min) {
-                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                        lastWarning = warning2min;
-                    } else if (remaining <= warning5min && lastWarning < warning5min) {
-                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                        lastWarning = warning5min;
-                    } else if (remaining <= warning9min && lastWarning < warning9min) {
-                        llOwnerSay("⚠️ " + (string)(remaining / 60) + " minutes remaining for dialog response");
-                        lastWarning = warning9min;
+                    if (remaining <= warning30sec && lastWarning < warning30sec) {
+                        llOwnerSay("⚠️ 30 seconds remaining for dialog response");
+                        lastWarning = warning30sec;
+                    } else if (remaining <= warning1min && lastWarning < warning1min) {
+                        llOwnerSay("⚠️ 1 minute remaining for dialog response");
+                        lastWarning = warning1min;
+                    } else if (remaining <= warning90sec && lastWarning < warning90sec) {
+                        llOwnerSay("⚠️ 1.5 minutes remaining for dialog response");
+                        lastWarning = warning90sec;
                     }
                 }
             }

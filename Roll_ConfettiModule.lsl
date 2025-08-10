@@ -59,6 +59,8 @@ list names = [];
 list lives = [];
 list picksData = [];
 string perilPlayer = "";
+integer diceType = 6; // Store the dice type for rolling
+integer shouldRoll = FALSE; // Flag to trigger roll after dice type is received
 
 list getPicksFor(string nameInput) {
     integer i;
@@ -197,7 +199,9 @@ default {
                 if (llSubStringIndex(str, "TestBot") == 0) {
                     // Auto-roll for bots
                     llOwnerSay("🤖 " + str + " (bot) is auto-rolling...");
-                    llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);
+                    shouldRoll = TRUE; // Set flag for bot auto-roll
+                    // Request dice type directly from Calculator
+                    llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
                 } else {
                     // Show dialog for human players
                     llDialog(id, "🎲 THE MOMENT OF TRUTH! You're in ultimate peril. Will you face your fate?", ["ROLL THE DICE OF FATE"], rollDialogChannel);
@@ -205,6 +209,31 @@ default {
             }
         }
 
+        // Handle dice type requests from listen() events
+        else if (num == 996) {
+            // This is a GET_DICE_TYPE request from our own listen handler
+            // Forward it to the Main Controller to get the current dice type
+            llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
+            return;
+        }
+        
+        // Handle dice type response - store dice type and perform roll if requested
+        else if (num == 1005) { // MSG_DICE_TYPE_RESULT 
+            diceType = (integer)str;
+            llOwnerSay("🎲 [Roll Module] Received dice type: d" + (string)diceType);
+            
+            // If roll was requested from listen handler, perform it now
+            if (shouldRoll) {
+                shouldRoll = FALSE; // Reset flag
+                llOwnerSay("🎲 [Roll Module] Performing requested roll with d" + (string)diceType);
+                
+                // Use MSG_ROLL_RESULT handler to perform the actual roll
+                llMessageLinked(LINK_THIS, MSG_ROLL_RESULT, (string)diceType, NULL_KEY);
+            }
+            return;
+        }
+        
+        // Legacy MSG_ROLL_RESULT handler (if still used somewhere)
         else if (num == MSG_ROLL_RESULT) {
             integer diceType = (integer)str;
             integer result = rollDice(diceType);
@@ -344,9 +373,11 @@ default {
 
     listen(integer channel, string name, key id, string msg) {
         if (msg == "Roll" || msg == "ROLL THE DICE OF FATE") {
-            // Handle dice roll - need to get dice type from main controller
+            // Handle dice roll - need to get dice type from Calculator
             llOwnerSay("🎲 Roll button clicked by " + name + " (key: " + (string)id + ")");
-            llMessageLinked(LINK_SET, 996, "GET_DICE_TYPE", NULL_KEY);
+            shouldRoll = TRUE; // Set flag to perform roll when dice type is received
+            // Request dice type directly from Calculator
+            llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
         } else {
             llMessageLinked(LINK_THIS, channel, msg, id);
         }

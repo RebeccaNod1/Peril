@@ -93,7 +93,7 @@ list mainOwnerOptions = ["🎮 Game Participation", "👥 Player Management", "�
 list gameParticipationOptions = ["Join Game", "Leave Game", "⬅️ Back to Main"];
 list playerManagementOptions = ["Add Test Player", "⬅️ Back to Main"];
 list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
-list troubleshootingOptions = ["Cleanup Floaters", "Reset Follower Positions", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "Reset Follower Positions", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
@@ -102,7 +102,7 @@ integer pendingMenuIsOwner = FALSE;
 integer pendingMenuRequestID = 0;      // Unique ID for each menu request
 integer currentRequestID = 0;           // Counter for generating unique request IDs
 float pendingMenuTimestamp = 0.0;       // Timeout for pending requests
-float MENU_REQUEST_TIMEOUT = 10.0;      // 10 second timeout for menu requests
+float MENU_REQUEST_TIMEOUT = 5.0;       // 5 second timeout for menu requests
 
 // Display the main categorized owner menu
 showOwnerMenu(key id) {
@@ -372,8 +372,14 @@ default {
         }
         else if (msg == "Cleanup Floaters") {
             // Universal floater cleanup that works even after script resets
-            llOwnerSay("🧹 Force cleaning ALL possible floater channels...");
+            llOwnerSay("🧩 Force cleaning ALL possible floater channels...");
             llMessageLinked(LINK_SET, MSG_CLEANUP_ALL_FLOATERS, "", NULL_KEY);
+        }
+        else if (msg == "Force Floaters") {
+            // Force creation of floaters for all registered players - send as dialog response to Main Controller
+            llOwnerSay("🔧 Requesting floater creation for all registered players...");
+            // This will be handled by Main Controller's dialog listener
+            // No need to forward via link_message - the Main Controller is already listening on DIALOG_CHANNEL
         }
         else if (msg == "Reset Follower Positions") {
             // Integrated position reset functionality with automation options

@@ -29,6 +29,7 @@ integer diceType = 6;
 key currentPicker;
 integer roundStarted = FALSE;
 integer diceTypeProcessed = FALSE;  // Track if we've already processed dice type for this round
+integer ignorePicksSync = FALSE;     // Temporarily ignore picks data sync during round initialization
 
 // Duplicate request prevention
 string lastHumanPickMessage = "";
@@ -50,6 +51,8 @@ continueCurrentRound() {
     picksData = [];
     globalPickedNumbers = [];
     
+    llOwnerSay("🔄 [Game Manager] continueCurrentRound: Cleared picks data, starting fresh");
+    
     // Set round as started for the new round
     roundStarted = TRUE;
     diceTypeProcessed = FALSE; // Reset dice type processing for new round
@@ -65,7 +68,9 @@ continueCurrentRound() {
     }
     currentPickerIdx = 0;
     
-    // Request dice type for the new round
+    llOwnerSay("🎯 [Game Manager] Pick queue created: " + llList2CSV(pickQueue) + ", requesting dice type");
+    
+    // Request dice type directly from Calculator for the new round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
     
     // Note: showNextPickerDialog() will be called when dice type result is received
@@ -282,49 +287,59 @@ default {
                     newPicksData = llParseString2List(picksDataStr, ["^"], []);
                 }
                 
-                // Don't sync peril player from Main Controller - Game Manager is authoritative
-                // string receivedPeril = llList2String(parts, 2);
-                // Game Manager manages its own peril player state
-                names = llCSV2List(llList2String(parts, 3));
+                // Game Manager is authoritative for peril player, but check for eliminations
+                list newNames = llCSV2List(llList2String(parts, 3));
+                
+                // Check if current peril player was eliminated
+                if (perilPlayer != "" && perilPlayer != "NONE") {
+                    integer perilStillExists = llListFindList(newNames, [perilPlayer]) != -1;
+                    if (!perilStillExists && llListFindList(names, [perilPlayer]) != -1) {
+                        // Peril player was eliminated! Game Manager needs to assign new peril player
+                        llOwnerSay("🚨 [Game Manager] Detected elimination of peril player: " + perilPlayer);
+                        
+                        // Find first remaining alive player to be new peril player
+                        string newPerilPlayer = "";
+                        integer k;
+                        for (k = 0; k < llGetListLength(newNames) && newPerilPlayer == ""; k++) {
+                            string candidateName = llList2String(newNames, k);
+                            integer candidateIdx = llListFindList(newNames, [candidateName]);
+                            if (candidateIdx != -1 && candidateIdx < llGetListLength(newLives)) {
+                                integer candidateLives = llList2Integer(newLives, candidateIdx);
+                                if (candidateLives > 0) {
+                                    newPerilPlayer = candidateName;
+                                }
+                            }
+                        }
+                        
+                        if (newPerilPlayer != "") {
+                            llOwnerSay("🎯 [Game Manager] Assigning new peril player: " + newPerilPlayer);
+                            perilPlayer = newPerilPlayer;
+                        } else {
+                            llOwnerSay("⚠️ [Game Manager] No valid peril player candidates found!");
+                            perilPlayer = "NONE";
+                        }
+                    }
+                }
+                
+                names = newNames;
                 
                 // New: also receive players list if available (for dialog targeting)
                 if (llGetListLength(parts) >= 5) {
                     players = llCSV2List(llList2String(parts, 4));
                 }
                 
-                // AUTOMATIC ROUND CONTINUATION: Detect post-roll state
-                // Check if lives have changed (indicating a roll occurred) and all picks are now empty
+                // Always update state normally - don't auto-continue rounds
+                // The Roll module will handle post-roll logic and Main Controller will manage round flow
+                lives = newLives;
+                picksData = newPicksData;
+                
+                // Only log if this appears to be a post-roll update for debugging
                 string oldLivesStr = llList2CSV(lives);
                 string newLivesStr = llList2CSV(newLives);
                 integer livesChanged = (oldLivesStr != newLivesStr);
                 
-                // Check if all picks are empty (indicating post-roll state)
-                integer allPicksEmpty = TRUE;
-                integer i;
-                for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
-                    string entry = llList2String(newPicksData, i);
-                    list entryParts = llParseString2List(entry, ["|"], []);
-                    if (llGetListLength(entryParts) >= 2 && llList2String(entryParts, 1) != "") {
-                        allPicksEmpty = FALSE;
-                    }
-                }
-                
-                // If lives changed and all picks are empty, this is post-roll - start new round
-                if (livesChanged && allPicksEmpty && roundStarted && perilPlayer != "" && perilPlayer != "NONE") {
-                    llOwnerSay("🎯 [Game Manager] Post-roll detected - automatically continuing to next round");
-                    
-                    // Update our state first
-                    lives = newLives;
-                    picksData = newPicksData;
-                    
-                    // Reset for new round and continue
-                    roundStarted = FALSE;
-                    currentPickerIdx = 0;
-                    continueCurrentRound();
-                } else {
-                    // Normal state update
-                    lives = newLives;
-                    picksData = newPicksData;
+                if (livesChanged) {
+                    llOwnerSay("🔍 [Game Manager] Lives changed - roll completed, waiting for proper round continuation signal");
                 }
             }
             return;

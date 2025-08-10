@@ -1,6 +1,8 @@
 🎲 PERIL DICE — MODULAR GAME SYSTEM FOR SECOND LIFE
 ========================================================
 
+CREATED BY REBECCA NOD AND NOOSE THE BUNNY
+
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.

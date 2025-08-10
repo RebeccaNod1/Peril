@@ -1,5 +1,7 @@
 # Changelog
 
+**Peril Dice Game System - Created by Rebecca Nod and Noose the Bunny**
+
 All notable changes to Peril Dice will be documented in this file.
 
 ## [2.6.0] - 2025-08-09

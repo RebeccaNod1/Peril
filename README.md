@@ -1,5 +1,7 @@
 # 🎲 Peril Dice — Modular Game System for Second Life
 
+**Created by Rebecca Nod and Noose the Bunny**
+
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.

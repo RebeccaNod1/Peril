@@ -1,5 +1,7 @@
 # 🎲 **PERIL DICE GAME - OFFICIAL RULES**
 
+**Created by Rebecca Nod and Noose the Bunny**
+
 *Original concept by **Noose the Bunny** (djmusica28) in Second Life*
 
 ---
