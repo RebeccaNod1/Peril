@@ -1,0 +1,20 @@
+[
+    {
+        "key": "ctrl+shift+h",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Open LSL Documentation",
+        "when": "editorTextFocus && editorLangId == lsl"
+    },
+    {
+        "key": "ctrl+shift+f1",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Search LSL Function",
+        "when": "editorTextFocus && editorLangId == lsl"
+    },
+    {
+        "key": "ctrl+alt+h",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Open LSL Docs in Live Preview",
+        "when": "editorTextFocus && editorLangId == lsl"
+    }
+]

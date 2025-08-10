@@ -1,0 +1,109 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open LSL Documentation",
+            "type": "shell",
+            "command": "xdg-open",
+            "args": ["https://lsl-docs.richardf.us"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Opens LSL function reference in browser"
+        },
+        {
+            "label": "Search LSL Function",
+            "type": "shell",
+            "command": "xdg-open",
+            "args": ["https://lsl-docs.richardf.us#${input:searchFunction}"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Search for a specific LSL function"
+        },
+        {
+            "label": "Validate LSL File",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/home/richard/lsl-docs/tools/lsl_validator.py", "${file}"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Check LSL syntax and common errors"
+        },
+        {
+            "label": "Validate All LSL Files",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/home/richard/lsl-docs/tools/lsl_validator.py", "${workspaceFolder}"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Validate all LSL files in the project"
+        },
+        {
+            "label": "Preprocess LSL File",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/home/richard/lsl-docs/tools/lsl_preprocessor.py", "${file}"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Process LSL file with includes and macros"
+        },
+        {
+            "label": "Open LSL Docs in Live Preview",
+            "type": "shell",
+            "command": "${command:livePreview.start.externalPreview.atFile}",
+            "args": ["/home/richard/lsl-docs/index.html"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "detail": "Open LSL documentation in VS Code Live Preview"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "searchFunction",
+            "description": "Enter LSL function name to search",
+            "default": "llSay",
+            "type": "promptString"
+        }
+    ]
+}

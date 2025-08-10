@@ -1,0 +1,12 @@
+{
+    "lsl.documentationUrl": "https://lsl-docs.richardf.us",
+    "editor.quickSuggestions": {
+        "other": true,
+        "comments": false,
+        "strings": false
+    },
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "files.associations": {
+        "*.lsl": "lsl"
+    }
+}
