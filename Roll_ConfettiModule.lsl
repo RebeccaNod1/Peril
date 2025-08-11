@@ -61,6 +61,8 @@ list picksData = [];
 string perilPlayer = "";
 integer diceType = 6; // Store the dice type for rolling
 integer shouldRoll = FALSE; // Flag to trigger roll after dice type is received
+integer rollInProgress = FALSE; // Prevent multiple simultaneous rolls
+integer lastRollTime = 0; // Track when last roll happened
 
 list getPicksFor(string nameInput) {
     integer i;
@@ -203,6 +205,9 @@ default {
                     // Request dice type directly from Calculator
                     llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
                 } else {
+                    // Reset any previous roll state before showing dialog
+                    rollInProgress = FALSE;
+                    shouldRoll = FALSE;
                     // Show dialog for human players
                     llDialog(id, "🎲 THE MOMENT OF TRUTH! You're in ultimate peril. Will you face your fate?", ["ROLL THE DICE OF FATE"], rollDialogChannel);
                 }
@@ -223,21 +228,31 @@ default {
             llOwnerSay("🎲 [Roll Module] Received dice type: d" + (string)diceType);
             
             // If roll was requested from listen handler, perform it now
-            if (shouldRoll) {
+            if (shouldRoll && rollInProgress) {
                 shouldRoll = FALSE; // Reset flag
                 llOwnerSay("🎲 [Roll Module] Performing requested roll with d" + (string)diceType);
                 
                 // Use MSG_ROLL_RESULT handler to perform the actual roll
                 llMessageLinked(LINK_THIS, MSG_ROLL_RESULT, (string)diceType, NULL_KEY);
+            } else if (shouldRoll && !rollInProgress) {
+                llOwnerSay("⚠️ [Roll Module] Roll was cancelled or already completed, ignoring dice type");
+                shouldRoll = FALSE; // Clear stale flag
             }
             return;
         }
         
         // Legacy MSG_ROLL_RESULT handler (if still used somewhere)
         else if (num == MSG_ROLL_RESULT) {
+            // Additional safety check
+            if (!rollInProgress) {
+                llOwnerSay("⚠️ [Roll Module] Ignoring roll request - no roll in progress");
+                return;
+            }
+            
             integer diceType = (integer)str;
             integer result = rollDice(diceType);
             string resultStr = (string)result;
+            lastRollTime = llGetUnixTime(); // Record roll time
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
             // Send dice roll to scoreboard for display on dice screen
@@ -368,13 +383,28 @@ default {
             // Let Main Controller handle next round logic to avoid loops
             // Don't immediately trigger next round dialog - let game flow naturally
             llOwnerSay("🎯 Round complete, waiting for Main Controller to handle next phase...");
+            
+            // Clear roll protection after processing is complete
+            rollInProgress = FALSE;
         }
     }
 
     listen(integer channel, string name, key id, string msg) {
         if (msg == "Roll" || msg == "ROLL THE DICE OF FATE") {
+            // Prevent multiple rolls within 3 seconds
+            integer currentTime = llGetUnixTime();
+            if (rollInProgress) {
+                llOwnerSay("⚠️ Roll already in progress, ignoring duplicate click by " + name);
+                return;
+            }
+            if (currentTime - lastRollTime < 3) {
+                llOwnerSay("⚠️ Roll too soon after previous roll, ignoring click by " + name);
+                return;
+            }
+            
             // Handle dice roll - need to get dice type from Calculator
             llOwnerSay("🎲 Roll button clicked by " + name + " (key: " + (string)id + ")");
+            rollInProgress = TRUE; // Lock out other rolls
             shouldRoll = TRUE; // Set flag to perform roll when dice type is received
             // Request dice type directly from Calculator
             llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
