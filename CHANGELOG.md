@@ -1,8 +1,220 @@
 # Changelog
 
-**Peril Dice Game System - Created by Rebecca Nod and Noose the Bunny**
+**Peril Dice Game System - Created by Rebecca Nod and Noose the bunny**
 
 All notable changes to Peril Dice will be documented in this file.
+
+## [2.8.0] - 2025-08-12
+
+### 🔒 **Game Lockout Security System**
+- **Owner-Only Access Control**: Implemented comprehensive lockout system allowing game owners to restrict all game functionality to owner only
+  - Complete dialog prevention for non-owners when game is locked
+  - Visual feedback through floating text showing "🔒 GAME LOCKED" status
+  - Clear error messaging to non-owners attempting access during lockout
+  - Lock status persists during gameplay and between sessions
+- **Dynamic Admin Controls**: Added lock/unlock toggle buttons in categorized owner menu
+  - 🔒 Lock Game: Restricts access to owner only
+  - 🔓 Unlock Game: Restores normal player access
+  - Visual indicators in admin menu show current lock state
+- **System Integration**: Lockout state synchronized between Main Controller and Dialog Handler
+  - Lock/unlock commands sent via link messages (9001/9002)
+  - Floating text updates automatically based on lock state
+  - Complete access restriction including dialog generation prevention
+
+### 🔄 **Automatic Reset on Startup System**
+- **Clean State Guarantee**: Game automatically resets when critical scripts are updated or rezzed
+  - Main Controller triggers reset on `state_entry()` for consistent startup state
+  - Game Manager requests reset on startup to handle core game logic updates
+  - All game state cleared while preserving historical leaderboard data
+- **Smart Reset Logic**: Automatic reset preserves leaderboard while clearing temporary game state
+  - Players, lives, picks, ready states cleared on startup
+  - Win/loss records maintained in leaderboard system
+  - Scoreboard cleared but leaderboard rankings preserved
+- **Script Update Protection**: Enhanced reliability when game logic is modified
+  - Prevents stale game states from carrying over after script updates
+  - Ensures consistent experience for players after system updates
+  - Eliminates need for manual resets after deployments
+
+### 👥 **Enhanced Player Management System**
+- **Kick Player Functionality**: Complete implementation of owner-controlled player removal
+  - New "Kick Player" option in Player Management admin section
+  - Smart display name handling with automatic truncation for dialog buttons
+  - Complete player removal from all game systems (lists, scoreboard, floaters)
+  - Immediate visual feedback on scoreboard when players are kicked
+- **Rebuilt Leave Game System**: Complete overhaul of voluntary player departure
+  - Fixed state synchronization issues between Controller and Dialog Handler
+  - Proper cleanup of player floaters when leaving
+  - Automatic removal from ready player lists
+  - Scoreboard updates immediately reflect departing players
+- **Advanced Name Management**: Enhanced handling of long display names
+  - Automatic truncation to fit within 24-character dialog button limits
+  - Preservation of original names for game logic while showing truncated versions in UI
+  - Proper mapping between display names and actual player identities
+
+### 🎯 **Categorized Admin Interface**
+- **Organized Owner Menu**: Complete restructure of admin controls into logical categories
+  - **Player Management**: Add Test Player, Kick Player functions
+  - **Reset Options**: Game reset, Leaderboard reset, Complete reset
+  - **Troubleshooting**: Cleanup floaters, Force floaters creation
+  - **Security Controls**: Lock/Unlock game prominently displayed
+- **Improved Navigation**: Enhanced menu flow with clear back navigation
+  - Consistent "⬅️ Back to Main" options in all sub-menus
+  - "⬅️ Back to Game" option to return to player interface
+  - Context-sensitive menu options based on current state
+- **Enhanced User Experience**: Better organization and discoverability of admin functions
+  - Security-first design with lock controls prominently featured
+  - Logical grouping of related functions
+  - Clear visual indicators for current system state
+
+### 🛠️ **System Reliability and State Management**
+- **Enhanced Message Synchronization**: Improved communication reliability between scripts
+  - Better coordination between Main Controller and Dialog Handler for player operations
+  - Proper message sequencing for kick/leave operations
+  - Race condition prevention in player registration and removal
+- **State Consistency Improvements**: Enhanced data integrity across all game components
+  - All game lists maintain synchronization during player changes
+  - Floater cleanup properly coordinated with player removal
+  - Ready state management integrated with player lifecycle
+- **Error Recovery Enhancement**: Better handling of edge cases and unexpected states
+  - Improved validation of player operations
+  - Enhanced cleanup procedures for interrupted operations
+  - More robust handling of script restart scenarios
+
+### 📊 **Memory Management and Performance**
+- **Efficient Data Cleanup**: Proper memory management during player operations
+  - Complete cleanup of all player-related data structures
+  - Efficient list operations for player removal
+  - Proper floater channel management and cleanup
+- **Reduced Memory Footprint**: Optimized storage of player state information
+  - Efficient mapping between display names and original names
+  - Streamlined admin menu data structures
+  - Better garbage collection during reset operations
+
+### 🔧 **Technical Infrastructure Updates**
+- **Link Message Protocol Extensions**: New message types for enhanced functionality
+  - Message 9001: Lock game command from Dialog Handler to Main Controller
+  - Message 9002: Unlock game command from Dialog Handler to Main Controller
+  - Message -99998: Reset request system for script update coordination
+- **Floating Text Management**: Dynamic text updates based on system state
+  - Lock/unlock status reflected in floating text
+  - Game progress indicators maintained
+  - Clear visual feedback for all system states
+- **Admin Security Model**: Comprehensive owner verification throughout system
+  - All security-sensitive operations validate owner identity
+  - Lock/unlock operations restricted to game owner only
+  - Consistent security model across all admin functions
+
+### 🎮 **User Experience Improvements**
+- **Clear Feedback Systems**: Enhanced messaging for all user interactions
+  - Lock status clearly communicated to all users
+  - Kick/leave operations provide immediate feedback
+  - Error messages are clear and actionable
+- **Professional Admin Interface**: Polished owner experience with logical organization
+  - Intuitive menu structure follows user workflow
+  - Consistent visual design and button labeling
+  - Context-appropriate options based on current game state
+- **Seamless Player Experience**: Minimal disruption during admin operations
+  - Quick player removal without game interruption
+  - Smooth ready state management
+  - Preserved game flow during player changes
+
+## [2.7.0] - 2025-08-12
+
+### 🏗️ **MAJOR ARCHITECTURAL OVERHAUL - Single Linkset Design**
+- **Complete System Consolidation**: Merged all 4 separate objects into single linkset architecture
+  - Main Controller + Roll Module: Link 1 (root prim)
+  - Game Scoreboard: Links 2-24 (scoreboard background, actions display, player slots)
+  - XyzzyText Leaderboard: Links 25-72 (48 prims for text display across 4 banks)
+  - Dice Display: Links 73-74 (2 prims for XyzzyText dice results)
+  - Total: 74-prim consolidated linkset replacing 4 separate rezzed objects
+- **Elimination of Region Chat**: Replaced all `llRegionSay()` communication with `llMessageLinked()`
+  - No more channel conflicts or discovery issues between multiple game instances
+  - Instant, reliable communication within single linkset
+  - Zero risk of cross-talk between multiple game tables
+- **Simplified Deployment**: Single object rez instead of complex 4-object positioning system
+  - No more Position Controller/Follower scripts needed
+  - No more automatic rez positioning coordination
+  - Instant setup - rez once and play
+
+### 📡 **Dynamic Channel System Removal**
+- **Channel System Elimination**: Removed entire hash-based dynamic channel calculation system
+  - No more `calculateChannel(offset)` functions across scripts
+  - No more MD5-based hash generation for channel uniqueness
+  - No more owner key + object key channel calculations
+  - Eliminated ~78000 to ~86000 channel range management
+- **Communication Simplification**: All inter-component communication now uses link messages
+  - Scoreboard communication via link messages to specific prim numbers
+  - Leaderboard updates via link messages to bridge scripts
+  - Dice display updates via link messages within linkset
+  - Zero external channel dependencies
+
+### 🎯 **Dice Type Synchronization Fixes**
+- **Critical Race Condition Resolution**: Fixed major bug where Game Manager and Roll Module independently requested dice types
+  - Eliminated inconsistent dice types between human players and bots (e.g., player rolling d6 when expecting d30)
+  - Prevented double rolls with different dice types from conflicting module requests
+  - Removed duplicate dice type calculation across multiple modules
+- **Targeted Communication System**: Calculator sends dice type responses only to requesting module
+  - Game Calculator responds directly to sender using link numbers
+  - Eliminated `LINK_SET` broadcasts that caused race conditions and stale data
+  - Each module requests dice type independently when needed, preventing conflicts
+
+### 🔄 **Clean Module Communication Architecture**
+- **Link Message Routing**: Established clear communication paths within linkset
+  - Main Controller ↔ Scoreboard: Link 1 → Link 2
+  - Scoreboard → Leaderboard Bridge: Link 2 → Link 25
+  - Roll Module → Dice Bridge: Link 1 → Link 73
+  - All communication uses `llMessageLinked()` with specific link numbers
+- **Module Responsibilities**:
+  - **Game Calculator**: Calculates dice types on request; sends targeted responses only
+  - **Game Manager**: Requests dice type for pick phase coordination and dialog building
+  - **Roll Module**: Requests dice type independently when performing actual rolls
+  - **Scoreboard Manager**: Handles player display and leaderboard formatting
+  - **Bridge Scripts**: Handle XyzzyText display distribution for leaderboard and dice
+
+### 🛠️ **Game Flow Improvements**
+- **Win Condition Protection**: Enhanced Game Manager to detect single remaining player and stop rounds
+  - Prevents infinite game loops where bot fights itself after human elimination
+  - Game properly ends when only one player remains instead of continuing indefinitely
+- **Round Completion Logic**: Improved detection of round completion across all scenarios
+  - Handles Direct Hit, No Shield, and Plot Twist outcomes correctly
+  - Enhanced sync protection against empty pickQueue overwrites during active rounds
+- **Pick Dialog Synchronization**: Game Manager uses correct dice type for human pick dialogs
+  - Ensures number selection dialogs show appropriate range (1-6 for d6, 1-30 for d30)
+  - Maintains consistency between dialog options and actual roll dice type
+
+### 📊 **Display System Integration**
+- **Scoreboard Integration**: Scoreboard prims now part of main linkset (Links 3-24)
+  - BACKGROUND_PRIM: Link 3, ACTIONS_PRIM: Link 4, FIRST_PLAYER_PRIM: Link 5
+  - Player prims span Links 5-24 (20 player slots with profile pictures and hearts)
+  - Direct link message communication for instant updates
+- **Leaderboard Integration**: XyzzyText leaderboard integrated as Links 25-72
+  - 48 prims across 4 banks of 12 characters each for "TOP BATTLE RECORDS" display
+  - Formatted leaderboard shows positions 1-11 with wins/losses in "W:X/L:Y" format
+  - Communication via Leaderboard Bridge script on Link 25
+- **Dice Display Integration**: Dice results display as Links 73-74
+  - Real-time dice roll results showing "Player: rolled X" format
+  - Victory displays showing "PlayerName|WON" for game winners
+  - Communication via Dice Bridge script on Link 73
+
+### 🏃‍♂️ **Performance and Reliability**
+- **Zero Channel Conflicts**: Complete elimination of region chat channel issues
+- **Instant Communication**: Link messages provide immediate, guaranteed delivery
+- **Multi-Instance Support**: Multiple game tables can operate without any interference
+- **Simplified Maintenance**: Single object to manage instead of 4-object coordination
+- **Memory Efficiency**: Removed channel calculation overhead and hash generation processing
+
+### 🗑️ **Removed Systems**
+- **Dynamic Channel Management**: Entire hash-based channel system removed
+- **Position Controller/Follower**: No longer needed with single linkset design
+- **Automatic Rez Positioning**: Eliminated complex multi-object positioning scripts
+- **Region Chat Dependencies**: All `llRegionSay()` calls replaced with `llMessageLinked()`
+- **Channel Discovery**: No more channel assignment reporting or debugging tools needed
+
+### 🎮 **User Experience**
+- **One-Click Deployment**: Single object rez for complete game setup
+- **Reliable Operation**: No communication failures or channel conflicts
+- **Clean Console**: No channel debugging messages or communication errors
+- **Professional Presentation**: Integrated display components work seamlessly together
 
 ## [2.6.0] - 2025-08-09
 

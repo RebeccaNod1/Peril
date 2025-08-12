@@ -87,13 +87,14 @@ integer MSG_CLEANUP_ALL_FLOATERS = 212;
 integer MSG_GET_CURRENT_DIALOG = 302;
 
 // Categorized owner menu system
-list mainOwnerOptions = ["🎮 Game Participation", "👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "⬅️ Back to Game"];
+list mainOwnerOptions = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "⬅️ Back to Game"];
+list mainOwnerOptionsLocked = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "🔓 Unlock Game", "⬅️ Back to Game"];
+list mainOwnerOptionsUnlocked = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "🔒 Lock Game", "⬅️ Back to Game"];
 
 // Sub-menu options for each category
-list gameParticipationOptions = ["Join Game", "Leave Game", "⬅️ Back to Main"];
-list playerManagementOptions = ["Add Test Player", "⬅️ Back to Main"];
+list playerManagementOptions = ["Add Test Player", "Kick Player", "⬅️ Back to Main"];
 list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
-list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "Reset Follower Positions", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
@@ -104,16 +105,33 @@ integer currentRequestID = 0;           // Counter for generating unique request
 float pendingMenuTimestamp = 0.0;       // Timeout for pending requests
 float MENU_REQUEST_TIMEOUT = 5.0;       // 5 second timeout for menu requests
 
-// Display the main categorized owner menu
+// Lockout system - when TRUE, only owner can access menus
+integer isLocked = FALSE;
+key gameOwner;
+
+// Display the main categorized owner menu with lock/unlock controls
 showOwnerMenu(key id) {
-    llDialog(id, "🔧 Owner Menu - Select Category", mainOwnerOptions, DIALOG_CHANNEL);
+    // Only show full menu to owner
+    if (id != gameOwner) {
+        llRegionSayTo(id, 0, "⚠️ Access denied. Only the game owner can access this menu.");
+        return;
+    }
+    
+    list menuOptions;
+    string menuTitle = "🔧 Owner Menu - Select Category";
+    
+    if (isLocked) {
+        menuOptions = mainOwnerOptionsLocked;
+        menuTitle += "\n🔒 GAME IS LOCKED - Only owner can access menus";
+    } else {
+        menuOptions = mainOwnerOptionsUnlocked;
+        menuTitle += "\n🔓 GAME IS UNLOCKED - All players can access menus";
+    }
+    
+    llDialog(id, menuTitle, menuOptions, DIALOG_CHANNEL);
 }
 
 // Display category sub-menus
-showGameParticipationMenu(key id) {
-    llDialog(id, "🎮 Game Participation", gameParticipationOptions, DIALOG_CHANNEL);
-}
-
 showPlayerManagementMenu(key id) {
     llDialog(id, "👥 Player Management", playerManagementOptions, DIALOG_CHANNEL);
 }
@@ -159,6 +177,12 @@ showReadyLeaveMenuWithState(key id, integer isStarter, integer isOwner, integer 
         return;
     }
     
+    // Lockout system: Block dialog generation for non-owners when locked
+    if (isLocked && id != gameOwner) {
+        llRegionSayTo(id, 0, "🔒 Game is LOCKED. Only the owner can access any features. Contact " + getPlayerName(gameOwner) + " to unlock.");
+        return;
+    }
+    
     list options;
     string menuText = "Select an option:";
     
@@ -189,6 +213,10 @@ list currentPickList;
 string currentPickTarget;
 integer currentPickLimit = 3;
 
+// Track mapping between truncated display names and original names for kick functionality
+list kickDisplayNames = [];  // What the user sees in the dialog
+list kickOriginalNames = []; // The actual player names
+
 showPickManageMenu(key id, list playerNames) {
     list options = [];
     integer i;
@@ -217,11 +245,50 @@ askForNewPick(key id) {
     llTextBox(id, "🔢 Enter a number to add for " + currentPickTarget + ":", DIALOG_CHANNEL);
 }
 
+// Show kick player menu - displays all registered players for selection
+showKickPlayerMenu(key id, list playerNames) {
+    if (llGetListLength(playerNames) == 0) {
+        llRegionSayTo(id, 0, "⚠️ No players are currently registered to kick.");
+        showPlayerManagementMenu(id);
+        return;
+    }
+    
+    list options = [];
+    kickDisplayNames = [];  // Reset mapping
+    kickOriginalNames = [];
+    
+    integer i;
+    for (i = 0; i < llGetListLength(playerNames); i++) {
+        string originalName = llList2String(playerNames, i);
+        string displayName = originalName;
+        
+        // Truncate long names to fit within 24 character button limit ("👢 " = 3 chars)
+        if (llStringLength(displayName) > 21) {
+            displayName = llGetSubString(displayName, 0, 18) + "...";
+        }
+        
+        string buttonLabel = "👢 " + displayName;
+        
+        // Debug: Check button length
+        llOwnerSay("🔍 Debug kick button: '" + buttonLabel + "' = " + (string)llStringLength(buttonLabel) + " chars");
+        
+        options += [buttonLabel];
+        kickDisplayNames += [buttonLabel];  // Store the full button label
+        kickOriginalNames += [originalName];  // Store the original name
+    }
+    options += ["⬅️ Back"];
+    llDialog(id, "👢 Select player to kick from game:", options, DIALOG_CHANNEL);
+}
+
 default {
     state_entry() {
         // Initialize dynamic channels
         initializeChannels();
         DIALOG_CHANNEL = MAIN_DIALOG_CHANNEL; // Set legacy variable
+        
+        // Initialize lockout system
+        gameOwner = llGetOwner();
+        isLocked = FALSE; // Default to unlocked
         
         // Initialize position reset variables
         controller_key = llGetKey();
@@ -238,7 +305,8 @@ default {
         leaderboardHandle = llListen(LEADERBOARD_DATA_CHANNEL, "", "", "");
         diceHandle = llListen(DICE_DATA_CHANNEL, "", "", "");
         
-        llOwnerSay("🎭 Owner and Player Dialog Handler ready with position reset capability!");
+        llOwnerSay("🎭 Owner and Player Dialog Handler ready with lockout system!");
+        llOwnerSay("🔓 Game is UNLOCKED - All players can access menus");
     }
 
     link_message(integer sender, integer num, string str, key id) {
@@ -271,6 +339,9 @@ default {
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
                 showReadyLeaveMenu(id, isStarter, FALSE);
+            } else if (targetType == "admin") {
+                // Show admin category menu directly
+                showOwnerMenu(id);
             }
         }
         else if (num == MSG_READY_STATE_RESULT) {
@@ -306,6 +377,31 @@ default {
             llOwnerSay("📋 Fetching list of players for pick management...");
             showPickManageMenu(id, playerNames);
         }
+        // Handle player list result for kick functionality
+        else if (num == 8009) {
+            llOwnerSay("🔍 [Dialog Handler] Received kick player list string: '" + str + "'");
+            list rawNames = llParseString2List(str, [","], []);
+            llOwnerSay("🔍 [Dialog Handler] Raw parsed into " + (string)llGetListLength(rawNames) + " names: " + llList2CSV(rawNames));
+            
+            // Filter out any command strings that might have gotten mixed in
+            list playerNames = [];
+            integer i;
+            for (i = 0; i < llGetListLength(rawNames); i++) {
+                string name = llStringTrim(llList2String(rawNames, i), STRING_TRIM);
+                // Skip empty names and command strings
+                if (name != "" && 
+                    llSubStringIndex(name, "REQUEST_") != 0 &&
+                    llSubStringIndex(name, "COMMAND_") != 0 &&
+                    llSubStringIndex(name, "MSG_") != 0) {
+                    playerNames += [name];
+                } else {
+                    llOwnerSay("⚠️ [Dialog Handler] Filtered out invalid name: '" + name + "'");
+                }
+            }
+            
+            llOwnerSay("🔍 [Dialog Handler] Filtered to " + (string)llGetListLength(playerNames) + " valid names: " + llList2CSV(playerNames));
+            showKickPlayerMenu(id, playerNames);
+        }
         else if (num == MSG_PICK_LIST_RESULT) {
             list parts = llParseString2List(str, ["|"], []);
             string returnedName = llList2String(parts, 0);
@@ -328,14 +424,43 @@ default {
     }
 
     listen(integer channel, string name, key id, string msg) {
+        // Lockout system: Check if game is locked and user is not owner
+        if (isLocked && id != gameOwner) {
+            // Block ALL access for non-owners when locked
+            llRegionSayTo(id, 0, "🔒 Game is LOCKED. Only the owner can access any features. Contact " + getPlayerName(gameOwner) + " to unlock.");
+            return;
+        }
+        
         // Handle "Owner" button to show owner options
         if (msg == "Owner") {
             showOwnerMenu(id);
         }
-        // Handle category menu navigation
-        else if (msg == "🎮 Game Participation") {
-            showGameParticipationMenu(id);
+        // Handle lock/unlock controls
+        else if (msg == "🔒 Lock Game") {
+            if (id == gameOwner) {
+                isLocked = TRUE;
+                // Notify Main Controller to update floating text
+                llMessageLinked(LINK_SET, 9001, "LOCK_GAME", id);
+                llOwnerSay("🔒 Game has been LOCKED - Only owner can access any features");
+                llSay(0, "🔒 Game has been locked by the owner. Only the owner can access any features.");
+                showOwnerMenu(id); // Refresh the owner menu
+            } else {
+                llRegionSayTo(id, 0, "⚠️ Only the game owner can lock the game.");
+            }
         }
+        else if (msg == "🔓 Unlock Game") {
+            if (id == gameOwner) {
+                isLocked = FALSE;
+                // Notify Main Controller to update floating text
+                llMessageLinked(LINK_SET, 9002, "UNLOCK_GAME", id);
+                llOwnerSay("🔓 Game has been UNLOCKED - All players can access menus");
+                llSay(0, "🔓 Game has been unlocked by the owner. All features are now available.");
+                showOwnerMenu(id); // Refresh the owner menu
+            } else {
+                llRegionSayTo(id, 0, "⚠️ Only the game owner can unlock the game.");
+            }
+        }
+        // Handle category menu navigation
         else if (msg == "👥 Player Management") {
             showPlayerManagementMenu(id);
         }
@@ -361,14 +486,18 @@ default {
             // Floater Manager will automatically rez the floater during registration
         }
         else if (msg == "Leave Game") {
-            // Send leave game message to main controller
+            // Send leave game message to Controller_MessageHandler (not sync channel 107!)
             string pname = getPlayerName(id);
-            llMessageLinked(LINK_SET, 107, "LEAVE_GAME|" + pname + "|" + (string)id, NULL_KEY);
+            llMessageLinked(LINK_SET, 8007, "LEAVE_GAME|" + pname + "|" + (string)id, NULL_KEY);
         }
         else if (msg == "Ready" || msg == "Not Ready") {
             // Toggle ready state (both buttons do the same thing - toggle)
             string pname = getPlayerName(id);
             llMessageLinked(LINK_SET, MSG_TOGGLE_READY, pname, NULL_KEY);
+        }
+        else if (msg == "Kick Player") {
+            // Show kick player menu - request player list first
+            llMessageLinked(LINK_SET, 8009, "REQUEST_PLAYER_LIST_KICK", id);
         }
         else if (msg == "Cleanup Floaters") {
             // Universal floater cleanup that works even after script resets
@@ -380,31 +509,6 @@ default {
             llOwnerSay("🔧 Requesting floater creation for all registered players...");
             // This will be handled by Main Controller's dialog listener
             // No need to forward via link_message - the Main Controller is already listening on DIALOG_CHANNEL
-        }
-        else if (msg == "Reset Follower Positions") {
-            // Integrated position reset functionality with automation options
-            if (id == llGetOwner()) {
-                if (scanInProgress) {
-                    llOwnerSay("⚠️ Position scan already in progress. Please wait...");
-                    return;
-                }
-                
-                scanInProgress = TRUE;
-                foundDisplays = []; // Reset found displays list
-                controller_pos = llGetPos();
-                controller_rot = llGetRot();
-                
-                llOwnerSay("🔍 Scanning for display objects within 20 meters...");
-                llOwnerSay("📝 Move your displays to the desired positions first!");
-                
-                // Send scan messages on all data channels to find display objects
-                llRegionSay(SCOREBOARD_DATA_CHANNEL, "POSITION_SCAN|" + (string)controller_key);
-                llRegionSay(LEADERBOARD_DATA_CHANNEL, "POSITION_SCAN|" + (string)controller_key);
-                llRegionSay(DICE_DATA_CHANNEL, "POSITION_SCAN|" + (string)controller_key);
-                llSetTimerEvent(3.0); // Wait 3 seconds for responses
-            } else {
-                llOwnerSay("⚠️ Only the owner can reset follower positions.");
-            }
         }
         else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
@@ -427,6 +531,21 @@ default {
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
             llSleep(0.2);
             llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
+        }
+        // Handle kick player selection
+        else if (llSubStringIndex(msg, "👢 ") == 0) {
+            // Find the original name using the display name mapping
+            integer idx = llListFindList(kickDisplayNames, [msg]);
+            if (idx != -1) {
+                string playerToKick = llList2String(kickOriginalNames, idx);
+                llRegionSayTo(id, 0, "👢 Kicking player: " + playerToKick + " from the game...");
+                // Send kick message to Controller_MessageHandler (not sync channel 107!)
+                llMessageLinked(LINK_SET, 8007, "KICK_PLAYER|" + playerToKick + "|" + (string)id, NULL_KEY);
+            } else {
+                llOwnerSay("⚠️ Could not find original name for kick selection: " + msg);
+            }
+            // Return to player management menu
+            showPlayerManagementMenu(id);
         }
         // Forward numeric picks to the game logic
         else if ((integer)msg > 0) {

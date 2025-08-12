@@ -17,6 +17,8 @@ list lives = [];
 list picksData = [];
 list readyPlayers = [];
 integer diceType = 6;
+string perilPlayer = "";  // Track who the peril player is to determine if game is active
+integer roundStarted = FALSE;  // Track if the game round has started
 
 // Message constants from Main Controller (synchronized)
 integer MSG_SYNC_GAME_STATE = 107;
@@ -130,13 +132,14 @@ handleDiceTypeRequest(key requester) {
     llMessageLinked(LINK_SET, 102, (string)diceType, requester); // MSG_ROLL_RESULT
 }
 
-// Handle leave game requests
+// Handle leave game and kick player requests
 handleLeaveGameRequest(string requestData) {
     list parts = llParseString2List(requestData, ["|"], []);
-    if (llList2String(parts, 0) == "LEAVE_GAME") {
+    string action = llList2String(parts, 0);
+    if (action == "LEAVE_GAME" || action == "KICK_PLAYER") {
         string leavingName = llList2String(parts, 1);
-        key leavingKey = (key)llList2String(parts, 2);
-        integer idx = llListFindList(players, [leavingKey]);
+        key requestKey = (key)llList2String(parts, 2); // This is the requester's key, not the player's key
+        integer idx = llListFindList(names, [leavingName]); // Find by name instead of key
         
         if (idx != -1) {
             // Remove player's float using the tracked channel
@@ -155,17 +158,32 @@ handleLeaveGameRequest(string requestData) {
                 readyPlayers = llDeleteSubList(readyPlayers, readyIdx, readyIdx);
             }
             
-            llOwnerSay("👋 [Message Handler] " + leavingName + " left the game");
+            // Different messages for voluntary leave vs kick
+            if (action == "LEAVE_GAME") {
+                llOwnerSay("👋 [Message Handler] " + leavingName + " left the game");
+                llSay(0, "👋 " + leavingName + " has left the deadly game! 👋");
+            } else if (action == "KICK_PLAYER") {
+                llOwnerSay("👢 [Message Handler] " + leavingName + " was kicked from the game");
+                llSay(0, "👢 " + leavingName + " has been kicked from the deadly game by the owner! 👢");
+            }
             
-            // Notify Main Controller
+            // Notify Main Controller of the removal
             llMessageLinked(LINK_SET, MSG_LEAVE_GAME_REQUEST, requestData, NULL_KEY);
             
-            // Check if game should end (less than 2 players)
-            if (llGetListLength(names) == 1) {
+            // Check if game should end (0 players = reset, 1 player = victory)
+            if (llGetListLength(names) == 0) {
+                llOwnerSay("🔄 [Message Handler] All players left - game will reset");
+                // Main Controller will handle the reset
+            } else if (llGetListLength(names) == 1 && roundStarted && perilPlayer != "" && perilPlayer != "NONE") {
+                // Only declare victory if the game has actually started (round active and peril player assigned)
                 string winner = llList2String(names, 0);
                 llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
                 // Notify Main Controller of victory
                 llMessageLinked(LINK_SET, 998, "GAME_WON|" + winner, NULL_KEY);
+            } else if (llGetListLength(names) == 1) {
+                // Game not started yet, just inform but don't declare victory
+                string remainingPlayer = llList2String(names, 0);
+                llOwnerSay("📝 [Message Handler] Only " + remainingPlayer + " remains, but game hasn't started yet");
             }
         }
     }
@@ -198,6 +216,16 @@ syncGameState(string stateData) {
             }
         }
         
+        // Track peril player and round state for victory detection
+        string receivedPeril = llList2String(parts, 2);
+        if (receivedPeril == "NONE" || receivedPeril == "") {
+            perilPlayer = "";
+            roundStarted = FALSE;
+        } else {
+            perilPlayer = receivedPeril;
+            roundStarted = TRUE;  // Game is active if there's a peril player
+        }
+        
         names = llCSV2List(llList2String(parts, 3));
     }
 }
@@ -209,9 +237,20 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
-        // Handle player list requests
+        // Handle player list requests (for pick management only)
         if (num == 202 && str == "REQUEST_PLAYER_LIST") {
             handlePlayerListRequest(id);
+            return;
+        }
+        
+        // Handle kick player list requests (separate message ID to avoid conflicts)
+        if (num == 8009 && str == "REQUEST_PLAYER_LIST_KICK") {
+            // Send back kick-specific message ID to avoid conflict with pick management
+            string namesCSV = llList2CSV(names);
+            llOwnerSay("🔍 [Message Handler] Received request: '" + str + "'");
+            llOwnerSay("🔍 [Message Handler] Names list: " + llDumpList2String(names, ", "));
+            llOwnerSay("🔍 [Message Handler] Sending kick player list: '" + namesCSV + "'");
+            llMessageLinked(LINK_SET, 8009, namesCSV, id);
             return;
         }
         
@@ -241,8 +280,8 @@ default {
             return;
         }
         
-        // Handle leave game requests
-        if (num == 107) {
+        // Handle leave game requests (use proper message ID, not 107 which is for sync)
+        if (num == 8007) { // Different from MSG_SYNC_GAME_STATE = 107
             handleLeaveGameRequest(str);
             return;
         }
@@ -267,6 +306,8 @@ default {
             picksData = [];
             readyPlayers = [];
             diceType = 6;
+            perilPlayer = "";
+            roundStarted = FALSE;
             llOwnerSay("📨 [Message Handler] Reset complete");
         }
     }

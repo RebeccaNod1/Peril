@@ -8,6 +8,10 @@ integer MSG_REZ_FLOAT = 105;
 integer MSG_SYNC_GAME_STATE = 107;
 integer MSG_SHOW_ROLL_DIALOG = 301;
 
+// Dice messages (sent to Main Controller)
+integer MSG_DICE_ROLL = 3020;
+integer MSG_CLEAR_DICE = 3021;
+
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION
 // =============================================================================
@@ -63,6 +67,7 @@ integer diceType = 6; // Store the dice type for rolling
 integer shouldRoll = FALSE; // Flag to trigger roll after dice type is received
 integer rollInProgress = FALSE; // Prevent multiple simultaneous rolls
 integer lastRollTime = 0; // Track when last roll happened
+integer diceTypeProcessed = FALSE; // Prevent duplicate dice type processing
 
 list getPicksFor(string nameInput) {
     integer i;
@@ -191,18 +196,19 @@ default {
                 llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
             } else {
                 // Clear dice display before showing new roll dialog
-                llRegionSay(SCOREBOARD_CHANNEL_3, "CLEAR_DICE");
+                llMessageLinked(LINK_SET, MSG_CLEAR_DICE, "", NULL_KEY);
                 
                 // Update peril player from the roll dialog message
                 perilPlayer = str;
                 llOwnerSay("🎲 Prompting " + str + " to roll the dice. Setting perilPlayer to: " + perilPlayer);
                 
-                // Check if this is a bot (TestBot names)
-                if (llSubStringIndex(str, "TestBot") == 0) {
-                    // Auto-roll for bots
-                    llOwnerSay("🤖 " + str + " (bot) is auto-rolling...");
-                    shouldRoll = TRUE; // Set flag for bot auto-roll
-                    // Request dice type directly from Calculator
+                // Check if this is a bot (Bot names)
+                if (llSubStringIndex(str, "Bot") == 0) {
+                    // Auto-roll for bots - request dice type first
+                    llOwnerSay("🤖 " + str + " (bot) is requesting dice type for auto-roll...");
+                    rollInProgress = TRUE; // Set roll in progress for bot
+                    shouldRoll = TRUE; // Set flag to perform roll when dice type is received
+                    // Request current dice type from Calculator
                     llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
                 } else {
                     // Reset any previous roll state before showing dialog
@@ -214,13 +220,6 @@ default {
             }
         }
 
-        // Handle dice type requests from listen() events
-        else if (num == 996) {
-            // This is a GET_DICE_TYPE request from our own listen handler
-            // Forward it to the Main Controller to get the current dice type
-            llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
-            return;
-        }
         
         // Handle dice type response - store dice type and perform roll if requested
         else if (num == 1005) { // MSG_DICE_TYPE_RESULT 
@@ -255,8 +254,8 @@ default {
             lastRollTime = llGetUnixTime(); // Record roll time
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
-            // Send dice roll to scoreboard for display on dice screen
-            llRegionSay(SCOREBOARD_CHANNEL_3, "DICE_ROLL|" + perilPlayer + "|" + resultStr + "|" + (string)diceType);
+            // Send dice roll to Main Controller for forwarding to dice display
+            llMessageLinked(LINK_SET, MSG_DICE_ROLL, perilPlayer + "|" + resultStr + "|" + (string)diceType, NULL_KEY);
 
             string newPeril = "";
             integer matched = FALSE;
@@ -402,11 +401,11 @@ default {
                 return;
             }
             
-            // Handle dice roll - need to get dice type from Calculator
+            // Handle dice roll - request current dice type from Calculator
             llOwnerSay("🎲 Roll button clicked by " + name + " (key: " + (string)id + ")");
             rollInProgress = TRUE; // Lock out other rolls
             shouldRoll = TRUE; // Set flag to perform roll when dice type is received
-            // Request dice type directly from Calculator
+            // Request current dice type from Calculator
             llMessageLinked(LINK_SET, 1001, (string)llGetListLength(names), NULL_KEY);
         } else {
             llMessageLinked(LINK_THIS, channel, msg, id);

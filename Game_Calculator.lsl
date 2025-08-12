@@ -166,9 +166,8 @@ default {
             integer playerCount = (integer)str;
             llOwnerSay("📈 Calculator: Calculating dice type for " + (string)playerCount + " players");
             integer result = getDiceType(playerCount);
-            // Send result to ALL scripts via LINK_SET so Game Manager receives it directly
-            // Each script will handle duplicate prevention on their end
-            llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
+            // Send result only to the requester (sender), not broadcast to everyone
+            llMessageLinked(sender, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
         }
         else if (num == MSG_GET_PICKS_REQUIRED) {
             integer result = getPicksRequiredFromName(str);

@@ -44,6 +44,7 @@ integer MSG_DICE_TYPE_RESULT = 1005;
 integer MSG_SYNC_GAME_STATE = 107;
 integer MSG_SYNC_PICKQUEUE = 2001;
 integer MSG_PLAYER_WON = 551;
+integer MSG_UPDATE_FLOAT = 2010;
 
 continueCurrentRound() {
     // ALWAYS start fresh for a new round - clear all picks and global picked numbers
@@ -110,6 +111,16 @@ startNextRound() {
         integer randomIdx = (integer)llFrand(llGetListLength(names));
         perilPlayer = llList2String(names, randomIdx);
         llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
+        
+        // Sync state to floater manager first, then update floaters to show new peril player immediately
+        llOwnerSay("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
+        syncStateToMain(); // Sync the peril player to all modules first
+        llSleep(0.1); // Brief delay to ensure sync propagates
+        integer j;
+        for (j = 0; j < llGetListLength(names); j++) {
+            string playerName = llList2String(names, j);
+            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, NULL_KEY);
+        }
     }
     
     picksData = [];
@@ -118,9 +129,9 @@ startNextRound() {
     // Create pick queue with peril player first
     llOwnerSay("🎯 Debug - Creating pickQueue. names: " + llList2CSV(names) + ", perilPlayer: " + perilPlayer);
     pickQueue = [perilPlayer];
-    integer i;
-    for (i = 0; i < llGetListLength(names); i++) {
-        string playerName = llList2String(names, i);
+    integer k;
+    for (k = 0; k < llGetListLength(names); k++) {
+        string playerName = llList2String(names, k);
         if (playerName != perilPlayer) {
             pickQueue += [playerName];
         }
@@ -189,7 +200,7 @@ showNextPickerDialog() {
     
     llSleep(DIALOG_DELAY);
     
-    if (llSubStringIndex(firstName, "TestBot") == 0) {
+    if (llSubStringIndex(firstName, "Bot") == 0) {
         // Bot picking - but first double-check this bot doesn't already have picks
         integer botAlreadyHasPicks = FALSE;
         integer j;
@@ -261,6 +272,7 @@ syncStateToMain() {
         picksDataStr = llDumpList2String(picksData, "^");
     }
     
+    // Keep sync message format standard for all modules (4 parts)
     string serialized = llList2CSV(lives) + "~" + picksDataStr + "~" + perilForSync + "~" + llList2CSV(names);
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, serialized, NULL_KEY);
     llMessageLinked(LINK_SET, MSG_SYNC_PICKQUEUE, llList2CSV(pickQueue), NULL_KEY);
@@ -269,6 +281,10 @@ syncStateToMain() {
 default {
     state_entry() {
         llOwnerSay("🎯 Game Manager ready!");
+        
+        // Reset game on startup to ensure clean state when core logic is updated
+        llOwnerSay("🔄 [Game Manager] Requesting game reset on startup...");
+        llMessageLinked(LINK_SET, -99998, "REQUEST_GAME_RESET", NULL_KEY);
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -287,10 +303,17 @@ default {
                     newPicksData = llParseString2List(picksDataStr, ["^"], []);
                 }
                 
-                // Game Manager is authoritative for peril player, but check for eliminations
+                // Accept peril player updates from Roll module (Plot Twist, elimination, etc.)
                 list newNames = llCSV2List(llList2String(parts, 3));
+                string receivedPerilPlayer = llList2String(parts, 2);
                 
-                // Check if current peril player was eliminated
+                // Update peril player if Roll module sent a change
+                if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != perilPlayer) {
+                    llOwnerSay("🎯 [Game Manager] Peril player updated from Roll module: " + perilPlayer + " -> " + receivedPerilPlayer);
+                    perilPlayer = receivedPerilPlayer;
+                }
+                
+                // Handle elimination case - if current peril player was eliminated, find a new one
                 if (perilPlayer != "" && perilPlayer != "NONE") {
                     integer perilStillExists = llListFindList(newNames, [perilPlayer]) != -1;
                     if (!perilStillExists && llListFindList(names, [perilPlayer]) != -1) {
@@ -312,7 +335,7 @@ default {
                         }
                         
                         if (newPerilPlayer != "") {
-                            llOwnerSay("🎯 [Game Manager] Assigning new peril player: " + newPerilPlayer);
+                            llOwnerSay("🎯 [Game Manager] Assigning new peril player after elimination: " + newPerilPlayer);
                             perilPlayer = newPerilPlayer;
                         } else {
                             llOwnerSay("⚠️ [Game Manager] No valid peril player candidates found!");
@@ -328,18 +351,42 @@ default {
                     players = llCSV2List(llList2String(parts, 4));
                 }
                 
-                // Always update state normally - don't auto-continue rounds
-                // The Roll module will handle post-roll logic and Main Controller will manage round flow
+                // Always update state normally - check for round completion regardless of lives changes
                 lives = newLives;
                 picksData = newPicksData;
                 
-                // Only log if this appears to be a post-roll update for debugging
-                string oldLivesStr = llList2CSV(lives);
-                string newLivesStr = llList2CSV(newLives);
-                integer livesChanged = (oldLivesStr != newLivesStr);
+                // Check if all picks are empty (round is complete) - this works for ALL roll outcomes
+                integer allPicksEmpty = TRUE;
+                integer i;
+                for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
+                    string entry = llList2String(newPicksData, i);
+                    list parts = llParseString2List(entry, ["|"], []);
+                    if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
+                        allPicksEmpty = FALSE;
+                    }
+                }
                 
-                if (livesChanged) {
-                    llOwnerSay("🔍 [Game Manager] Lives changed - roll completed, waiting for proper round continuation signal");
+                llOwnerSay("🔍 [Game Manager] DEBUG - allPicksEmpty: " + (string)allPicksEmpty + ", perilPlayer: " + perilPlayer + ", roundStarted: " + (string)roundStarted);
+                
+                // Check for win condition ONLY during active rounds, not during player registration
+                if (roundStarted && llGetListLength(newNames) <= 1) {
+                    if (llGetListLength(newNames) == 1) {
+                        string winner = llList2String(newNames, 0);
+                        llOwnerSay("🏆 [Game Manager] Victory detected: " + winner + " wins!");
+                        // Let Main Controller handle the victory celebration and reset
+                        return;
+                    } else {
+                        llOwnerSay("💀 [Game Manager] No survivors remain!");
+                        return;
+                    }
+                }
+                
+                // If picks are empty, round started, and we have a valid peril player, continue to next round
+                // This works for ALL outcomes: Direct Hit, No Shield, AND Plot Twist
+                if (allPicksEmpty && roundStarted && perilPlayer != "" && perilPlayer != "NONE") {
+                    llOwnerSay("🎯 [Game Manager] Round complete - starting next round with peril player: " + perilPlayer);
+                    llSleep(2.0); // Brief pause for dramatic effect
+                    continueCurrentRound(); // Use continueCurrentRound instead of startNextRound
                 }
             }
             return;
@@ -347,11 +394,32 @@ default {
         
         // Receive pick queue updates
         if (num == MSG_SYNC_PICKQUEUE) {
-            pickQueue = llCSV2List(str);
+            list newPickQueue = llCSV2List(str);
+            llOwnerSay("🔍 [Game Manager] Received pickQueue sync from sender " + (string)sender + ": '" + str + "' (" + (string)llGetListLength(newPickQueue) + " items)");
+            
+            // STRONGEST PROTECTION: Never accept empty pickQueues during any active round
+            if (roundStarted && llGetListLength(pickQueue) > 0 && (str == "" || llGetListLength(newPickQueue) == 0)) {
+                llOwnerSay("🔍 [Game Manager] REJECTING empty/invalid pickQueue sync during active round - keeping: " + llList2CSV(pickQueue));
+                return;
+            }
+            
+            // Additional protection: Don't accept pickQueue syncs if we just created a valid one
+            if (llGetListLength(pickQueue) > 0 && (str == "" || llGetListLength(newPickQueue) == 0)) {
+                llOwnerSay("🔍 [Game Manager] REJECTING empty pickQueue sync - keeping valid queue: " + llList2CSV(pickQueue));
+                return;
+            }
+            
+            // Only accept valid non-empty pickQueues
+            if (llGetListLength(newPickQueue) > 0) {
+                pickQueue = newPickQueue;
+                llOwnerSay("🔍 [Game Manager] pickQueue updated to: " + llList2CSV(pickQueue));
+            } else {
+                llOwnerSay("🔍 [Game Manager] Ignoring invalid pickQueue sync - keeping current: " + llList2CSV(pickQueue));
+            }
             return;
         }
         
-        // Handle dice type result from Main Controller
+        // Handle dice type result from Calculator
         if (num == MSG_DICE_TYPE_RESULT) {
             // Prevent duplicate processing of dice type results
             if (diceTypeProcessed) {
@@ -361,7 +429,7 @@ default {
             
             diceType = (integer)str;
             diceTypeProcessed = TRUE;
-            llOwnerSay("🎲 Dice type set to: " + str);
+            llOwnerSay("🎲 Game Manager received dice type: d" + str + " from Calculator");
             llSleep(0.3);  // Brief delay
             
             // Start dialog if round has been started and we have a queue
