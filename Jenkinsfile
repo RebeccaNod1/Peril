@@ -48,10 +48,10 @@ pipeline {
         stage('Preprocess Scripts') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'origin/main'
-                    branch 'develop'
-                    branch 'origin/develop'
+                    environment name: 'GIT_BRANCH', value: 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'origin/develop'
+                    environment name: 'GIT_BRANCH', value: 'main'
+                    environment name: 'GIT_BRANCH', value: 'develop'
                 }
             }
             steps {
@@ -70,8 +70,8 @@ pipeline {
         stage('Generate Release Package') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'main'
                 }
             }
             steps {
@@ -115,8 +115,8 @@ pipeline {
         stage('Update Documentation') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'main'
                 }
             }
             steps {
@@ -143,8 +143,8 @@ pipeline {
         stage('Notify Success') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'main'
                 }
             }
             steps {
