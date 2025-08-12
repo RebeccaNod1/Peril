@@ -17,6 +17,14 @@ pipeline {
             steps {
                 echo "🔍 Checking out LSL project: ${PROJECT_NAME}"
                 checkout scm
+                script {
+                    // Debug branch detection
+                    echo "🔍 Branch debugging:"
+                    echo "  BRANCH_NAME: ${env.BRANCH_NAME}"
+                    echo "  GIT_BRANCH: ${env.GIT_BRANCH}"
+                    sh 'echo "  Current branch: $(git branch --show-current)"'
+                    sh 'echo "  Git describe: $(git describe --all --long)"'
+                }
             }
         }
         
