@@ -17,14 +17,6 @@ pipeline {
             steps {
                 echo "🔍 Checking out LSL project: ${PROJECT_NAME}"
                 checkout scm
-                script {
-                    // Debug branch detection
-                    echo "🔍 Branch debugging:"
-                    echo "  BRANCH_NAME: ${env.BRANCH_NAME}"
-                    echo "  GIT_BRANCH: ${env.GIT_BRANCH}"
-                    sh 'echo "  Current branch: $(git branch --show-current)"'
-                    sh 'echo "  Git describe: $(git describe --all --long)"'
-                }
             }
         }
         
@@ -58,7 +50,7 @@ pipeline {
                 echo "🔄 Preprocessing LSL files..."
                 sh '''
                     for file in *.lsl; do
-                        if [[ -f "$file" ]]; then
+                        if [ -f "$file" ]; then
                             echo "Processing $file..."
                             python3 ${LSL_TOOLS_PATH}/lsl_preprocessor.py "$file" "processed_$file"
                         fi
@@ -129,7 +121,7 @@ pipeline {
                     echo "" >> FUNCTIONS.md
                     
                     for file in *.lsl; do
-                        if [[ -f "$file" ]]; then
+                        if [ -f "$file" ]; then
                             echo "## $file" >> FUNCTIONS.md
                             echo "" >> FUNCTIONS.md
                             grep -n "^[a-zA-Z_][a-zA-Z0-9_]*(" "$file" | head -20 >> FUNCTIONS.md || true
