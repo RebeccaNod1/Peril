@@ -41,7 +41,9 @@ pipeline {
             when {
                 anyOf {
                     branch 'main'
+                    branch 'origin/main'
                     branch 'develop'
+                    branch 'origin/develop'
                 }
             }
             steps {
@@ -59,7 +61,10 @@ pipeline {
         
         stage('Generate Release Package') {
             when {
-                branch 'main'
+                anyOf {
+                    branch 'main'
+                    branch 'origin/main'
+                }
             }
             steps {
                 echo "📦 Creating release package..."
@@ -101,7 +106,10 @@ pipeline {
         
         stage('Update Documentation') {
             when {
-                branch 'main'
+                anyOf {
+                    branch 'main'
+                    branch 'origin/main'
+                }
             }
             steps {
                 echo "📚 Updating project documentation..."
@@ -126,7 +134,10 @@ pipeline {
         
         stage('Notify Success') {
             when {
-                branch 'main'
+                anyOf {
+                    branch 'main'
+                    branch 'origin/main'
+                }
             }
             steps {
                 echo "🎉 Build completed successfully!"
