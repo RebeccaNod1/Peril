@@ -107,7 +107,6 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **⚡ Performance Optimized**: Reduced lag with selective particle effects
 - **🛡️ Robust Error Handling**: Comprehensive game state synchronization
 - **🚫 Game Protection**: Prevents joining games in progress
-- **📍 Position Management System**: Coordinated movement of all game components
 
 ## Game Rules
 
