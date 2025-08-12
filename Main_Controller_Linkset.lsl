@@ -381,6 +381,22 @@ default {
         llOwnerSay("📡 Linkset communication active - no discovery needed!");
         llOwnerSay("✅ Main Controller initialization complete!");
     }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Main Controller rezzed - resetting game state...");
+        
+        // Re-initialize lockout system
+        gameOwner = llGetOwner();
+        isLocked = FALSE;
+        
+        // Re-initialize channels for external communication
+        initializeChannels();
+        
+        // Reset the game to ensure clean state when rezzed
+        resetGame();
+        
+        llOwnerSay("✅ Main Controller reset complete after rez!");
+    }
 
     touch_start(integer total_number) {
         key toucher = llDetectedKey(0);
