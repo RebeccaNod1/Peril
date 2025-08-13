@@ -39,13 +39,6 @@ integer FLOATER_BASE_CHANNEL;
 // Channel initialization function
 initializeChannels() {
     FLOATER_BASE_CHANNEL = calculateChannel(9);   // ~-86000 range base for floaters
-    
-    // Report channel to owner for debugging
-    llOwnerSay("🔧 [Floater Manager] Dynamic channels initialized:");
-    llOwnerSay("  Floater Base: " + (string)FLOATER_BASE_CHANNEL);
-    llOwnerSay("  Player 0 channel: " + (string)(FLOATER_BASE_CHANNEL + 0));
-    llOwnerSay("  Player 1 channel: " + (string)(FLOATER_BASE_CHANNEL + 1));
-    llOwnerSay("  Player 9 channel: " + (string)(FLOATER_BASE_CHANNEL + 9));
 }
 
 // Maximum number of players allowed in the game
@@ -108,12 +101,8 @@ string getNameFromKey(key id) {
 // Main event handler
 default {
     state_entry() {
-        // Initialize dynamic channels
         initializeChannels();
-        
-        // Verify channel consistency with Main Controller
         llOwnerSay("📦 Floater Manager ready!");
-        llOwnerSay("📦 Using FLOATER_BASE_CHANNEL: " + (string)FLOATER_BASE_CHANNEL);
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -139,6 +128,13 @@ default {
             list info = llParseString2List(str, ["|"], []);
             string name = llList2String(info, 0);
             key avKey = llList2Key(info, 1);
+            
+            // Check if this player is already registered to prevent duplicate floaters
+            if (llListFindList(players, [avKey]) != -1) {
+                llOwnerSay("⚠️ Player " + name + " is already registered, ignoring duplicate registration");
+                return;
+            }
+            
             names += [name];
             players += [avKey];
             lives += [3]; // Initialize with 3 lives for new players
@@ -267,6 +263,12 @@ default {
             // IMPORTANT: Also sync the names list to prevent desynchronization
             string namesStr = llList2String(parts, 3);
             names = llCSV2List(namesStr);
+            
+            // Sync players list if available (5th part)
+            if (llGetListLength(parts) >= 5) {
+                string playersStr = llList2String(parts, 4);
+                players = llCSV2List(playersStr);
+            }
 
             // After synchronizing the game state, update all existing floats so
             // they reflect the current peril status.  Without this, floats

@@ -53,6 +53,8 @@ integer MSG_TOGGLE_READY = 202;
 integer MSG_QUERY_READY_STATE = 210;
 integer MSG_READY_STATE_RESULT = 211;
 integer MSG_CLEANUP_ALL_FLOATERS = 212;
+integer MSG_QUERY_OWNER_STATUS = 213;
+integer MSG_OWNER_STATUS_RESULT = 214;
 integer MSG_SHOW_ROLL_DIALOG = 301;
 integer MSG_GET_CURRENT_DIALOG = 302;
 integer MSG_PLAYER_WON = 551;
@@ -176,10 +178,6 @@ initializeChannels() {
     rollDialogChannel = ROLLDIALOG_CHANNEL;
     DIALOG_CHANNEL = MAIN_DIALOG_CHANNEL;
     
-    llOwnerSay("🔧 [Main Controller] Channels initialized for external communication:");
-    llOwnerSay("  Dialog: " + (string)MAIN_DIALOG_CHANNEL);  
-    llOwnerSay("  Roll: " + (string)ROLLDIALOG_CHANNEL);
-    llOwnerSay("  Floater Base: " + (string)FLOATER_BASE_CHANNEL);
 }
 
 // Clean up listen handles
@@ -274,7 +272,7 @@ updateHelpers() {
         checkMemoryUsage("updateHelpers_after_picks_processing");
     }
     
-    // Send core game state to internal scripts
+    // Send core game state to internal scripts (include players list for floater management)
     string syncMessage = llList2CSV(lives) + "~" + picksDataStr + "~" + perilForSync + "~" + llList2CSV(names) + "~" + llList2CSV(players);
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
     
@@ -319,8 +317,15 @@ updateFloatingText() {
 resetGame() {
     cleanupListeners();
     
+    // Only clean up channels that actually have active floaters
     integer i;
-    for (i = 0; i < MAX_PLAYERS; i++) {
+    for (i = 0; i < llGetListLength(floaterChannels); i++) {
+        integer ch = llList2Integer(floaterChannels, i);
+        llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
+    }
+    
+    // Also send a few cleanup messages to common channel ranges in case of orphaned floaters
+    for (i = 0; i < llGetListLength(names); i++) {
         integer ch = FLOATER_BASE_CHANNEL + i;
         llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
     }
@@ -364,8 +369,6 @@ resetGame() {
 default {
     state_entry() {
         llOwnerSay("🎮 Main Controller ready! (Linkset Version)");
-        llOwnerSay("🎮 Main Controller key: " + (string)llGetKey());
-        llOwnerSay("🎮 Main Controller position: " + (string)llGetPos());
         
         // Initialize lockout system
         gameOwner = llGetOwner();
@@ -375,10 +378,8 @@ default {
         initializeChannels();
         
         // Reset the game on startup to ensure clean state
-        llOwnerSay("🔄 Resetting game state on startup...");
         resetGame();
         
-        llOwnerSay("📡 Linkset communication active - no discovery needed!");
         llOwnerSay("✅ Main Controller initialization complete!");
     }
     
@@ -690,6 +691,9 @@ default {
                     perilPlayer = newPerilPlayer;
                     names = newNames;
                     
+                    // Update scoreboard and other helpers with the new game state
+                    updateHelpers();
+                    
                     integer allPicksEmpty = TRUE;
                     integer i;
                     for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
@@ -763,6 +767,45 @@ default {
             integer isBot = llSubStringIndex(playerName, "Bot") == 0;
             string result = playerName + "|" + (string)isReady + "|" + (string)isBot + "|" + (string)requestID;
             llMessageLinked(LINK_SET, MSG_READY_STATE_RESULT, result, id);
+            return;
+        }
+        
+        // Handle owner status queries
+        if (num == MSG_QUERY_OWNER_STATUS) {
+            list queryParts = llParseString2List(str, ["|"], []);
+            string ownerName;
+            integer requestID = 0;
+            
+            if (llGetListLength(queryParts) >= 2) {
+                ownerName = llList2String(queryParts, 0);
+                requestID = (integer)llList2String(queryParts, 1);
+            } else {
+                ownerName = str;
+            }
+            
+            // Check if owner is registered
+            integer ownerIdx = llListFindList(players, [id]);
+            integer isRegistered = (ownerIdx != -1);
+            integer isPending = (llListFindList(pendingRegistrations, [id]) != -1);
+            integer isStarter = FALSE;
+            
+            if (isRegistered) {
+                // Calculate starter status if registered
+                isStarter = TRUE;
+                integer k;
+                for (k = 0; k < ownerIdx && isStarter; k++) {
+                    string existingName = llList2String(names, k);
+                    if (llSubStringIndex(existingName, "Bot") != 0) {
+                        isStarter = FALSE;
+                    }
+                }
+                if (ownerIdx == 0) {
+                    isStarter = TRUE;
+                }
+            }
+            
+            string result = ownerName + "|" + (string)isRegistered + "|" + (string)isPending + "|" + (string)isStarter + "|" + (string)requestID;
+            llMessageLinked(LINK_SET, MSG_OWNER_STATUS_RESULT, result, id);
             return;
         }
         
@@ -906,19 +949,9 @@ default {
                 }
             }
             
-            // Handle owner choice menu
+            // Handle owner choice menu - "Join Game" is handled by Player_DialogHandler
             if (id == llGetOwner()) {
-                if (msg == "Join Game") {
-                    // Owner wants to join as a player
-                    string ownerName = getPlayerName(id);
-                    pendingRegistrations += [id];
-                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, ownerName + "|" + (string)id, NULL_KEY);
-                    
-                    // After registration, they'll get the appropriate player menu
-                    // The registration handler will call updateHelpers() and show menu
-                    return;
-                }
-                else if (msg == "Owner Menu") {
+                if (msg == "Owner Menu") {
                     // Owner wants admin functions without joining - use admin targetType
                     llMessageLinked(LINK_SET, MSG_SHOW_MENU, "admin|0", id);
                     return;

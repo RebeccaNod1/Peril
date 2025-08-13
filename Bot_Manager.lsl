@@ -31,10 +31,6 @@ integer BOT_COMMAND_CHANNEL;
 // Channel initialization function
 initializeChannels() {
     BOT_COMMAND_CHANNEL = calculateChannel(5);  // ~-77500 range to match Main.lsl
-    
-    // Report channel to owner for debugging
-    llOwnerSay("🔧 [Bot Manager] Dynamic channel initialized:");
-    llOwnerSay("  Bot Command: " + (string)BOT_COMMAND_CHANNEL);
 }
 
 // Configuration
@@ -197,20 +193,15 @@ doBotRoll(string botName, integer diceMax) {
 
 default {
     state_entry() {
-        // Initialize dynamic channels
         initializeChannels();
         LISTEN_CHANNEL = BOT_COMMAND_CHANNEL;
         
-        // Clean up any existing listeners
         if (listenHandle != -1) {
             llListenRemove(listenHandle);
         }
         
-        // Set up managed listener with dynamic channel
         listenHandle = llListen(LISTEN_CHANNEL, "", NULL_KEY, "");
-        llOwnerSay("[Bot Manager] Ready and listening on channel " + (string)LISTEN_CHANNEL);
-        llOwnerSay("[Bot Manager] My key: " + (string)llGetKey());
-        llOwnerSay("[Bot Manager] My position: " + (string)llGetPos());
+        llOwnerSay("🤖 Bot Manager ready!");
     }
 
     link_message(integer sender, integer num, string str, key id) {

@@ -281,10 +281,6 @@ syncStateToMain() {
 default {
     state_entry() {
         llOwnerSay("🎯 Game Manager ready!");
-        
-        // Reset game on startup to ensure clean state when core logic is updated
-        llOwnerSay("🔄 [Game Manager] Requesting game reset on startup...");
-        llMessageLinked(LINK_SET, -99998, "REQUEST_GAME_RESET", NULL_KEY);
     }
     
     link_message(integer sender, integer num, string str, key id) {

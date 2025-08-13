@@ -287,8 +287,7 @@ default {
                 llSay(0, "⚡ PLOT TWIST! " + newPeril + " picked " + resultStr + " (rolled on d" + (string)diceType + ") and is now in ULTIMATE PERIL! ⚡");
                 perilPlayer = newPeril;
                 
-                // Send Plot Twist status to scoreboard
-                llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|Plot Twist");
+                // Plot Twist status will be sent by Main Controller via link messages
                 // Add delay to let status display before next phase
                 llSleep(2.0);
                 
@@ -300,14 +299,8 @@ default {
                     integer currentLives = llList2Integer(lives, pidx);
                     lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
                     
-                    // Immediately send updated heart count to scoreboard
-                    integer newLives = currentLives - 1;
-                    key perilKey = NULL_KEY; // We don't have player keys in this module, use NULL_KEY
-                    if (pidx < llGetListLength(names)) {
-                        string updateMsg = "PLAYER_UPDATE|" + perilPlayer + "|" + (string)newLives + "|" + (string)perilKey;
-                        llRegionSay(SCOREBOARD_CHANNEL_1, updateMsg);
-                        llOwnerSay("💗 Immediate scoreboard update: " + perilPlayer + " now has " + (string)newLives + " lives");
-                    }
+                    // Player update will be sent by Main Controller via sync message and updateHelpers()
+                    llOwnerSay("💗 Player lives updated: " + perilPlayer + " now has " + (string)(currentLives - 1) + " lives");
                     
                     // Check if peril player picked the rolled number
                     list perilPicks = getPicksFor(perilPlayer);
@@ -315,14 +308,12 @@ default {
                     
                     if (perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
-                        // Send Direct Hit status to scoreboard
-                        llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|Direct Hit");
+                        // Direct Hit status will be sent by Main Controller via link messages
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     } else {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
-                        // Send No Shield status to scoreboard
-                        llRegionSay(SCOREBOARD_CHANNEL_1, "GAME_STATUS|No Shield");
+                        // No Shield status will be sent by Main Controller via link messages
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     }
@@ -331,10 +322,8 @@ default {
                     
                     // Check for elimination
                     if (currentLives - 1 <= 0) {
-                        // Show 0 hearts on scoreboard before elimination message
-                        string eliminationUpdateMsg = "PLAYER_UPDATE|" + perilPlayer + "|0|" + (string)NULL_KEY;
-                        llRegionSay(SCOREBOARD_CHANNEL_1, eliminationUpdateMsg);
-                        llOwnerSay("💀 Elimination update: " + perilPlayer + " now shows 0 hearts");
+                        // Player elimination will be handled by Main Controller via sync and elimination messages
+                        llOwnerSay("💀 Elimination detected: " + perilPlayer + " has 0 hearts remaining");
                         
                         llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
                         // Remove eliminated player (send message to main controller)

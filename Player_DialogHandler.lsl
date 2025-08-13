@@ -84,6 +84,8 @@ integer MSG_TOGGLE_READY = 202;
 integer MSG_QUERY_READY_STATE = 210;
 integer MSG_READY_STATE_RESULT = 211;
 integer MSG_CLEANUP_ALL_FLOATERS = 212;
+integer MSG_QUERY_OWNER_STATUS = 213;
+integer MSG_OWNER_STATUS_RESULT = 214;
 integer MSG_GET_CURRENT_DIALOG = 302;
 
 // Categorized owner menu system
@@ -155,8 +157,14 @@ showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
     }
     
     // Generate unique request ID and store pending menu state
+    // New requests always override previous ones for the same player
     currentRequestID++;
     if (currentRequestID > 1000000) currentRequestID = 1; // Prevent overflow
+    
+    // If there's a pending request for a different player, warn about it but proceed
+    if (pendingMenuPlayer != NULL_KEY && pendingMenuPlayer != id) {
+        llOwnerSay("⚠️ [Debug] Overriding pending request for " + (string)pendingMenuPlayer + " with new request for " + (string)id);
+    }
     
     pendingMenuPlayer = id;
     pendingMenuIsStarter = isStarter;
@@ -167,7 +175,7 @@ showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
     string playerName = getPlayerName(id);
     // Include request ID in the query to track responses
     string queryData = playerName + "|" + (string)currentRequestID;
-    llMessageLinked(LINK_SET, MSG_QUERY_READY_STATE, queryData, id);
+            llMessageLinked(LINK_SET, MSG_QUERY_READY_STATE, queryData, id);
 }
 
 // Internal function to show the menu once we have ready state
@@ -337,6 +345,9 @@ default {
             if (targetType == "owner") {
                 // Both starter and non-starter owners get ready/leave menu with Owner button
                 showReadyLeaveMenu(id, isStarter, TRUE);
+            } else if (targetType == "registered_owner") {
+                // Registered owner gets ready/leave menu with Owner button
+                showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
                 showReadyLeaveMenu(id, isStarter, FALSE);
             } else if (targetType == "admin") {
@@ -363,7 +374,7 @@ default {
                     }
                     
                     showReadyLeaveMenuWithState(pendingMenuPlayer, pendingMenuIsStarter, pendingMenuIsOwner, isReady, isBot);
-                    // Reset pending state
+                    // Reset pending state ONLY after successfully showing the dialog
                     pendingMenuPlayer = NULL_KEY;
                     pendingMenuRequestID = 0;
                 }
@@ -421,6 +432,57 @@ default {
                 showPickListMenu(id);
             }
         }
+        else if (num == MSG_OWNER_STATUS_RESULT) {
+            // Parse owner status response and show appropriate menu
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 5) {
+                string ownerName = llList2String(parts, 0);
+                integer isRegistered = (integer)llList2String(parts, 1);
+                integer isPending = (integer)llList2String(parts, 2);
+                integer isStarter = (integer)llList2String(parts, 3);
+                integer responseRequestID = (integer)llList2String(parts, 4);
+                
+                // Validate that this response matches our pending request
+                if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
+                    // Check for timeout
+                    if ((llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
+                        llOwnerSay("⏰ Owner status query timed out, ignoring response");
+                        pendingMenuPlayer = NULL_KEY;
+                        return;
+                    }
+                    
+                    // Decide which menu to show based on registration status
+                    if (isRegistered) {
+                        // Owner is registered - show ready/leave menu with Owner button
+                        llOwnerSay("🔍 [Debug] Owner is registered, isStarter=" + (string)isStarter + ", showing ready/leave menu");
+                        llOwnerSay("🔍 [Debug] About to call showReadyLeaveMenu with id=" + (string)id + ", isStarter=" + (string)isStarter + ", isOwner=TRUE");
+                        
+                        // DON'T reset pending state here - showReadyLeaveMenu needs it!
+                        // The ready state handler will reset it when the dialog is shown
+                        showReadyLeaveMenu(id, isStarter, TRUE);
+                        llOwnerSay("🔍 [Debug] showReadyLeaveMenu call completed");
+                    } else if (isPending) {
+                        llRegionSayTo(id, 0, "⏳ Registration already in progress for " + ownerName);
+                        // Reset pending state for non-registered responses
+                        pendingMenuPlayer = NULL_KEY;
+                        pendingMenuRequestID = 0;
+                    } else {
+                        // Owner is not registered - show join/admin choice menu
+                        list options = ["Join Game", "Owner Menu"];
+                        string menuText = "👑 Owner Options:\n\n🎮 Join Game - Register as a player\n🔧 Owner Menu - Admin functions without joining";
+                        llDialog(id, menuText, options, DIALOG_CHANNEL);
+                        // Reset pending state for non-registered responses
+                        pendingMenuPlayer = NULL_KEY;
+                        pendingMenuRequestID = 0;
+                    }
+                } else {
+                    llOwnerSay("⚠️ Owner status response mismatch - ignoring");
+                }
+            } else {
+                llOwnerSay("⚠️ Invalid owner status result format - expected 5 parts, got " + (string)llGetListLength(parts));
+            }
+            return;
+        }
     }
 
     listen(integer channel, string name, key id, string msg) {
@@ -474,9 +536,22 @@ default {
             showOwnerMenu(id);
         }
         else if (msg == "⬅️ Back to Game") {
-            // Return to the owner's ready/leave menu
-            // Need to determine if owner is starter
-            llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|1", id); // Assume starter for now, will be corrected by main controller
+            // Intelligently determine what menu to show based on owner's registration status
+            if (id == gameOwner) {
+                // Query the Main Controller about the owner's registration status
+                string ownerName = getPlayerName(id);
+                // Generate unique request ID for tracking
+                currentRequestID++;
+                if (currentRequestID > 1000000) currentRequestID = 1;
+                
+                // Store pending owner query state
+                pendingMenuPlayer = id;
+                pendingMenuRequestID = currentRequestID;
+                pendingMenuTimestamp = llGetTime();
+                
+                string queryData = ownerName + "|" + (string)currentRequestID;
+                llMessageLinked(LINK_SET, MSG_QUERY_OWNER_STATUS, queryData, id);
+            }
         }
         // Owner joins the game: register and rez a float for them
         else if (msg == "Join Game") {
