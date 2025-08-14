@@ -13,21 +13,21 @@ pipeline {
     }
     
     stages {
+        stage('Clean Workspace') {
+            steps {
+                echo "🧹 Cleaning entire workspace before checkout..."
+                sh '''
+                    # Remove everything except .git directory
+                    find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
+                    echo "Workspace completely cleaned"
+                '''
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 echo "🔍 Checking out LSL project: ${PROJECT_NAME}"
                 checkout scm
-            }
-        }
-        
-        stage('Clean Workspace') {
-            steps {
-                echo "🧹 Cleaning up processed files from previous builds..."
-                sh '''
-                    # Remove any processed files from previous builds
-                    rm -f processed_*.lsl
-                    echo "Workspace cleaned of processed files"
-                '''
             }
         }
         
