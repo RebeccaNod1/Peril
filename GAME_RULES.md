@@ -178,7 +178,7 @@ The game features thematic messaging for maximum immersion:
 
 ### **Technical Rules:**
 - Game supports up to **10 players maximum**
-- **10-minute timeout** on dialog responses
+- **2-minute timeout** on dialog responses (improved for faster gameplay)
 - **Automatic game reset** on startup (preserves leaderboard)
 - **Single linkset architecture** (74 prims total) for reliable operation
 
@@ -232,7 +232,7 @@ While the core rules remain the same, consider these optional variations:
 ### **Dialog System:**
 - **Touch controller anytime** to recover lost dialogs
 - **Follow button prompts** in dialog boxes
-- **Time limit:** 10 minutes to respond to dialogs
+- **Time limit:** 2 minutes to respond to dialogs (reduced from 10 minutes in v2.8.0)
 
 ---
 
