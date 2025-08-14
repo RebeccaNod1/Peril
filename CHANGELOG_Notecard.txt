@@ -3,6 +3,166 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[2.8.1] - 2025-08-14
+====================
+
+🎯 PERIL STATUS DISPLAY FIXES
+- Fixed Floater Status Updates: Resolved issue where peril status on floating displays showed "waiting for game to start" during active gameplay
+  * Enhanced peril status logic in Floater Manager to properly handle active game states
+  * Added clear "YOU ARE IN PERIL!" messaging for the current peril player
+  * Improved status display to show "Peril Player: [Name]" for all other players
+  * Fixed condition checking for peril player status determination
+- Real-Time Status Synchronization: Enhanced sync message handling for consistent peril status across all displays
+  * Added debug logging to track peril player status changes in Floater Manager
+  * Improved floater update triggers during game state changes
+  * Enhanced sync message processing to immediately update all floaters when peril status changes
+  * Fixed "NONE" placeholder handling in peril player sync messages
+
+💖 ELIMINATION HEART DISPLAY FIXES
+- 0 Hearts Before Elimination: Fixed elimination sequence to properly show 0 hearts before player removal
+  * Modified Main Controller elimination logic to set player lives to 0 first
+  * Added 1-second display delay to make 0 hearts visible on both scoreboard and floaters
+  * Enhanced elimination flow with proper timing between heart display and player cleanup
+  * Fixed race condition where players were removed before 0 hearts could be displayed
+- Visual Elimination Sequence: Improved elimination experience for better player feedback
+  * Players now see their elimination status with 0 hearts before floater disappears
+  * Scoreboard and floaters show elimination hearts consistently
+  * Better coordination between heart updates and player removal
+  * Enhanced user experience during elimination events
+
+🐛 BUG FIXES AND IMPROVEMENTS
+- Sync Message Debugging: Added comprehensive debug logging for peril player status tracking
+  * Debug messages show peril player changes from old to new values
+  * Enhanced visibility into sync message processing
+  * Better troubleshooting capabilities for peril status issues
+- Floater Update Reliability: Improved floater update system for more consistent status display
+  * Enhanced floater update triggers during game state changes
+  * Better handling of peril status changes during rounds
+  * Improved sync message reliability for real-time status updates
+- Elimination Timing Fixes: Resolved timing issues in elimination sequence
+  * Fixed race condition where elimination cleanup occurred before status display
+  * Added proper delays to ensure visual feedback before player removal
+  * Enhanced coordination between Main Controller and display systems
+
+🛠️ TECHNICAL IMPROVEMENTS
+- Enhanced Floater Manager Logic: Improved peril status determination and display
+  * Better condition checking for active game states vs. waiting states
+  * Enhanced handling of "NONE" and empty peril player values
+  * Improved sync message processing for consistent status updates
+- Main Controller Elimination Enhancements: Better elimination sequence coordination
+  * Added explicit 0 hearts setting before player removal
+  * Improved helper update timing during elimination
+  * Enhanced coordination between elimination logic and display updates
+- Debug Logging Additions: Added targeted debug messages for key status changes
+  * Peril player change tracking in Floater Manager
+  * Elimination sequence logging in Main Controller
+  * Better visibility into sync message processing
+
+[2.8.0] - 2025-08-12
+====================
+
+🔐 GAME LOCKOUT SECURITY SYSTEM
+- Owner-Only Access Control: Implemented comprehensive lockout system allowing game owners to restrict all game functionality to owner only
+  * Complete dialog prevention for non-owners when game is locked
+  * Visual feedback through floating text showing "🔒 GAME LOCKED" status
+  * Clear error messaging to non-owners attempting access during lockout
+  * Lock status persists during gameplay and between sessions
+- Dynamic Admin Controls: Added lock/unlock toggle buttons in categorized owner menu
+  * Lock Game: Restricts access to owner only
+  * Unlock Game: Restores normal player access
+  * Visual indicators in admin menu show current lock state
+- System Integration: Lockout state synchronized between Main Controller and Dialog Handler
+  * Lock/unlock commands sent via link messages (9001/9002)
+  * Floating text updates automatically based on lock state
+  * Complete access restriction including dialog generation prevention
+
+🔄 AUTOMATIC RESET ON STARTUP SYSTEM
+- Clean State Guarantee: Game automatically resets when critical scripts are updated or rezzed
+  * Main Controller triggers reset on state_entry() for consistent startup state
+  * Game Manager requests reset on startup to handle core game logic updates
+  * All game state cleared while preserving historical leaderboard data
+- Smart Reset Logic: Automatic reset preserves leaderboard while clearing temporary game state
+  * Players, lives, picks, ready states cleared on startup
+  * Win/loss records maintained in leaderboard system
+  * Scoreboard cleared but leaderboard rankings preserved
+- Script Update Protection: Enhanced reliability when game logic is modified
+  * Prevents stale game states from carrying over after script updates
+  * Ensures consistent experience for players after system updates
+  * Eliminates need for manual resets after deployments
+
+👥 ENHANCED PLAYER MANAGEMENT SYSTEM
+- Kick Player Functionality: Complete implementation of owner-controlled player removal
+  * New "Kick Player" option in Player Management admin section
+  * Smart display name handling with automatic truncation for dialog buttons
+  * Complete player removal from all game systems (lists, scoreboard, floaters)
+  * Immediate visual feedback on scoreboard when players are kicked
+- Rebuilt Leave Game System: Complete overhaul of voluntary player departure
+  * Fixed state synchronization issues between Controller and Dialog Handler
+  * Proper cleanup of player floaters when leaving
+  * Automatic removal from ready player lists
+  * Scoreboard updates immediately reflect departing players
+- Advanced Name Management: Enhanced handling of long display names
+  * Automatic truncation to fit within 24-character dialog button limits
+  * Preservation of original names for game logic while showing truncated versions in UI
+  * Proper mapping between display names and actual player identities
+
+🎯 CATEGORIZED ADMIN INTERFACE
+- Organized Owner Menu: Complete restructure of admin controls into logical categories
+  * Player Management: Add Test Player, Kick Player functions
+  * Reset Options: Game reset, Leaderboard reset, Complete reset
+  * Troubleshooting: Cleanup floaters, Force floaters creation
+  * Security Controls: Lock/Unlock game prominently displayed
+- Improved Navigation: Enhanced menu flow with clear back navigation
+  * Consistent "Back to Main" options in all sub-menus
+  * "Back to Game" option to return to player interface
+  * Context-sensitive menu options based on current state
+- Enhanced User Experience: Better organization and discoverability of admin functions
+  * Security-first design with lock controls prominently featured
+  * Logical grouping of related functions
+  * Clear visual indicators for current system state
+
+[2.7.0] - 2025-08-12
+====================
+
+🏠 SINGLE LINKSET ARCHITECTURE REVOLUTION
+- Complete System Consolidation: Merged all 4 separate objects into single linkset architecture
+  * Main Controller + Roll Module: Link 1 (root prim)
+  * Game Scoreboard: Links 2-24 (scoreboard background, actions display, player slots)
+  * XyzzyText Leaderboard: Links 25-72 (48 prims for text display across 4 banks)
+  * Dice Display: Links 73-74 (2 prims for XyzzyText dice results)
+  * Total: 74-prim consolidated linkset replacing 4 separate rezzed objects
+- Elimination of Region Chat: Replaced all llRegionSay() communication with llMessageLinked()
+  * No more channel conflicts or discovery issues between multiple game instances
+  * Instant, reliable communication within single linkset
+  * Zero risk of cross-talk between multiple game tables
+- Simplified Deployment: Single object rez instead of complex 4-object positioning system
+  * No more Position Controller/Follower scripts needed
+  * No more automatic rez positioning coordination
+  * Instant setup - rez once and play
+
+🎯 DICE TYPE SYNCHRONIZATION FIXES
+- Critical Race Condition Resolution: Fixed major bug where Game Manager and Roll Module independently requested dice types
+  * Eliminated inconsistent dice types between human players and bots (e.g., player rolling d6 when expecting d30)
+  * Prevented double rolls with different dice types from conflicting module requests
+  * Removed duplicate dice type calculation across multiple modules
+- Targeted Communication System: Calculator sends dice type responses only to requesting module
+  * Game Calculator responds directly to sender using link numbers
+  * Eliminated LINK_SET broadcasts that caused race conditions and stale data
+  * Each module requests dice type independently when needed, preventing conflicts
+
+🔄 CLEAN MODULE COMMUNICATION ARCHITECTURE
+- Link Message Routing: Established clear communication paths within linkset
+  * Main Controller <-> Scoreboard: Link 1 -> Link 2
+  * Scoreboard -> Leaderboard Bridge: Link 2 -> Link 25
+  * Roll Module -> Dice Bridge: Link 1 -> Link 73
+  * All communication uses llMessageLinked() with specific link numbers
+- Module Responsibilities:
+  * Game Calculator: Calculates dice types on request; sends targeted responses only
+  * Game Manager: Requests dice type for pick phase coordination and dialog building
+  * Roll Module: Requests dice type independently when performing actual rolls
+  * Scoreboard Manager: Handles player display and leaderboard formatting
+  * Bridge Scripts: Handle XyzzyText display distribution for leaderboard and dice
+
 [2.6.0] - 2025-08-09
 ====================
 
@@ -280,10 +440,58 @@ All notable changes to Peril Dice are documented in this file.
 - Improved floater management efficiency
 - Enhanced bot processing speed
 
+[2.0.0] - 2024-12-XX
+====================
+
+🎉 INITIAL MODULAR RELEASE
+- Modular Architecture: Separated functionality into specialized scripts
+- Bot System: Added AI players for testing and gameplay variety
+- Floating HUD: Real-time player statistics display
+- Dynamic Dice: Automatic dice sizing based on player count
+- Player Management: Runtime player joining and leaving
+- Owner Controls: Administrative functions for game management
+
+🎲 CORE GAME FEATURES
+- Pick System: Number selection with validation
+- Rolling Mechanism: Automated dice rolling with visual effects
+- Life Management: 3-life system with elimination
+- Peril Tracking: Dynamic peril player assignment
+- Victory Conditions: Last player standing wins
+
+🏗️ ARCHITECTURE
+- Main Controller: Central game logic and state management
+- Dialog Handlers: User interface and input processing
+- Roll Module: Dice mechanics and particle effects
+- Bot Manager: AI player behavior and automation
+- Floater Manager: HUD display coordination
+- Game Helpers: Utility functions and calculations
+
+[1.0.0] - 2025-XX-XX
+====================
+
+🌟 ORIGINAL RELEASE
+- Basic Peril Dice game implementation
+- Manual gameplay mechanics
+- Simple player tracking
+- Basic dice rolling functionality
+
 ---
 
 DEVELOPMENT NOTES
 ================
+
+KNOWN ISSUES
+- Debug Output: Extended games may experience minor lag from comprehensive logging
+
+RECENT FIXES (2025-01-08)
+- Bot Race Condition: Fixed critical bug where duplicate message handlers prevented proper globalPickedNumbers updates
+- Enhanced Bot Logging: Added detailed pick tracking and duplicate detection in Bot Manager
+- Message Handler Separation: Separated bot and human pick handling to prevent conflicts
+
+FUTURE ENHANCEMENTS
+- Configurable debug levels
+- Additional game modes and variants
+- Enhanced visual effects and animations
 
 CREDITS
 - Original Game Design: Noose the Bunny (djmusica28) - Second Life

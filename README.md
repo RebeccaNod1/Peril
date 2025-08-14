@@ -1,15 +1,39 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.0 - Enhanced Security & Stability**
+**Current Version: 2.8.1 - Display & Elimination Fixes**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
+**NEW in v2.8.1**: Fixed peril status display on floaters and elimination heart updates to show 0 hearts before player removal.
+
 **NEW in v2.8.0**: Game lockout security system, automatic reset functionality, and enhanced player management with kick/leave fixes for complete ownership control and stability.
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
+
+## Major v2.8.1 Improvements 🔧
+
+### 🎯 **Peril Status Display Fixes**
+- **Fixed Floater Status Updates**: Peril status on floating displays now properly updates during gameplay
+- **Enhanced Status Messages**: Improved peril player display with clear "YOU ARE IN PERIL!" messaging
+- **Real-Time Status Sync**: Floaters immediately reflect current peril player changes during rounds
+- **Better Status Logic**: Fixed "waiting for game to start" showing during active gameplay
+- **Improved Peril Tracking**: Enhanced sync message handling for consistent peril status across all displays
+
+### 💖 **Elimination Heart Display Fixes**
+- **0 Hearts Before Elimination**: Players now show 0 hearts on scoreboard and floaters before being removed
+- **Visual Elimination Sequence**: 1-second display of 0 hearts allows players to see their elimination status
+- **Proper Heart Updates**: Hearts correctly update to 0 before player cleanup and removal
+- **Enhanced Elimination Flow**: Better timing between heart display and player removal
+- **Scoreboard Synchronization**: Both scoreboard and floaters show elimination hearts consistently
+
+### 🐛 **Bug Fixes**
+- **Sync Message Debugging**: Added debug logging to track peril player status changes
+- **Floater Update Reliability**: Improved floater update triggers during game state changes
+- **Elimination Timing**: Fixed race condition where players were removed before showing 0 hearts
+- **Status Display Logic**: Enhanced peril status determination in floater manager
 
 ## Major v2.8.0 Improvements 🔐
 
@@ -261,9 +285,17 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 2.8.0  
-**Last Updated**: August 12, 2025  
-**Status**: Production Ready - Enhanced Security, Stability, and Player Management
+**Current Version**: 2.8.1  
+**Last Updated**: August 14, 2025  
+**Status**: Production Ready - Enhanced Display & Elimination Experience
+
+### Key Achievements in v2.8.1:
+- ✅ Fixed peril status display on floating HUDs during gameplay
+- ✅ Enhanced elimination sequence to show 0 hearts before player removal
+- ✅ Improved real-time status synchronization across all displays
+- ✅ Added debug tracking for peril player status changes
+- ✅ Enhanced floater update reliability during game state changes
+- ✅ Fixed race conditions in elimination heart display timing
 
 ### Key Achievements in v2.8.0:
 - ✅ Implemented owner-only game lockout system

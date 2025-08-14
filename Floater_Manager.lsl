@@ -206,16 +206,15 @@ default {
 
 
             string perilName;
-            // If the perilPlayer string is empty or contains a comma (indicating
-            // multiple names), treat the game as not yet started.  This avoids
-            // showing multiple players as the peril player before the first
-            // round begins.  Once a single peril player is assigned, it will
-            // not contain a comma and will be displayed normally.
-            if (perilPlayer == "" || llSubStringIndex(perilPlayer, ",") != -1) {
-                perilName = "🧍 Status: Waiting for game to start...";
+            // Show proper peril status based on current game state
+            if (perilPlayer == "" || perilPlayer == "NONE" || llSubStringIndex(perilPlayer, ",") != -1) {
+                perilName = "🧑 Status: Waiting for game to start...";
+            } else if (name == perilPlayer) {
+                // This player is currently in peril
+                perilName = "⚡ YOU ARE IN PERIL! ⚡";
             } else {
-                // perilPlayer is already a name string, not a key
-                perilName = "🧍 Peril: " + perilPlayer;
+                // Show who is currently in peril
+                perilName = "🧑 Peril Player: " + perilPlayer;
             }
 
             string picksDisplay = llList2CSV(picks);
@@ -268,6 +267,11 @@ default {
             if (llGetListLength(parts) >= 5) {
                 string playersStr = llList2String(parts, 4);
                 players = llCSV2List(playersStr);
+            }
+            
+            // Debug the peril player status change
+            if (oldPeril != perilPlayer) {
+                llOwnerSay("🎯 Floater Manager: Peril player updated from '" + oldPeril + "' to '" + perilPlayer + "'");
             }
 
             // After synchronizing the game state, update all existing floats so

@@ -1,7 +1,8 @@
-🎲 PERIL DICE — MODULAR GAME SYSTEM FOR SECOND LIFE
+🎲 PERIL DICE — PROFESSIONAL SINGLE LINKSET GAME SYSTEM FOR SECOND LIFE
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
+CURRENT VERSION: 2.8.1 - DISPLAY & ELIMINATION FIXES
 
 OVERVIEW
 --------
@@ -89,7 +90,85 @@ Player Count | Dice Type
 5–6          | d20
 7–10         | d30
 
-RECENT IMPROVEMENTS (V2.6.0)
+RECENT IMPROVEMENTS (V2.8.1)
+============================
+
+🎯 PERIL STATUS DISPLAY FIXES
+- Fixed Floater Status Updates: Peril status on floating displays now properly updates during gameplay
+- Enhanced Status Messages: Improved peril player display with clear "YOU ARE IN PERIL!" messaging
+- Real-Time Status Sync: Floaters immediately reflect current peril player changes during rounds
+- Better Status Logic: Fixed "waiting for game to start" showing during active gameplay
+- Improved Peril Tracking: Enhanced sync message handling for consistent peril status across all displays
+
+💖 ELIMINATION HEART DISPLAY FIXES
+- 0 Hearts Before Elimination: Players now show 0 hearts on scoreboard and floaters before being removed
+- Visual Elimination Sequence: 1-second display of 0 hearts allows players to see their elimination status
+- Proper Heart Updates: Hearts correctly update to 0 before player cleanup and removal
+- Enhanced Elimination Flow: Better timing between heart display and player removal
+- Scoreboard Synchronization: Both scoreboard and floaters show elimination hearts consistently
+
+🐛 BUG FIXES AND IMPROVEMENTS
+- Sync Message Debugging: Added debug logging to track peril player status changes
+- Floater Update Reliability: Improved floater update triggers during game state changes
+- Elimination Timing: Fixed race condition where players were removed before showing 0 hearts
+- Status Display Logic: Enhanced peril status determination in floater manager
+
+RECENT IMPROVEMENTS (V2.8.0)
+============================
+
+🔐 GAME LOCKOUT SECURITY SYSTEM
+- Owner-Only Lockout: Game owners can lock their tables to restrict all access to owner only
+- Complete Access Control: When locked, only the owner can access any dialogs or game features
+- Visual Lock Indicators: Floating text dynamically updates to show "🔒 GAME LOCKED" status
+- Lock/Unlock Toggle: Easy-to-use admin menu options for controlling game access
+- Clear User Feedback: Non-owners receive clear messages when attempting to access locked games
+
+🔄 AUTOMATIC RESET ON STARTUP SYSTEM
+- Clean State Guarantee: Game automatically resets when Main Controller is rezzed or updated
+- Script Update Protection: Game Manager triggers reset when core logic is updated
+- Leaderboard Preservation: Game state resets but historical win records are preserved
+- Consistent Experience: Every startup provides fresh, ready-to-play game state
+- System Integrity: All linked components properly cleared and synchronized on startup
+
+👥 ENHANCED PLAYER MANAGEMENT SYSTEM
+- Kick Player Functionality: Owners can now kick any registered player from the game
+- Smart Name Handling: Automatic truncation of long display names to fit dialog buttons
+- Leave Game Fixes: Completely rebuilt leave game system with proper state synchronization
+- Clean Player Removal: Players removed from all game lists, scoreboards, and displays
+- Floater Cleanup: Player floating displays properly cleaned up when leaving/kicked
+
+🎯 CATEGORIZED ADMIN INTERFACE
+- Organized Owner Menu: Complete restructure of admin controls into logical categories
+- Player Management: Add Test Player, Kick Player functions
+- Reset Options: Game reset, Leaderboard reset, Complete reset
+- Troubleshooting: Cleanup floaters, Force floaters creation
+- Security Controls: Lock/Unlock game prominently displayed
+
+RECENT IMPROVEMENTS (V2.7.0)
+============================
+
+🏠 SINGLE LINKSET ARCHITECTURE REVOLUTION
+- Complete System Consolidation: Merged all 4 separate objects into unified 74-prim linkset
+- One-Click Deployment: Single object rez replaces complex 4-object positioning system
+- Elimination of Region Chat: All llRegionSay() communication replaced with instant llMessageLinked()
+- Zero Channel Conflicts: Complete removal of hash-based dynamic channel system
+- Multi-Instance Support: Multiple game tables operate without any interference
+- 50%+ Performance Improvement: Link messages provide immediate, guaranteed delivery
+
+🎯 DICE TYPE SYNCHRONIZATION FIXES
+- Critical Race Condition Resolution: Fixed major bug where Game Manager and Roll Module independently requested dice types
+- Consistent Dice Types: Eliminated scenarios where players rolled different dice types (e.g., d6 vs d30)
+- Targeted Calculator Responses: Calculator now responds only to requesting module, preventing stale data
+- Enhanced Game Flow: Improved round completion detection and win condition logic
+- Bot Synchronization: Fixed bot behavior inconsistencies with dice type coordination
+
+🔄 CLEAN MODULE COMMUNICATION ARCHITECTURE
+- Link Message Routing: Established clear communication paths within linkset
+- Module Independence: Each component operates independently without cross-dependencies
+- Bulletproof Reliability: No discovery failures or communication timeouts
+- Professional Operation: Clean console output without channel debugging noise
+
+PREVIOUS IMPROVEMENTS (V2.6.0)
 ============================
 
 📡 ADVANCED CHANNEL MANAGEMENT SYSTEM
@@ -148,9 +227,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 2.6.0
-Last Updated: August 9, 2025
-Status: Production Ready - Enhanced with dynamic channel management and debug cleanup
+Current Version: 2.8.1
+Last Updated: August 14, 2025
+Status: Production Ready - Enhanced Display & Elimination Experience
 
 ORIGINAL GAME RULES CREDIT
 ==========================

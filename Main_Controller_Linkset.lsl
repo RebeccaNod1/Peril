@@ -586,6 +586,15 @@ default {
                 string eliminatedPlayer = llList2String(parts, 1);
                 integer idx = llListFindList(names, [eliminatedPlayer]);
                 if (idx != -1) {
+                    // FIRST: Set the player's lives to 0 and update scoreboard/floaters before removal
+                    lives = llListReplaceList(lives, [0], idx, idx);
+                    llOwnerSay("💀 Setting " + eliminatedPlayer + " to 0 hearts before elimination");
+                    
+                    // Update scoreboard and floaters to show 0 hearts
+                    updateHelpers();
+                    llSleep(1.0); // Give time for the 0 hearts display to be visible
+                    
+                    // THEN: Clean up and remove the player
                     integer ch = llList2Integer(floaterChannels, idx);
                     llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
                     

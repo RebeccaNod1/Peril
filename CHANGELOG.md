@@ -4,6 +4,60 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [2.8.1] - 2025-08-14
+
+### 🎯 **Peril Status Display Fixes**
+- **Fixed Floater Status Updates**: Resolved issue where peril status on floating displays showed "waiting for game to start" during active gameplay
+  - Enhanced peril status logic in Floater Manager to properly handle active game states
+  - Added clear "YOU ARE IN PERIL!" messaging for the current peril player
+  - Improved status display to show "Peril Player: [Name]" for all other players
+  - Fixed condition checking for peril player status determination
+- **Real-Time Status Synchronization**: Enhanced sync message handling for consistent peril status across all displays
+  - Added debug logging to track peril player status changes in Floater Manager
+  - Improved floater update triggers during game state changes
+  - Enhanced sync message processing to immediately update all floaters when peril status changes
+  - Fixed "NONE" placeholder handling in peril player sync messages
+
+### 💖 **Elimination Heart Display Fixes**
+- **0 Hearts Before Elimination**: Fixed elimination sequence to properly show 0 hearts before player removal
+  - Modified Main Controller elimination logic to set player lives to 0 first
+  - Added 1-second display delay to make 0 hearts visible on both scoreboard and floaters
+  - Enhanced elimination flow with proper timing between heart display and player cleanup
+  - Fixed race condition where players were removed before 0 hearts could be displayed
+- **Visual Elimination Sequence**: Improved elimination experience for better player feedback
+  - Players now see their elimination status with 0 hearts before floater disappears
+  - Scoreboard and floaters show elimination hearts consistently
+  - Better coordination between heart updates and player removal
+  - Enhanced user experience during elimination events
+
+### 🐛 **Bug Fixes and Improvements**
+- **Sync Message Debugging**: Added comprehensive debug logging for peril player status tracking
+  - Debug messages show peril player changes from old to new values
+  - Enhanced visibility into sync message processing
+  - Better troubleshooting capabilities for peril status issues
+- **Floater Update Reliability**: Improved floater update system for more consistent status display
+  - Enhanced floater update triggers during game state changes
+  - Better handling of peril status changes during rounds
+  - Improved sync message reliability for real-time status updates
+- **Elimination Timing Fixes**: Resolved timing issues in elimination sequence
+  - Fixed race condition where elimination cleanup occurred before status display
+  - Added proper delays to ensure visual feedback before player removal
+  - Enhanced coordination between Main Controller and display systems
+
+### 🛠️ **Technical Improvements**
+- **Enhanced Floater Manager Logic**: Improved peril status determination and display
+  - Better condition checking for active game states vs. waiting states
+  - Enhanced handling of "NONE" and empty peril player values
+  - Improved sync message processing for consistent status updates
+- **Main Controller Elimination Enhancements**: Better elimination sequence coordination
+  - Added explicit 0 hearts setting before player removal
+  - Improved helper update timing during elimination
+  - Enhanced coordination between elimination logic and display updates
+- **Debug Logging Additions**: Added targeted debug messages for key status changes
+  - Peril player change tracking in Floater Manager
+  - Elimination sequence logging in Main Controller
+  - Better visibility into sync message processing
+
 ## [2.8.0] - 2025-08-12
 
 ### 🔒 **Game Lockout Security System**
