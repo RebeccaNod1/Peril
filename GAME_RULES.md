@@ -93,7 +93,7 @@ The game automatically selects appropriate dice to ensure fair gameplay:
 | 5-6 players | **d20** | 20 numbers (1-20) |
 | 7-10 players | **d30** | 30 numbers (1-30) |
 
-*This ensures at least 3 numbers per player are always available*
+*This ensures exactly 3 numbers per player are always available*
 
 ---
 
@@ -112,8 +112,8 @@ The game features thematic messaging for maximum immersion:
 ## 🎯 **STRATEGY TIPS**
 
 ### **As a Regular Player:**
-- **Pick popular numbers** (5, 6, 7) to increase chances of causing Plot Twists
-- **Avoid number 1** - statistically less likely on higher dice
+- **Pick numbers that others are likely to avoid** to increase Plot Twist chances
+- **All numbers** (1 through dice maximum) have equal probability of being rolled
 - **Watch the Peril Player's lives** - affects how many numbers you must pick
 
 ### **As the Peril Player:**
@@ -189,7 +189,7 @@ The game features thematic messaging for maximum immersion:
 While the core rules remain the same, consider these optional variations:
 
 ### **Speed Peril:**
-- Reduce dialog timeout to 2 minutes for faster gameplay
+- Reduce dialog timeout to 1 minute for ultra-fast gameplay
 
 ### **High Stakes:**
 - Start with only 2 lives instead of 3
