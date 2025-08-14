@@ -70,7 +70,7 @@ pipeline {
                 sh '''
                     # Only process original source files, not already-processed ones
                     for file in *.lsl; do
-                        if [ -f "$file" ] && [[ ! "$file" =~ ^processed_ ]]; then
+                        if [ -f "$file" ] && [ "${file#processed_}" = "$file" ]; then
                             echo "Processing $file..."
                             python3 ${LSL_TOOLS_PATH}/lsl_preprocessor.py "$file" "processed_$file"
                         fi
@@ -141,7 +141,7 @@ pipeline {
                     echo "" >> FUNCTIONS.md
                     
                     for file in *.lsl; do
-                        if [ -f "$file" ] && [[ ! "$file" =~ ^processed_ ]]; then
+                        if [ -f "$file" ] && [ "${file#processed_}" = "$file" ]; then
                             echo "## $file" >> FUNCTIONS.md
                             echo "" >> FUNCTIONS.md
                             grep -n "^[a-zA-Z_][a-zA-Z0-9_]*(" "$file" | head -20 >> FUNCTIONS.md || true
