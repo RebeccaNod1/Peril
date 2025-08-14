@@ -37,6 +37,25 @@ pipeline {
             }
         }
         
+        stage('Clean Workspace') {
+            when {
+                anyOf {
+                    environment name: 'GIT_BRANCH', value: 'origin/main'
+                    environment name: 'GIT_BRANCH', value: 'origin/develop'
+                    environment name: 'GIT_BRANCH', value: 'main'
+                    environment name: 'GIT_BRANCH', value: 'develop'
+                }
+            }
+            steps {
+                echo "🧹 Cleaning up processed files from previous builds..."
+                sh '''
+                    # Remove any processed files from previous builds
+                    rm -f processed_*.lsl
+                    echo "Workspace cleaned of processed files"
+                '''
+            }
+        }
+        
         stage('Preprocess Scripts') {
             when {
                 anyOf {
@@ -115,14 +134,14 @@ pipeline {
             steps {
                 echo "📚 Updating project documentation..."
                 sh '''
-                    # Generate function list from LSL files
+                    # Generate function list from original LSL files only
                     echo "# Project Functions" > FUNCTIONS.md
                     echo "" >> FUNCTIONS.md
                     echo "Auto-generated list of functions in this project:" >> FUNCTIONS.md
                     echo "" >> FUNCTIONS.md
                     
                     for file in *.lsl; do
-                        if [ -f "$file" ]; then
+                        if [ -f "$file" ] && [[ ! "$file" =~ ^processed_ ]]; then
                             echo "## $file" >> FUNCTIONS.md
                             echo "" >> FUNCTIONS.md
                             grep -n "^[a-zA-Z_][a-zA-Z0-9_]*(" "$file" | head -20 >> FUNCTIONS.md || true
