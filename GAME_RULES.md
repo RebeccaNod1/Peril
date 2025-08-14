@@ -162,10 +162,25 @@ The game features thematic messaging for maximum immersion:
 - All players must participate actively
 - Owner can moderate and manage the game
 
+### **Game Security (NEW in v2.8.0):**
+- **Game Lockout** - Owner can lock game to restrict all access to owner only
+- **🔒 GAME LOCKED** status displayed when locked
+- Non-owners receive clear "access denied" messages when game is locked
+- **Kick Player** functionality allows owners to remove disruptive players
+- **Leave Game** system properly cleans up all player data
+
+### **Enhanced Display System (NEW in v2.8.1):**
+- **Real-Time Status Updates** - Peril status updates immediately on floating displays
+- **Enhanced Elimination** - Players see 0 hearts ❤️ → 💔💔💔 before removal
+- **Visual Scoreboard** - Shows all players with profile pictures and heart counts
+- **Floating HUD Displays** - Personal status displays for each player
+- **Professional Status Actions** - Large status prim shows current game events
+
 ### **Technical Rules:**
 - Game supports up to **10 players maximum**
 - **10-minute timeout** on dialog responses
-- Automatic game reset if inactive too long
+- **Automatic game reset** on startup (preserves leaderboard)
+- **Single linkset architecture** (74 prims total) for reliable operation
 
 ---
 
@@ -199,9 +214,12 @@ While the core rules remain the same, consider these optional variations:
 
 ### **For Game Owner:**
 1. **Touch the game controller** to access owner menu
-2. **Add Test Players** if desired for practice
-3. **Join the game yourself** (optional)
-4. **Start Game** when all players are ready
+2. **Lock/Unlock Game** (NEW in v2.8.0) - Restrict access to owner only
+3. **Add Test Players** or bots if desired for practice
+4. **Kick Player** (NEW in v2.8.0) - Remove any registered player
+5. **Join the game yourself** (optional)
+6. **Start Game** when all players are ready
+7. **Reset Options** - Game only, Leaderboard only, or Complete reset
 
 ### **For Players:**
 1. **Touch the game controller** to join
@@ -267,7 +285,7 @@ While the core rules remain the same, consider these optional variations:
 
 ---
 
-**Version:** 2.6.0  
-**Last Updated:** August 9, 2025  
-**Game System:** Production Ready - Enhanced Multi-Instance Support  
-**Credits:** Original concept by Noose the Bunny (djmusica28), Automated system implementation
+**Version:** 2.8.1  
+**Last Updated:** August 14, 2025  
+**Game System:** Production Ready - Display & Elimination Fixes  
+**Credits:** Original concept by Noose the Bunny (djmusica28), Automated system implementation by Rebecca Nod
