@@ -49,8 +49,9 @@ pipeline {
             steps {
                 echo "🔄 Preprocessing LSL files..."
                 sh '''
+                    # Only process original source files, not already-processed ones
                     for file in *.lsl; do
-                        if [ -f "$file" ]; then
+                        if [ -f "$file" ] && [[ ! "$file" =~ ^processed_ ]]; then
                             echo "Processing $file..."
                             python3 ${LSL_TOOLS_PATH}/lsl_preprocessor.py "$file" "processed_$file"
                         fi
