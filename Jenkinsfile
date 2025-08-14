@@ -20,6 +20,17 @@ pipeline {
             }
         }
         
+        stage('Clean Workspace') {
+            steps {
+                echo "🧹 Cleaning up processed files from previous builds..."
+                sh '''
+                    # Remove any processed files from previous builds
+                    rm -f processed_*.lsl
+                    echo "Workspace cleaned of processed files"
+                '''
+            }
+        }
+        
         stage('LSL Validation') {
             steps {
                 echo "🔧 Validating LSL syntax..."
@@ -34,25 +45,6 @@ pipeline {
                 success {
                     echo "✅ LSL validation passed!"
                 }
-            }
-        }
-        
-        stage('Clean Workspace') {
-            when {
-                anyOf {
-                    environment name: 'GIT_BRANCH', value: 'origin/main'
-                    environment name: 'GIT_BRANCH', value: 'origin/develop'
-                    environment name: 'GIT_BRANCH', value: 'main'
-                    environment name: 'GIT_BRANCH', value: 'develop'
-                }
-            }
-            steps {
-                echo "🧹 Cleaning up processed files from previous builds..."
-                sh '''
-                    # Remove any processed files from previous builds
-                    rm -f processed_*.lsl
-                    echo "Workspace cleaned of processed files"
-                '''
             }
         }
         
