@@ -1,0 +1,65 @@
+PERIL DICE - Professional Single Linkset Game System for Second Life
+
+Created by Rebecca Nod and Noose the Bunny
+
+CURRENT VERSION: 2.8.2 - Scoreboard Spam & Display Fixes
+
+Thrilling multiplayer elimination game for 2-10 players! Each participant selects numbers before a die is rolled. If the peril player's number comes up, they lose a life. Last player standing wins!
+
+NEW IN v2.8.2: Fixed critical scoreboard spam bug, re-fixed peril status display on floating HUDs, enhanced elimination sequence to show 0 hearts before player removal.
+
+KEY FEATURES:
+- Visual Scoreboard: Real-time player grid with profile pictures and hearts
+- Enhanced Status Display: Custom textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
+- Comprehensive Leaderboard: Persistent win tracking with XyzzyText display
+- Bot Support: AI players for testing and gameplay variety
+- Floating HUD Display: Real-time stats for each player
+- Intelligent Dice Sizing: d6/d12/d20/d30 based on player count
+- Security Features: Owner lockout system, kick player functionality
+- Single Linkset: Complete 74-prim system for easy deployment
+
+GAME RULES:
+1. 2-10 players join and mark ready
+2. Players pick 1-3 numbers (based on peril player's lives)
+3. Peril player rolls dice
+4. Resolution: Plot Twist (new peril player), Direct Hit, or No Shield (lose life)
+5. Elimination at 0 lives, last survivor wins!
+
+DICE SCALING:
+- 1-2 players: d6 | 3-4 players: d12 | 5-6 players: d20 | 7-10 players: d30
+
+HOW TO PLAY:
+Owner: Touch → Lock/Unlock, Add Bots, Kick Players, Start Game, Reset Options
+Players: Touch → Join, Ready/Not Ready, Pick Numbers, Roll Dice
+
+TECHNICAL SPECS:
+- Single linkset (74 prims): Controller, Scoreboard, Leaderboard, Dice Display
+- Link message communication (no channel conflicts)
+- Multi-instance support
+- Professional LSL architecture
+- Instant deployment
+
+INCLUDED:
+- Complete game system (74 prims)
+- LSL scripts (copy/modify)
+- Custom textures and documentation
+- Full source code
+
+PERMISSIONS: Copy/Modify/No Transfer
+LAND IMPACT: 74 prims
+EXPERIENCE: None required
+
+Perfect for nightclubs, venues, casinos, private parties, group entertainment, community gatherings.
+
+VERSION HISTORY:
+v2.8.2: Scoreboard spam fix, display improvements
+v2.8.1: Peril status and elimination heart fixes
+v2.8.0: Game lockout security, automatic reset
+v2.7.0: Single linkset architecture revolution
+
+ORIGINAL CONCEPT: Noose the Bunny (djmusica28)
+AUTOMATED SYSTEM: Enhanced for professional gameplay
+
+Transform your space into an exciting gaming destination!
+
+Keywords: dice game, elimination game, multiplayer, party game, club game, casino, entertainment, social game, LSL script, venue game
