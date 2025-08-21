@@ -3,6 +3,49 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[2.8.2] - 2025-08-21
+====================
+
+🔥 CRITICAL SCOREBOARD SPAM FIX
+- Eliminated Player Sync Loop: Fixed major bug where eliminated players caused continuous scoreboard update spam
+  * Main Controller now properly updates peril player variable immediately after player elimination
+  * Prevents stale sync messages containing eliminated player data from being broadcast repeatedly
+  * Eliminates infinite scoreboard update loops that occurred when peril player was eliminated
+  * Fixed root cause where Main Controller kept sending outdated peril player references in sync messages
+- Peril Player Validation: Enhanced peril player assignment during elimination sequences
+  * Checks if eliminated player is currently the peril player before final sync
+  * Assigns new valid living player as peril player or sets to "NONE" if no players remain
+  * Ensures updateHelpers() always sends clean game state without stale player references
+  * Prevents perpetual "Noose the Bunny" style spam messages after player elimination
+
+🎯 PERIL STATUS DISPLAY FIXES (RE-FIXED)
+- Enhanced Floater Peril Status: Re-implemented and improved peril status display on floating displays
+  * Fixed peril status showing "waiting for game to start" during active gameplay (again)
+  * Enhanced peril player detection logic in floater management
+  * Improved sync message processing to ensure consistent peril status across all displays
+  * Better handling of peril player transitions during plot twist scenarios
+
+💖 ELIMINATION HEART DISPLAY FIXES (RE-FIXED)
+- 0 Hearts Before Elimination: Re-fixed elimination sequence to properly show 0 hearts before player removal
+  * Enhanced Main Controller elimination logic to ensure 0 hearts display timing
+  * Extended display delay to make 0 hearts clearly visible on both scoreboard and floaters
+  * Improved coordination between heart updates and player cleanup processes
+  * Fixed race conditions where players were removed before 0 hearts could be displayed
+- Visual Elimination Feedback: Strengthened elimination experience for better player feedback
+  * Players now consistently see their elimination status with 0 hearts before removal
+  * Scoreboard and floaters maintain synchronized elimination heart display
+  * Enhanced user experience during elimination events with proper visual timing
+
+🛠️ TECHNICAL IMPROVEMENTS
+- Elimination Sequence Enhancement: Improved coordination between player removal and sync message broadcasting
+  * Added peril player validation step before final updateHelpers() call
+  * Enhanced elimination handler to prevent sync message corruption during player cleanup
+  * Better synchronization between Main Controller state updates and helper script notifications
+- Display System Reliability: Strengthened display update mechanisms for consistent visual feedback
+  * Enhanced floater update triggers during game state changes
+  * Improved peril status determination and heart display coordination
+  * Better error handling for edge cases during elimination sequences
+
 [2.8.1] - 2025-08-14
 ====================
 

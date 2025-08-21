@@ -30,6 +30,7 @@ key currentPicker;
 integer roundStarted = FALSE;
 integer diceTypeProcessed = FALSE;  // Track if we've already processed dice type for this round
 integer ignorePicksSync = FALSE;     // Temporarily ignore picks data sync during round initialization
+integer roundContinueInProgress = FALSE;  // Prevent multiple rapid calls to continueCurrentRound
 
 // Duplicate request prevention
 string lastHumanPickMessage = "";
@@ -288,7 +289,46 @@ default {
         // Receive game state updates from main controller
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
-            if (llGetListLength(parts) >= 4) {
+            
+            // EARLY VALIDATION: Extract peril player from any sync message and validate it
+            // This prevents loops from incomplete sync messages with invalid peril players
+            if (llGetListLength(parts) >= 3) {
+                string receivedPerilPlayer = llList2String(parts, 2);
+                list newNames = [];
+                if (llGetListLength(parts) >= 4) {
+                    newNames = llCSV2List(llList2String(parts, 3));
+                }
+                
+                // PROTECTION: Don't accept peril player updates for players that don't exist OR have 0 lives
+                if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != perilPlayer) {
+                    // If we have the names list, validate against it
+                    if (llGetListLength(newNames) > 0) {
+                        integer receivedPlayerExists = llListFindList(newNames, [receivedPerilPlayer]) != -1;
+                        if (!receivedPlayerExists) {
+                            llOwnerSay("⚠️ [Game Manager] EARLY REJECTION: Invalid peril player update " + receivedPerilPlayer + " (player no longer exists) - IGNORING entire message");
+                            return; // Reject the entire sync message
+                        }
+                        
+                        // ADDITIONAL CHECK: If we have lives data, reject players with 0 lives
+                        if (llGetListLength(parts) >= 1) {
+                            list newLivesCheck = llCSV2List(llList2String(parts, 0));
+                            integer receivedPlayerIdx = llListFindList(newNames, [receivedPerilPlayer]);
+                            if (receivedPlayerIdx != -1 && receivedPlayerIdx < llGetListLength(newLivesCheck)) {
+                                integer receivedPlayerLives = llList2Integer(newLivesCheck, receivedPlayerIdx);
+                                if (receivedPlayerLives <= 0) {
+                                    llOwnerSay("⚠️ [Game Manager] EARLY REJECTION: Invalid peril player update " + receivedPerilPlayer + " (player has 0 lives) - IGNORING entire message");
+                                    return; // Reject the entire sync message
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (llGetListLength(parts) < 4) {
+                llOwnerSay("⚠️ [Game Manager] Incomplete sync message received, parts: " + (string)llGetListLength(parts) + " - IGNORING");
+                return;
+            } else {
                 list newLives = llCSV2List(llList2String(parts, 0));
                 
                 string picksDataStr = llList2String(parts, 1);
@@ -303,10 +343,20 @@ default {
                 list newNames = llCSV2List(llList2String(parts, 3));
                 string receivedPerilPlayer = llList2String(parts, 2);
                 
+                // SAVE original peril player BEFORE any updates for Plot Twist detection
+                string originalPerilPlayer = perilPlayer;
+                
                 // Update peril player if Roll module sent a change
+                // PROTECTION: Don't accept peril player updates for players that don't exist in the current game
                 if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != perilPlayer) {
-                    llOwnerSay("🎯 [Game Manager] Peril player updated from Roll module: " + perilPlayer + " -> " + receivedPerilPlayer);
-                    perilPlayer = receivedPerilPlayer;
+                    integer receivedPlayerExists = llListFindList(newNames, [receivedPerilPlayer]) != -1;
+                    if (receivedPlayerExists) {
+                        llOwnerSay("🎯 [Game Manager] Peril player updated from Roll module: " + perilPlayer + " -> " + receivedPerilPlayer);
+                        perilPlayer = receivedPerilPlayer;
+                    } else {
+                        llOwnerSay("⚠️ [Game Manager] REJECTING peril player update from Roll module: " + receivedPerilPlayer + " (player no longer exists)");
+                        // Keep current peril player instead of accepting the invalid update
+                    }
                 }
                 
                 // Handle elimination case - if current peril player was eliminated, find a new one
@@ -362,27 +412,57 @@ default {
                     }
                 }
                 
-                llOwnerSay("🔍 [Game Manager] DEBUG - allPicksEmpty: " + (string)allPicksEmpty + ", perilPlayer: " + perilPlayer + ", roundStarted: " + (string)roundStarted);
-                
-                // Check for win condition ONLY during active rounds, not during player registration
+                // Check for win condition FIRST to prevent infinite loops
                 if (roundStarted && llGetListLength(newNames) <= 1) {
                     if (llGetListLength(newNames) == 1) {
                         string winner = llList2String(newNames, 0);
                         llOwnerSay("🏆 [Game Manager] Victory detected: " + winner + " wins!");
+                        // Reset round state to prevent loops
+                        roundStarted = FALSE;
+                        perilPlayer = "";
                         // Let Main Controller handle the victory celebration and reset
                         return;
                     } else {
                         llOwnerSay("💀 [Game Manager] No survivors remain!");
+                        // Reset round state to prevent loops
+                        roundStarted = FALSE;
+                        perilPlayer = "";
                         return;
                     }
                 }
                 
+                // STOP processing if game is over or peril player is invalid
+                if (!roundStarted || perilPlayer == "" || perilPlayer == "NONE" || llGetListLength(newNames) <= 1) {
+                    // Game is ending or already ended, don't continue rounds
+                    return;
+                }
+                
+                // Only show debug and continue if game is actually active
+                llOwnerSay("🔍 [Game Manager] DEBUG - allPicksEmpty: " + (string)allPicksEmpty + ", perilPlayer: " + perilPlayer + ", roundStarted: " + (string)roundStarted);
+                
                 // If picks are empty, round started, and we have a valid peril player, continue to next round
                 // This works for ALL outcomes: Direct Hit, No Shield, AND Plot Twist
-                if (allPicksEmpty && roundStarted && perilPlayer != "" && perilPlayer != "NONE") {
+                // PROTECTION: Prevent rapid consecutive calls to continueCurrentRound
+                // ADDITIONAL PROTECTION: Verify peril player still exists in the game
+                // CRITICAL FIX: Prevent double processing during Plot Twist scenarios
+                integer perilPlayerExists = (perilPlayer != "" && perilPlayer != "NONE" && llListFindList(newNames, [perilPlayer]) != -1);
+                if (allPicksEmpty && roundStarted && perilPlayerExists && llGetListLength(newNames) > 1 && !roundContinueInProgress) {
+                    // ADDITIONAL CHECK: Don't start new rounds if we just received a peril player update
+                    // This prevents double round starts during Plot Twist scenarios
+                    if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != originalPerilPlayer) {
+                        llOwnerSay("🎯 [Game Manager] Plot Twist detected - peril player changed from " + originalPerilPlayer + " to " + perilPlayer + ", deferring round continuation");
+                        // Don't start new round immediately after Plot Twist - wait for next sync
+                        return;
+                    }
+                    
                     llOwnerSay("🎯 [Game Manager] Round complete - starting next round with peril player: " + perilPlayer);
+                    roundContinueInProgress = TRUE;  // Set flag to prevent rapid calls
                     llSleep(2.0); // Brief pause for dramatic effect
                     continueCurrentRound(); // Use continueCurrentRound instead of startNextRound
+                    roundContinueInProgress = FALSE;  // Clear flag after completion
+                } else if (allPicksEmpty && roundStarted && !perilPlayerExists && llGetListLength(newNames) > 1) {
+                    llOwnerSay("⚠️ [Game Manager] Peril player " + perilPlayer + " no longer exists, but game continues with " + (string)llGetListLength(newNames) + " players");
+                    // Don't continue the round - let the elimination logic handle victory condition
                 }
             }
             return;
@@ -753,6 +833,7 @@ default {
             currentPicker = NULL_KEY;
             roundStarted = FALSE;
             diceTypeProcessed = FALSE;  // Reset for new game
+            roundContinueInProgress = FALSE;  // Reset protection flag
             llOwnerSay("🎯 Game Manager reset!");
             return;
         }

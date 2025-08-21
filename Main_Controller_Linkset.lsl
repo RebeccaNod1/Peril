@@ -263,7 +263,9 @@ updateHelpers() {
     checkMemoryUsage("updateHelpers_start");
     
     string perilForSync = "NONE";
-    if (roundStarted) perilForSync = perilPlayer;
+    if (perilPlayer != "" && perilPlayer != "NONE") {
+        perilForSync = perilPlayer;
+    }
     
     string picksDataStr = "EMPTY";
     integer dataCount = llGetListLength(picksData);
@@ -588,11 +590,18 @@ default {
                 if (idx != -1) {
                     // FIRST: Set the player's lives to 0 and update scoreboard/floaters before removal
                     lives = llListReplaceList(lives, [0], idx, idx);
-                    llOwnerSay("💀 Setting " + eliminatedPlayer + " to 0 hearts before elimination");
                     
                     // Update scoreboard and floaters to show 0 hearts
                     updateHelpers();
-                    llSleep(1.0); // Give time for the 0 hearts display to be visible
+                    llSleep(1.5); // Give extra time for the 0 hearts display to be visible
+                    
+                    // Check if this will cause victory BEFORE removing player
+                    integer willCauseVictory = (llGetListLength(names) <= 2); // After removing one player
+                    
+                    if (willCauseVictory) {
+                        // If this elimination will cause victory, give extra time for 0 hearts display
+                        llSleep(1.5); // Additional time for victory scenarios
+                    }
                     
                     // THEN: Clean up and remove the player
                     integer ch = llList2Integer(floaterChannels, idx);
@@ -604,7 +613,6 @@ default {
                     picksData = llDeleteSubList(picksData, idx, idx);
                     floaterChannels = llDeleteSubList(floaterChannels, idx, idx);
                     
-                    llOwnerSay("🗑️ Eliminated " + eliminatedPlayer + ". Remaining players: " + (string)llGetListLength(names));
                     
                     // CHANGED: Send to scoreboard, which will handle leaderboard updates
                     llMessageLinked(SCOREBOARD_LINK, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
@@ -612,6 +620,33 @@ default {
                     sendStatusMessage("Elimination");
                     updateHelpers();
                     
+                    // CRITICAL: Update perilPlayer if the eliminated player was the peril player
+                    // This prevents sending stale sync messages in updateHelpers()
+                    if (perilPlayer == eliminatedPlayer) {
+                        // Find first remaining alive player to be new peril player
+                        string newPerilPlayer = "";
+                        integer k;
+                        for (k = 0; k < llGetListLength(names) && newPerilPlayer == ""; k++) {
+                            string candidateName = llList2String(names, k);
+                            integer candidateIdx = llListFindList(names, [candidateName]);
+                            if (candidateIdx != -1 && candidateIdx < llGetListLength(lives)) {
+                                integer candidateLives = llList2Integer(lives, candidateIdx);
+                                if (candidateLives > 0) {
+                                    newPerilPlayer = candidateName;
+                                }
+                            }
+                        }
+                        
+                        if (newPerilPlayer != "") {
+                            llOwnerSay("🎯 [Main Controller] Peril player eliminated - assigning new peril player: " + newPerilPlayer);
+                            perilPlayer = newPerilPlayer;
+                        } else {
+                            llOwnerSay("⚠️ [Main Controller] No valid peril player candidates found after elimination!");
+                            perilPlayer = "NONE";
+                        }
+                    }
+                    
+                    // Check for victory condition AFTER the 0 hearts display AND removal
                     if (llGetListLength(names) <= 1) {
                         if (llGetListLength(names) == 1) {
                             string winner = llList2String(names, 0);
@@ -662,6 +697,27 @@ default {
                 string newLivesStr = llList2CSV(newLives);
                 
                 string newPerilPlayerCheck = llList2String(parts, 2);
+                list newNames = llCSV2List(llList2String(parts, 3));
+                
+                // VALIDATION: Reject sync messages with invalid peril players to prevent loops
+                if (newPerilPlayerCheck != "NONE" && newPerilPlayerCheck != "" && newPerilPlayerCheck != perilPlayer) {
+                    // Check if the peril player exists in the new names list
+                    integer perilPlayerExists = llListFindList(newNames, [newPerilPlayerCheck]) != -1;
+                    if (!perilPlayerExists) {
+                        llOwnerSay("⚠️ [Main Controller] REJECTING sync message with invalid peril player: " + newPerilPlayerCheck + " (player doesn't exist)");
+                        return; // Reject the entire sync message
+                    }
+                    
+                    // Check if peril player has 0 lives (eliminated)
+                    integer perilPlayerIdx = llListFindList(newNames, [newPerilPlayerCheck]);
+                    if (perilPlayerIdx != -1 && perilPlayerIdx < llGetListLength(newLives)) {
+                        integer perilPlayerLives = llList2Integer(newLives, perilPlayerIdx);
+                        if (perilPlayerLives <= 0) {
+                            llOwnerSay("⚠️ [Main Controller] REJECTING sync message with eliminated peril player: " + newPerilPlayerCheck + " (0 lives)");
+                            return; // Reject the entire sync message
+                        }
+                    }
+                }
                 
                 if (newPerilPlayerCheck == "NONE" && perilPlayer != "" && perilPlayer != "NONE") {
                     integer perilStillInGame = llListFindList(names, [perilPlayer]) != -1;

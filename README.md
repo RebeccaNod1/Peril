@@ -1,13 +1,13 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.1 - Display & Elimination Fixes**
+**Current Version: 2.8.2 - Scoreboard Spam & Display Fixes**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**NEW in v2.8.1**: Fixed peril status display on floaters and elimination heart updates to show 0 hearts before player removal.
+**NEW in v2.8.2**: Fixed critical scoreboard spam bug caused by eliminated players, plus re-fixed peril status display on floaters and elimination heart updates to show 0 hearts before player removal.
 
 **NEW in v2.8.0**: Game lockout security system, automatic reset functionality, and enhanced player management with kick/leave fixes for complete ownership control and stability.
 
@@ -285,9 +285,17 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 2.8.1  
-**Last Updated**: August 14, 2025  
-**Status**: Production Ready - Enhanced Display & Elimination Experience
+**Current Version**: 2.8.2  
+**Last Updated**: August 21, 2025  
+**Status**: Production Ready - Scoreboard Spam & Display Fixes
+
+### Key Achievements in v2.8.2:
+- ✅ Fixed critical scoreboard spam bug caused by eliminated players
+- ✅ Enhanced peril player validation during elimination sequences
+- ✅ Re-fixed peril status display on floating HUDs during gameplay
+- ✅ Re-fixed elimination sequence to show 0 hearts before player removal
+- ✅ Improved sync message reliability to prevent stale data broadcasts
+- ✅ Enhanced elimination timing and coordination between display systems
 
 ### Key Achievements in v2.8.1:
 - ✅ Fixed peril status display on floating HUDs during gameplay

@@ -326,10 +326,40 @@ default {
                         llOwnerSay("💀 Elimination detected: " + perilPlayer + " has 0 hearts remaining");
                         
                         llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
-                        // Remove eliminated player (send message to main controller)
+                        
+                        // IMPORTANT: Update our local state to reflect the elimination
+                        // Remove the eliminated player from our names and lives lists to prevent stale data
+                        integer elimIdx = llListFindList(names, [perilPlayer]);
+                        if (elimIdx != -1) {
+                            names = llDeleteSubList(names, elimIdx, elimIdx);
+                            lives = llDeleteSubList(lives, elimIdx, elimIdx);
+                            // Also clean up their picks data
+                            integer pickIdx = -1;
+                            integer p;
+                            // LSL doesn't support break, so use a flag instead
+                            integer foundEntry = FALSE;
+                            for (p = 0; p < llGetListLength(picksData) && !foundEntry; p++) {
+                                string entry = llList2String(picksData, p);
+                                if (llSubStringIndex(entry, perilPlayer + "|") == 0) {
+                                    pickIdx = p;
+                                    foundEntry = TRUE;
+                                }
+                            }
+                            if (pickIdx != -1) {
+                                picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
+                            }
+                            llOwnerSay("🔄 [Roll Module] Updated local state - removed " + perilPlayer + " from names/lives/picks");
+                        }
+                        
+                        // Send message to main controller to handle elimination
                         llMessageLinked(LINK_SET, 999, "ELIMINATE_PLAYER|" + perilPlayer, NULL_KEY);
-                        // The Main Controller will handle peril player reassignment and game flow
-                        // Don't continue processing this round since the player was eliminated
+                        
+                        // CRITICAL: Don't send any sync messages after elimination
+                        // Let Main Controller handle all state sync and peril player reassignment
+                        llOwnerSay("🎯 [Roll Module] Elimination complete - letting Main Controller handle state sync");
+                        
+                        // Clear roll protection after processing is complete
+                        rollInProgress = FALSE;
                         return;
                     }
                 }

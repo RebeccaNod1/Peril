@@ -2,11 +2,13 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 2.8.1 - DISPLAY & ELIMINATION FIXES
+CURRENT VERSION: 2.8.2 - SCOREBOARD SPAM & DISPLAY FIXES
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V2.8.2: Fixed critical scoreboard spam bug caused by eliminated players, plus re-fixed peril status display on floaters and elimination heart updates to show 0 hearts before player removal.
 
 KEY FEATURES
 ============
@@ -89,6 +91,37 @@ Player Count | Dice Type
 3–4          | d12
 5–6          | d20
 7–10         | d30
+
+RECENT IMPROVEMENTS (V2.8.2)
+============================
+
+🔥 CRITICAL SCOREBOARD SPAM FIX
+- Eliminated Player Sync Loop: Fixed major bug where eliminated players caused continuous scoreboard update spam
+- Peril Player Validation: Enhanced peril player assignment during elimination sequences
+- Prevents stale sync messages containing eliminated player data from being broadcast repeatedly
+- Eliminates infinite scoreboard update loops that occurred when peril player was eliminated
+- Fixed root cause where Main Controller kept sending outdated peril player references
+
+🎯 PERIL STATUS DISPLAY FIXES (RE-FIXED)
+- Enhanced Floater Peril Status: Re-implemented and improved peril status display on floating displays
+- Fixed peril status showing "waiting for game to start" during active gameplay (again)
+- Enhanced peril player detection logic in floater management
+- Improved sync message processing to ensure consistent peril status across all displays
+- Better handling of peril player transitions during plot twist scenarios
+
+💖 ELIMINATION HEART DISPLAY FIXES (RE-FIXED)
+- 0 Hearts Before Elimination: Re-fixed elimination sequence to properly show 0 hearts before player removal
+- Enhanced Main Controller elimination logic to ensure 0 hearts display timing
+- Extended display delay to make 0 hearts clearly visible on both scoreboard and floaters
+- Improved coordination between heart updates and player cleanup processes
+- Fixed race conditions where players were removed before 0 hearts could be displayed
+
+🛠️ TECHNICAL IMPROVEMENTS
+- Elimination Sequence Enhancement: Improved coordination between player removal and sync message broadcasting
+- Added peril player validation step before final updateHelpers() call
+- Enhanced elimination handler to prevent sync message corruption during player cleanup
+- Better synchronization between Main Controller state updates and helper script notifications
+- Display System Reliability: Strengthened display update mechanisms for consistent visual feedback
 
 RECENT IMPROVEMENTS (V2.8.1)
 ============================
@@ -227,9 +260,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 2.8.1
-Last Updated: August 14, 2025
-Status: Production Ready - Enhanced Display & Elimination Experience
+Current Version: 2.8.2
+Last Updated: August 21, 2025
+Status: Production Ready - Scoreboard Spam & Display Fixes
 
 ORIGINAL GAME RULES CREDIT
 ==========================

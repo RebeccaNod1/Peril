@@ -207,7 +207,16 @@ default {
 
             string perilName;
             // Show proper peril status based on current game state
-            if (perilPlayer == "" || perilPlayer == "NONE" || llSubStringIndex(perilPlayer, ",") != -1) {
+            // Check if we have any players with lives > 0 to determine if game is active
+            integer gameActive = FALSE;
+            integer i;
+            for (i = 0; i < llGetListLength(lives); i++) {
+                if (llList2Integer(lives, i) > 0) {
+                    gameActive = TRUE;
+                }
+            }
+            
+            if (!gameActive || perilPlayer == "" || perilPlayer == "NONE" || llSubStringIndex(perilPlayer, ",") != -1) {
                 perilName = "🧑 Status: Waiting for game to start...";
             } else if (name == perilPlayer) {
                 // This player is currently in peril

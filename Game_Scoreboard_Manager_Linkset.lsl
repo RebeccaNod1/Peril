@@ -556,6 +556,9 @@ default {
                 integer lives = (integer)llList2String(parts, 1);
                 string profileUUID = llList2String(parts, 2);
                 
+                // Debug: Show what data scoreboard received
+                llOwnerSay("📊 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
+                
                 updatePlayerDisplay(playerName, lives, profileUUID);
             }
         }
