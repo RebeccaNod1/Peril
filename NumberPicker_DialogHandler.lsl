@@ -165,9 +165,44 @@ default {
             llListenRemove(listenHandle);
         }
         
+        // Initialize/reset all dialog state
+        currentPlayer = "";
+        currentPlayerKey = NULL_KEY;
+        currentDiceType = 0;
+        picksNeeded = 1;
+        currentPicks = [];
+        globallyPickedNumbers = [];
+        currentPage = 0;
+        
         // Set up managed listener with dynamic channel
         listenHandle = llListen(numberPickChannel, "", NULL_KEY, "");
         llOwnerSay("🎮 Number Picker Dialog Handler ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Number Picker rezzed - reinitializing...");
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        numberPickChannel = NUMBERPICK_CHANNEL;
+        
+        // Clean up any existing listeners
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Reset all dialog state variables
+        currentPlayer = "";
+        currentPlayerKey = NULL_KEY;
+        currentDiceType = 0;
+        picksNeeded = 1;
+        currentPicks = [];
+        globallyPickedNumbers = [];
+        currentPage = 0;
+        
+        // Set up managed listener with dynamic channel
+        listenHandle = llListen(numberPickChannel, "", NULL_KEY, "");
+        llOwnerSay("✅ Number Picker reset complete after rez!");
     }
 
     link_message(integer sender, integer num, string str, key id) {

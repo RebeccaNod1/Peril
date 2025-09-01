@@ -120,7 +120,26 @@ integer showPickManager(string player, key id) {
 
 default {
     state_entry() {
-        llOwnerSay("🧮 Game Calculator ready!");
+        // Initialize/reset all state variables
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        names = [];
+        pickQueue = [];
+        llOwnerSay("🧜Game Calculator ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Game Calculator rezzed - reinitializing...");
+        
+        // Reset all state variables on rez
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        names = [];
+        pickQueue = [];
+        
+        llOwnerSay("✅ Game Calculator reset complete after rez!");
     }
     
     link_message(integer sender, integer num, string str, key id) {

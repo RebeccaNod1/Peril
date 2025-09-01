@@ -281,7 +281,53 @@ syncStateToMain() {
 
 default {
     state_entry() {
+        llOwnerSay("🎯 Game Manager initializing...");
+        
+        // Initialize/reset all game state variables
+        players = [];
+        names = [];
+        lives = [];
+        perilPlayer = "";
+        globalPickedNumbers = [];
+        picksData = [];
+        pickQueue = [];
+        currentPickerIdx = 0;
+        diceType = 6;
+        currentPicker = NULL_KEY;
+        roundStarted = FALSE;
+        diceTypeProcessed = FALSE;
+        ignorePicksSync = FALSE;
+        roundContinueInProgress = FALSE;
+        lastHumanPickMessage = "";
+        lastBotPickMessage = "";
+        lastProcessTime = 0;
+        
         llOwnerSay("🎯 Game Manager ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Game Manager rezzed - reinitializing...");
+        
+        // Reset all game state variables on rez
+        players = [];
+        names = [];
+        lives = [];
+        perilPlayer = "";
+        globalPickedNumbers = [];
+        picksData = [];
+        pickQueue = [];
+        currentPickerIdx = 0;
+        diceType = 6;
+        currentPicker = NULL_KEY;
+        roundStarted = FALSE;
+        diceTypeProcessed = FALSE;
+        ignorePicksSync = FALSE;
+        roundContinueInProgress = FALSE;
+        lastHumanPickMessage = "";
+        lastBotPickMessage = "";
+        lastProcessTime = 0;
+        
+        llOwnerSay("✅ Game Manager reset complete after rez!");
     }
     
     link_message(integer sender, integer num, string str, key id) {

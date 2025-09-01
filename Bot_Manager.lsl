@@ -200,8 +200,37 @@ default {
             llListenRemove(listenHandle);
         }
         
+        // Initialize/reset all state variables
+        names = [];
+        lives = [];
+        perilPlayer = "";
+        processedBotCommands = [];
+        sentBotMessages = [];
+        
         listenHandle = llListen(LISTEN_CHANNEL, "", NULL_KEY, "");
         llOwnerSay("🤖 Bot Manager ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Bot Manager rezzed - reinitializing...");
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        LISTEN_CHANNEL = BOT_COMMAND_CHANNEL;
+        
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Reset all state variables on rez
+        names = [];
+        lives = [];
+        perilPlayer = "";
+        processedBotCommands = [];
+        sentBotMessages = [];
+        
+        listenHandle = llListen(LISTEN_CHANNEL, "", NULL_KEY, "");
+        llOwnerSay("✅ Bot Manager reset complete after rez!");
     }
 
     link_message(integer sender, integer num, string str, key id) {

@@ -301,6 +301,19 @@ default {
         // Initialize position reset variables
         controller_key = llGetKey();
         
+        // Initialize/reset dialog state variables
+        pendingMenuPlayer = NULL_KEY;
+        pendingMenuIsStarter = FALSE;
+        pendingMenuIsOwner = FALSE;
+        pendingMenuRequestID = 0;
+        currentRequestID = 0;
+        pendingMenuTimestamp = 0.0;
+        currentPickList = [];
+        currentPickTarget = "";
+        currentPickLimit = 3;
+        kickDisplayNames = [];
+        kickOriginalNames = [];
+        
         // Clean up any existing listeners
         if (listenHandle != -1) llListenRemove(listenHandle);
         if (scoreboardHandle != -1) llListenRemove(scoreboardHandle);
@@ -315,6 +328,48 @@ default {
         
         llOwnerSay("🎭 Owner and Player Dialog Handler ready with lockout system!");
         llOwnerSay("🔓 Game is UNLOCKED - All players can access menus");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Player Dialog Handler rezzed - reinitializing...");
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        DIALOG_CHANNEL = MAIN_DIALOG_CHANNEL;
+        
+        // Re-initialize lockout system
+        gameOwner = llGetOwner();
+        isLocked = FALSE;
+        
+        // Reset position variables
+        controller_key = llGetKey();
+        
+        // Reset all dialog state variables
+        pendingMenuPlayer = NULL_KEY;
+        pendingMenuIsStarter = FALSE;
+        pendingMenuIsOwner = FALSE;
+        pendingMenuRequestID = 0;
+        currentRequestID = 0;
+        pendingMenuTimestamp = 0.0;
+        currentPickList = [];
+        currentPickTarget = "";
+        currentPickLimit = 3;
+        kickDisplayNames = [];
+        kickOriginalNames = [];
+        
+        // Clean up any existing listeners
+        if (listenHandle != -1) llListenRemove(listenHandle);
+        if (scoreboardHandle != -1) llListenRemove(scoreboardHandle);
+        if (leaderboardHandle != -1) llListenRemove(leaderboardHandle);
+        if (diceHandle != -1) llListenRemove(diceHandle);
+        
+        // Set up managed listeners with dynamic channels
+        listenHandle = llListen(DIALOG_CHANNEL, "", NULL_KEY, "");
+        scoreboardHandle = llListen(SCOREBOARD_DATA_CHANNEL, "", "", "");
+        leaderboardHandle = llListen(LEADERBOARD_DATA_CHANNEL, "", "", "");
+        diceHandle = llListen(DICE_DATA_CHANNEL, "", "", "");
+        
+        llOwnerSay("✅ Player Dialog Handler reset complete after rez!");
     }
 
     link_message(integer sender, integer num, string str, key id) {

@@ -102,7 +102,31 @@ string getNameFromKey(key id) {
 default {
     state_entry() {
         initializeChannels();
+        
+        // Initialize/reset all state variables
+        players = [];
+        names = [];
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        
         llOwnerSay("📦 Floater Manager ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Floater Manager rezzed - reinitializing...");
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        
+        // Reset all state variables on rez
+        players = [];
+        names = [];
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        
+        llOwnerSay("✅ Floater Manager reset complete after rez!");
     }
     
     link_message(integer sender, integer num, string str, key id) {

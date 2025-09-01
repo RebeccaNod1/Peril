@@ -126,9 +126,51 @@ default {
             llListenRemove(listenHandle);
         }
         
+        // Initialize/reset game state variables
+        names = [];
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        diceType = 6;
+        shouldRoll = FALSE;
+        rollInProgress = FALSE;
+        lastRollTime = 0;
+        diceTypeProcessed = FALSE;
+        
         // Set up managed listener with dynamic channel
         listenHandle = llListen(rollDialogChannel, "", NULL_KEY, "");
         llOwnerSay("🎲 Roll Confetti Module ready!");
+    }
+    
+    on_rez(integer start_param) {
+        llOwnerSay("🔄 Roll Confetti Module rezzed - reinitializing...");
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        rollDialogChannel = ROLLDIALOG_CHANNEL;
+        
+        // Clean up any existing listeners
+        if (listenHandle != -1) {
+            llListenRemove(listenHandle);
+        }
+        
+        // Reset all game state variables
+        names = [];
+        lives = [];
+        picksData = [];
+        perilPlayer = "";
+        diceType = 6;
+        shouldRoll = FALSE;
+        rollInProgress = FALSE;
+        lastRollTime = 0;
+        diceTypeProcessed = FALSE;
+        
+        // Stop any active particles
+        llParticleSystem([]);
+        
+        // Set up managed listener with dynamic channel
+        listenHandle = llListen(rollDialogChannel, "", NULL_KEY, "");
+        llOwnerSay("✅ Roll Confetti Module reset complete after rez!");
     }
 
     link_message(integer sender, integer num, string str, key id) {
@@ -306,15 +348,26 @@ default {
                     list perilPicks = getPicksFor(perilPlayer);
                     integer perilPickedIt = (llListFindList(perilPicks, [resultStr]) != -1);
                     
-                    if (perilPickedIt) {
+                    // FIXED: Use the correct logic for shield detection
+                    // - If ANYONE picked the number (matched=TRUE) but peril player also picked it = DIRECT HIT
+                    // - If NOBODY picked the number (matched=FALSE) = NO SHIELD  
+                    // - If SOMEONE ELSE picked it but not peril player = This case is handled above as PLOT TWIST
+                    
+                    if (matched && perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
                         // Direct Hit status will be sent by Main Controller via link messages
                         // Add delay to let status display before next phase
                         llSleep(2.0);
-                    } else {
+                    } else if (!matched) {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
                         // No Shield status will be sent by Main Controller via link messages
                         // Add delay to let status display before next phase
+                        llSleep(2.0);
+                    } else {
+                        // This should never happen in normal game flow since Plot Twist case is handled above
+                        // But if it does, it means someone else picked it - this should have been Plot Twist
+                        llOwnerSay("⚠️ LOGIC ERROR: Someone picked " + resultStr + " but not handled as Plot Twist!");
+                        llSay(0, "🩸 SHIELD FAILED! " + perilPlayer + " takes the hit despite someone picking " + resultStr + "! 🩸");
                         llSleep(2.0);
                     }
                     
