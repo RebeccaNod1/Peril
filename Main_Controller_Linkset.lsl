@@ -1062,7 +1062,7 @@ default {
                     integer n;
                     for (n = 0; n < ownerIdx && ownerIsStarter; n++) {
                         string existingName = llList2String(names, n);
-                        if (llSubStringIndex(existingName, "TestBot") != 0) {
+                        if (llSubStringIndex(existingName, "Bot") != 0) {
                             ownerIsStarter = FALSE;
                         }
                     }

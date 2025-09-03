@@ -271,7 +271,7 @@ default {
         }
         
         if (num == -9999) {
-                if (llSubStringIndex(str, "BOT_PICK:") == 0) {
+            if (llSubStringIndex(str, "BOT_PICK:") == 0) {
                 // Format: BOT_PICK:bot_1:3:20:1,2,3 (last part is optional already picked numbers)
                 llOwnerSay("[Bot Manager] 📬 RECEIVED BOT_PICK: " + str);
                 list parts = llParseStringKeepNulls(str, [":"], []);

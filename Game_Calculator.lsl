@@ -126,7 +126,7 @@ default {
         perilPlayer = "";
         names = [];
         pickQueue = [];
-        llOwnerSay("🧜Game Calculator ready!");
+        llOwnerSay("🧮 Game Calculator ready!");
     }
     
     on_rez(integer start_param) {
