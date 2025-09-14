@@ -138,6 +138,7 @@ RECENT IMPROVEMENTS (V2.8.4)
   * Immediate Feedback: Red X appears instantly when player reaches 0 lives for clear elimination status
   * Persistent Display: Red X remains visible on scoreboard until game reset for historical reference
   * User Experience: Players can easily see who has been eliminated without checking heart counts
+  * Credit: Feature suggested by Pawkaf (pawkaf.lutrova)
 
 🛡️ GAME STATE STABILITY IMPROVEMENTS
 - Sync Message Reliability: Fixed state synchronization issues causing confusion

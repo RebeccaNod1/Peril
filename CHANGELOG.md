@@ -48,6 +48,7 @@ All notable changes to Peril Dice will be documented in this file.
   - **Immediate Feedback**: Red X appears instantly when player reaches 0 lives for clear elimination status
   - **Persistent Display**: Red X remains visible on scoreboard until game reset for historical reference
   - **User Experience**: Players can easily see who has been eliminated without checking heart counts
+  - **Credit**: Feature suggested by Pawkaf (pawkaf.lutrova)
 
 ### 🛡️ **Game State Desynchronization Fixes**
 - **Sync Message Reliability**: Fixed various state sync issues that could cause game confusion

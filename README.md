@@ -61,6 +61,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
   - **Immediate Feedback**: Red X appears instantly when player reaches 0 lives for clear elimination status
   - **Persistent Display**: Red X remains visible on scoreboard until game reset for historical reference
   - **User Experience**: Players can easily see who has been eliminated without checking heart counts
+  - **Credit**: Feature suggested by Pawkaf (pawkaf.lutrova)
 
 ### 🛡️ **Game State Stability Improvements**
 - **Sync Message Reliability**: Fixed various state synchronization issues causing game confusion
