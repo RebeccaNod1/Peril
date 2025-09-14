@@ -24,6 +24,27 @@ list messageBuffer = [];
 integer BUFFER_SIZE = 5;
 float FLUSH_INTERVAL = 2.0;
 
+// Flush all buffered messages to owner
+flushMessageBuffer() {
+    if (llGetListLength(messageBuffer) == 0) return;
+    
+    integer i;
+    for (i = 0; i < llGetListLength(messageBuffer); i++) {
+        llOwnerSay(llList2String(messageBuffer, i));
+    }
+    messageBuffer = [];
+}
+
+// Report memory status of this script
+reportMemoryStatus() {
+    if (VERBOSE_LOGGING) {
+        integer free = llGetFreeMemory();
+        integer used = llGetUsedMemory();
+        llOwnerSay("🔍 [Verbose Logger] Memory - Free: " + (string)free + " Used: " + (string)used);
+        llOwnerSay("🔍 [Verbose Logger] Buffer size: " + (string)llGetListLength(messageBuffer));
+    }
+}
+
 default {
     state_entry() {
         llOwnerSay("🔍 Verbose Logger initialized - ready to handle debug output");
@@ -106,26 +127,5 @@ default {
         if (VERBOSE_LOGGING && llGetListLength(messageBuffer) > 0) {
             flushMessageBuffer();
         }
-    }
-}
-
-// Flush all buffered messages to owner
-flushMessageBuffer() {
-    if (llGetListLength(messageBuffer) == 0) return;
-    
-    integer i;
-    for (i = 0; i < llGetListLength(messageBuffer); i++) {
-        llOwnerSay(llList2String(messageBuffer, i));
-    }
-    messageBuffer = [];
-}
-
-// Report memory status of this script
-reportMemoryStatus() {
-    if (VERBOSE_LOGGING) {
-        integer free = llGetFreeMemory();
-        integer used = llGetUsedMemory();
-        llOwnerSay("🔍 [Verbose Logger] Memory - Free: " + (string)free + " Used: " + (string)used);
-        llOwnerSay("🔍 [Verbose Logger] Buffer size: " + (string)llGetListLength(messageBuffer));
     }
 }
