@@ -623,8 +623,8 @@ default {
             key newKey = (key)llList2String(parts, 1);
             
             if ((roundStarted || gameStarting) && newKey != llGetOwner()) {
-                llOwnerSay("🚫 " + newName + " cannot join - the killing game has begun!");
-                llRegionSayTo(newKey, 0, "🚫 The killing game has already begun! Wait for the current game to end.");
+                ownerMsg("ERROR|" + newName + " cannot join - game started");
+                regionMsg(newKey, "Game already started - wait for current game to end");
                 return;
             }
             
@@ -641,7 +641,7 @@ default {
                 
                 if (llSubStringIndex(newName, "Bot") == 0) {
                     readyPlayers += [newName];
-                    llSay(0, "🤖 " + newName + " boots up with deadly precision - ready to play! 🤖");
+                    publicMsg("GAME|" + newName + " (Bot) ready to play!");
                 } else {
                     integer humanCount = 0;
                     integer i;
@@ -653,10 +653,10 @@ default {
                     }
                     if (humanCount == 1) {
                         // First human player becomes the starter - owner or not
-                        llSay(0, "👑 " + newName + " steps forward as the game starter! Touch to set your ready status.");
+                        publicMsg("GAME|" + newName + " is the game starter!");
                     } else {
                         // Subsequent players need to set ready status
-                        llSay(0, "🎮 " + newName + " has joined the deadly game! Touch to set your ready status.");
+                        publicMsg("GAME|" + newName + " joined - set ready status");
                     }
                 }
                 
@@ -673,7 +673,7 @@ default {
                     llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, newKey);
                 }
                 updateHelpers();
-                llOwnerSay("🔔 Added player: " + newName);
+                ownerMsg("JOIN|" + newName);
             }
             
             integer pendingIdx = llListFindList(pendingRegistrations, [newKey]);
