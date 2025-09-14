@@ -3,6 +3,74 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[2.8.4] - 2025-09-14
+====================
+
+🚨 DISCONNECT RECOVERY & DEBUG SYSTEM
+
+🔍 SYSTEM-WIDE VERBOSE LOGGING TOGGLE
+- Universal Debug Control: Implemented comprehensive verbose logging system across all 14 game modules
+  * Owner Menu Integration: Added "Toggle Verbose Logs" option in Troubleshooting menu for easy access
+  * Real-Time Toggle: Instantly enable/disable detailed debug messages without script restart
+  * System-Wide Sync: One toggle affects all modules simultaneously for consistent logging state
+  * Modules Updated: Main Controller, Game Manager, Floater Manager, Bot Manager, Roll Module, NumberPicker Handler, Message Handler, Game Calculator, System Debugger, Memory Controller, Scoreboard Manager, Leaderboard Communication, Dice Bridge
+  * Clean Production Mode: When disabled, only essential error messages and public announcements remain
+  * Full Debug Visibility: When enabled, shows internal operations, sync messages, state changes, and diagnostic info
+
+🔧 DISCONNECT/RECONNECT RECOVERY SYSTEM
+- Smart Player Return Detection: Fixed major issue where disconnected players couldn't resume their turn
+  * Issue: Players who disconnected during number picking (like Nooser) would get wrong menu when returning
+  * Before: Disconnect → Return → Ready menu shown → Required kick to continue game
+  * After: Disconnect → Return → "Welcome back! Restoring your number picking dialog..." → Game continues normally
+- Enhanced State Recovery: Automatic detection and repair of corrupted game state from disconnections
+  * Compares expected picker (from pick queue) with current picker state
+  * Automatically fixes currentPicker corruption when players reconnect
+  * Works for both number picking and dice rolling phases
+- Owner Emergency Recovery: If game gets completely stuck, owner can touch board to force-resume
+- Debug Visibility: Verbose logging shows state detection and recovery actions for troubleshooting
+
+🎯 NUMBER PICKER DIALOG PROTECTION SYSTEM
+- Stale Dialog Prevention: Enhanced dialog validation to prevent outdated number selections
+  * Protection Against: Players clicking cached dialog buttons after game state changed
+  * Validation Layers: Session validation, player validation, number availability checking
+  * Smart Filtering: Automatically rejects selections for numbers already picked by others
+- Enhanced Dialog Recovery: Improved system for restoring number picking dialogs after disconnections
+- Session Management: Better tracking of active dialog sessions to prevent conflicts
+
+🔍 NUMBER DETECTION & SHIELD LOGIC FIXES
+- Fixed "Numbers Not Showing" Issue: Resolved major bug where system couldn't see numbers players had picked
+  * Issue: Game would show "NO SHIELD!" even when players had actually picked the rolled number
+  * Root Cause: Pick data synchronization issues between modules causing invisible player selections
+  * Solution: Enhanced pick data validation and sync message reliability across all game modules
+  * Impact: Shield detection now works correctly - proper "PLOT TWIST!" and shield mechanics restored
+
+🛡️ GAME STATE DESYNCHRONIZATION FIXES
+- Sync Message Reliability: Fixed various state sync issues that could cause game confusion
+- Pick Queue Protection: Enhanced pick queue management to prevent corruption during disconnections
+- Display Consistency: Fixed cases where different parts of the system showed conflicting game state
+- Race Condition Prevention: Added proper sequencing for state updates during player disconnections
+
+🐛 CRITICAL BUG FIXES
+- LSL Syntax Corrections: Fixed multiple mid-block variable declaration errors that prevented script compilation
+  * Issue: LSL doesn't support variable declarations in middle of code blocks
+  * Fixed Files: Main Controller, Floater Manager, Bot Manager, Roll Module, Game Manager, NumberPicker Handler, Message Handler, Game Calculator, System Debugger, Memory Controller, Leaderboard modules
+  * Solution: Replaced problematic ternary operators and mid-block declarations with proper conditional statements
+- Ternary Operator Removal: LSL doesn't support condition ? value1 : value2 syntax - converted to if/else statements
+- Compilation Success: All scripts now compile without syntax errors
+
+🎮 USER EXPERIENCE IMPROVEMENTS
+- Seamless Reconnection: Players can disconnect and return without disrupting game flow
+- Clear Status Messages: Better feedback when verbose logging is toggled ("ENABLED"/"DISABLED" confirmations)
+- Graceful Recovery: No more need to kick players just because they disconnected at wrong time
+- Owner Control: Easy debug toggle access through familiar menu system
+
+🎯 IMPACT SUMMARY
+- Before: Player disconnections could break games, requiring kicks and manual intervention
+- After: Players disconnect/reconnect seamlessly, games continue automatically  
+- Debug Control: One-click verbose logging for production vs development modes
+- Stability: Major reduction in game-breaking state corruption issues
+- Developer Productivity: Rich diagnostic information available on demand
+
 [2.8.3] - 2025-09-01
 ====================
 

@@ -2,11 +2,13 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 2.8.3 - CRITICAL GAME LOGIC FIXES
+CURRENT VERSION: 2.8.4 - DISCONNECT RECOVERY & DEBUG CONTROL
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V2.8.4: Revolutionary disconnect/reconnect recovery system eliminates need to kick players who disconnect during their turn, plus comprehensive system-wide verbose logging toggle for production vs development modes.
 
 NEW IN V2.8.3: Fixed critical shield detection bug that incorrectly reported "NO SHIELD!" when players had picked the rolled number, plus complete initialization system overhaul ensuring games are immediately playable after rezzing without manual script reset.
 
@@ -91,6 +93,70 @@ Player Count | Dice Type
 3–4          | d12
 5–6          | d20
 7–10         | d30
+
+RECENT IMPROVEMENTS (V2.8.4)
+============================
+
+🚨 DISCONNECT RECOVERY & DEBUG SYSTEM
+
+🔍 SYSTEM-WIDE VERBOSE LOGGING TOGGLE
+- Universal Debug Control: Comprehensive verbose logging system across all 14 game modules
+- Owner Menu Integration: Added "Toggle Verbose Logs" option in Troubleshooting menu
+- Real-Time Toggle: Enable/disable detailed debug messages instantly without script restart
+- Production Mode: When disabled, only essential errors and public announcements shown
+- Development Mode: When enabled, shows internal operations, sync messages, diagnostics
+- Complete Coverage: All major game components support unified debug control
+
+🔧 DISCONNECT/RECONNECT RECOVERY SYSTEM
+- The Nooser Problem - SOLVED: Fixed major issue where disconnected players broke games
+  * Before: Player disconnects during turn → Game stuck → Return shows wrong menu → Requires kick
+  * After: Player disconnects during turn → Return automatically restores dialog → Continues seamlessly
+- Smart State Recovery: Automatic detection and repair of corrupted game state
+  * Compares who SHOULD be picking with who system THINKS is picking
+  * Automatically fixes currentPicker corruption when players reconnect
+  * Works for both number picking and dice rolling phases
+- "Welcome Back" Experience: Clear feedback when players return to active games
+- Owner Emergency Recovery: If completely stuck, owner touch forces resume
+- No More Kicks: Eliminates need to kick players just because they disconnected
+
+🎯 NUMBER PICKER DIALOG PROTECTION
+- Stale Dialog Prevention: Enhanced validation prevents outdated number selections
+- Multi-Layer Protection: Session validation, player validation, availability checking
+- Smart Filtering: Automatically rejects numbers already picked by others
+- Enhanced Dialog Recovery: Better system for restoring dialogs after disconnections
+
+🔍 NUMBER DETECTION & SHIELD LOGIC FIXES
+- Fixed "Numbers Not Showing" Issue: Resolved major bug where system couldn't see numbers players had picked
+  * Problem: Game would show "NO SHIELD!" even when players had actually picked the rolled number
+  * Root Cause: Pick data synchronization issues between modules causing invisible player selections
+  * Solution: Enhanced pick data validation and sync message reliability across all game modules
+  * Impact: Shield detection now works correctly - proper "PLOT TWIST!" and shield mechanics restored
+
+🛡️ GAME STATE STABILITY IMPROVEMENTS
+- Sync Message Reliability: Fixed state synchronization issues causing confusion
+- Pick Queue Protection: Enhanced management prevents corruption during disconnections
+- Display Consistency: Fixed conflicting game state between different systems
+- Race Condition Prevention: Proper sequencing for state updates during disconnections
+
+🐛 CRITICAL BUG FIXES
+- LSL Syntax Corrections: Fixed compilation errors in all 14 game modules
+- Ternary Operator Removal: LSL doesn't support condition ? value1 : value2 syntax
+- Mid-Block Variable Fix: LSL requires variable declarations at function/state start
+- 100% Compilation Success: All scripts now compile without syntax errors
+
+🎮 USER EXPERIENCE REVOLUTION
+- Seamless Reconnection: Players disconnect/return without disrupting game flow
+- Graceful Recovery: Players return to exactly where they left off
+- Clear Status Messages: Better feedback for debug logging toggle
+- Owner Control: Easy debug access through familiar menu system
+- Professional Operation: Clean, reliable gameplay for all participants
+
+📈 IMPACT SUMMARY
+- Before: Player disconnections broke games, requiring kicks and manual intervention
+- After: Players disconnect/reconnect seamlessly, games continue automatically
+- Debug Control: One-click verbose logging for production vs development modes
+- Stability: Major reduction in game-breaking state corruption issues
+- Developer Productivity: Rich diagnostic information available on demand
 
 RECENT IMPROVEMENTS (V2.8.3)
 ============================
