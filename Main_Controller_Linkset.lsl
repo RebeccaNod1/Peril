@@ -83,6 +83,29 @@ integer DEBUG_PICKS = FALSE;
 // Verbose logging system - affects all modules when toggled
 integer VERBOSE_LOGGING = FALSE;
 
+// Emergency memory management - disable verbose logging if memory gets low
+emergencyMemoryCheck() {
+    if (llGetFreeMemory() < 1000) {
+        VERBOSE_LOGGING = FALSE;
+        llOwnerSay("⚠️ Low memory detected - auto-disabling verbose logging");
+    }
+}
+
+// Memory-efficient debug function to prevent Stack-Heap Collision
+debugMsg(string msg) {
+    emergencyMemoryCheck();
+    if (VERBOSE_LOGGING && llGetFreeMemory() > 500) {
+        llOwnerSay("[M] " + msg);
+    }
+}
+
+// Ultra-light debug for critical paths only
+lightDebug(string msg) {
+    if (VERBOSE_LOGGING && llGetFreeMemory() > 300) {
+        llOwnerSay(msg);
+    }
+}
+
 // Status message timing
 float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
 integer statusTimer = 0;         // Track when status messages were sent
@@ -460,8 +483,8 @@ default {
             if (currentPickerIdx < llGetListLength(pickQueue)) {
                 string expectedPickerName = llList2String(pickQueue, currentPickerIdx);
                 if (VERBOSE_LOGGING) {
-                    llOwnerSay("🔍 [Touch Debug] Player: " + playerName + ", Expected picker: " + expectedPickerName + ", PickerIdx: " + (string)currentPickerIdx);
-                    llOwnerSay("🔍 [Touch Debug] CurrentPicker: " + (string)currentPicker + ", Toucher: " + (string)toucher);
+                    debugMsg("Touch: " + playerName + " exp:" + expectedPickerName);
+                    debugMsg("Idx:" + (string)currentPickerIdx);
                 }
                 if (playerName == expectedPickerName) {
                     shouldBePicking = TRUE;
@@ -473,7 +496,7 @@ default {
                     }
                 }
             } else if (VERBOSE_LOGGING) {
-                llOwnerSay("🔍 [Touch Debug] Pick phase complete - currentPickerIdx (" + (string)currentPickerIdx + ") >= pickQueue length (" + (string)llGetListLength(pickQueue) + ")");
+                debugMsg("Pick phase done - idx >= queue len");
             }
             
             // FALLBACK: If game is stuck and no one is set as current picker, but we're in pick phase,
@@ -1127,11 +1150,11 @@ default {
         if (num == 9010 && str == "TOGGLE_VERBOSE_LOGS") {
             VERBOSE_LOGGING = !VERBOSE_LOGGING;
             if (VERBOSE_LOGGING) {
-                llOwnerSay("🔍 [Main Controller] Verbose logging turned ON");
-                llSay(0, "🔍 Verbose logging system-wide: ON");
+                llOwnerSay("Debug: ON");
+                llSay(0, "Debug: ON");
             } else {
-                llOwnerSay("🔍 [Main Controller] Verbose logging turned OFF");
-                llSay(0, "🔍 Verbose logging system-wide: OFF");
+                llOwnerSay("Debug: OFF");
+                llSay(0, "Debug: OFF");
             }
             
             // Broadcast the setting to all modules
