@@ -57,6 +57,9 @@ list processedBotCommands = [];
 // Track sent BOT_PICKED messages to prevent duplicate sending
 list sentBotMessages = [];
 
+// Verbose logging control - toggled by owner
+integer VERBOSE_LOGGING = FALSE;
+
 // Helper function to check and report memory usage
 checkMemoryUsage(string context) {
     integer usedMemory = llGetUsedMemory();
@@ -71,7 +74,7 @@ checkMemoryUsage(string context) {
 
 // Helper to parse and respond to pick commands
 doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
-    llOwnerSay("[Bot Manager] 🔧 doBotPick ENTRY - botName:" + botName + " count:" + (string)count + " diceMax:" + (string)diceMax);
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔧 doBotPick ENTRY - botName:" + botName + " count:" + (string)count + " diceMax:" + (string)diceMax);
     checkMemoryUsage("doBotPick start");
     
     // Validate bot exists and is still alive
@@ -80,14 +83,14 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
         llOwnerSay("[Bot Manager] ❌ Bot '" + botName + "' not found in game - ignoring command");
         return;
     }
-    llOwnerSay("[Bot Manager] 🔧 Bot found at index:" + (string)botIdx);
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔧 Bot found at index:" + (string)botIdx);
     
     integer botLives = llList2Integer(lives, botIdx);
     if (botLives <= 0) {
         llOwnerSay("[Bot Manager] ❌ Bot '" + botName + "' is eliminated (lives=" + (string)botLives + ") - ignoring command");
         return;
     }
-    llOwnerSay("[Bot Manager] 🔧 Bot lives check passed:" + (string)botLives);
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔧 Bot lives check passed:" + (string)botLives);
     
     // IMPROVED ALGORITHM: Calculate available numbers first
     list availableNumbers = [];
@@ -143,8 +146,8 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
     string response = "BOT_PICKED:" + botName + ":" + pickString;
     
     // Check if we've already sent this exact message to prevent duplicates
-    llOwnerSay("[Bot Manager] 🔍 DEBUG - Checking if message already sent: " + response);
-    llOwnerSay("[Bot Manager] 🔍 DEBUG - sentBotMessages list: " + llDumpList2String(sentBotMessages, "|"));
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔍 DEBUG - Checking if message already sent: " + response);
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔍 DEBUG - sentBotMessages list: " + llDumpList2String(sentBotMessages, "|"));
     if (llListFindList(sentBotMessages, [response]) != -1) {
         llOwnerSay("[Bot Manager] ⚠️ DUPLICATE SEND - Already sent message: " + response);
         return;
@@ -152,7 +155,7 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
     
     // Mark this message as sent BEFORE sending to prevent race conditions
     sentBotMessages += [response];
-    llOwnerSay("[Bot Manager] 🔍 DEBUG - Added to sentBotMessages, new list: " + llDumpList2String(sentBotMessages, "|"));
+    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔍 DEBUG - Added to sentBotMessages, new list: " + llDumpList2String(sentBotMessages, "|"));
     
     llOwnerSay("[Bot Manager] 🤖 " + botName + " picked: " + llList2CSV(picks));
     llOwnerSay("[Bot Manager] 📬 SENDING BOT_PICKED: " + response);
@@ -234,6 +237,20 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle from Main Controller
+        if (num == 9011 && llSubStringIndex(str, "VERBOSE_LOGGING|") == 0) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                VERBOSE_LOGGING = (integer)llList2String(parts, 1);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔍 [Bot Manager] Verbose logging ON");
+                } else {
+                    llOwnerSay("🔍 [Bot Manager] Verbose logging OFF");
+                }
+            }
+            return;
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset bot manager state
@@ -261,10 +278,11 @@ default {
                 }
                 names = llCSV2List(llList2String(parts, 3));
                 
-                // Clear processed commands when peril player changes (new round)
+                // Clear processed commands and sent messages when peril player changes (new round)
                 if (oldPerilPlayer != perilPlayer && perilPlayer != "") {
                     processedBotCommands = [];
-                    llOwnerSay("[Bot Manager] New round detected, cleared processed commands");
+                    sentBotMessages = [];
+                    llOwnerSay("[Bot Manager] New round detected, cleared processed commands and sent messages");
                 }
             }
             return;
@@ -309,7 +327,7 @@ default {
                         }
                     }
                     // Debug: Show the game state before calling doBotPick
-                    llOwnerSay("[Bot Manager] 🔧 Game state - names:" + llList2CSV(names) + " lives:" + llList2CSV(lives));
+                    if (VERBOSE_LOGGING) llOwnerSay("[Bot Manager] 🔧 Game state - names:" + llList2CSV(names) + " lives:" + llList2CSV(lives));
                     doBotPick(botName, count, diceMax, avoidNumbers);
                 }
             }

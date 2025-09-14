@@ -3,6 +3,10 @@
 integer MSG_SHOW_DIALOG = 101;
 integer MSG_GET_CURRENT_DIALOG = 302;
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION
 // =============================================================================
@@ -35,8 +39,10 @@ initializeChannels() {
     NUMBERPICK_CHANNEL = calculateChannel(2);     // ~-77200 range to match Main.lsl
     
     // Report channel to owner for debugging
-    llOwnerSay("🔧 [Number Picker Dialog] Dynamic channel initialized:");
-    llOwnerSay("  Number Pick: " + (string)NUMBERPICK_CHANNEL);
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("🔧 [Number Picker Dialog] Dynamic channel initialized:");
+        llOwnerSay("  Number Pick: " + (string)NUMBERPICK_CHANNEL);
+    }
 }
 
 integer numberPickChannel; // Legacy variable, will be set dynamically
@@ -82,7 +88,9 @@ list getNumbersForPage(integer page, integer diceType) {
 }
 
 showPickDialog(string name, key id, integer diceType, integer picks) {
-    llOwnerSay("📋 [NumberPicker] showPickDialog called for " + name + ", dice:" + (string)diceType + ", picks:" + (string)picks);
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("📋 [NumberPicker] showPickDialog called for " + name + ", dice:" + (string)diceType + ", picks:" + (string)picks);
+    }
     
     if (diceType <= 0) {
         llOwnerSay("⚠️ Cannot show dialog: diceType is 0 or invalid.");
@@ -91,7 +99,9 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
 
     // Initialize or update picking session
     if (currentPlayer != name) {
-        llOwnerSay("📋 [NumberPicker] Starting new session for " + name);
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("📋 [NumberPicker] Starting new session for " + name);
+        }
         currentPlayer = name;
         currentPlayerKey = id;
         currentDiceType = diceType;
@@ -99,7 +109,9 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
         currentPicks = [];
         currentPage = 0;
     } else {
-        llOwnerSay("📋 [NumberPicker] Updating existing session for " + name);
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("📋 [NumberPicker] Updating existing session for " + name);
+        }
     }
 
     list options;
@@ -180,7 +192,9 @@ default {
     }
     
     on_rez(integer start_param) {
-        llOwnerSay("🔄 Number Picker rezzed - reinitializing...");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("🔄 Number Picker rezzed - reinitializing...");
+        }
         
         // Re-initialize dynamic channels
         initializeChannels();
@@ -202,20 +216,39 @@ default {
         
         // Set up managed listener with dynamic channel
         listenHandle = llListen(numberPickChannel, "", NULL_KEY, "");
-        llOwnerSay("✅ Number Picker reset complete after rez!");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("✅ Number Picker reset complete after rez!");
+        }
     }
 
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [NumberPicker] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [NumberPicker] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Handle dialog close command
         if (num == -9999 && str == "CLOSE_ALL_DIALOGS") {
-            llOwnerSay("🚫 [NumberPicker] CLOSE_ALL_DIALOGS received! currentPlayer: " + currentPlayer + ", key: " + (string)currentPlayerKey);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🚫 [NumberPicker] CLOSE_ALL_DIALOGS received! currentPlayer: " + currentPlayer + ", key: " + (string)currentPlayerKey);
+            }
             if (currentPlayerKey != NULL_KEY) {
-                llOwnerSay("🚫 [NumberPicker] Forced dialog close for " + currentPlayer);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🚫 [NumberPicker] Forced dialog close for " + currentPlayer);
+                }
                 currentPlayer = "";
                 currentPlayerKey = NULL_KEY;
                 currentPicks = [];
             } else {
-                llOwnerSay("🚫 [NumberPicker] No active dialog to close");
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🚫 [NumberPicker] No active dialog to close");
+                }
             }
             return;
         }
@@ -265,7 +298,9 @@ default {
             string playerName = str;
             // Only show dialog if this player is the current picker
             if (currentPlayer == playerName && currentPlayerKey == id) {
-                llOwnerSay("🔄 Restoring dialog for " + playerName);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔄 Restoring dialog for " + playerName);
+                }
                 showPickDialog(currentPlayer, currentPlayerKey, currentDiceType, picksNeeded);
             } else {
                 llRegionSayTo(id, 0, "❌ You don't have an active dialog to restore.");
@@ -276,13 +311,17 @@ default {
     listen(integer channel, string name, key id, string message) {
         // Ignore any responses if no active dialog session
         if (currentPlayerKey == NULL_KEY || currentPlayer == "") {
-            llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response (no active session). Player: " + name + ", Key: " + (string)id + ", Message: " + message);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response (no active session). Player: " + name + ", Key: " + (string)id + ", Message: " + message);
+            }
             return;
         }
         
         // Ignore responses from wrong player
         if (id != currentPlayerKey) {
-            llOwnerSay("🚫 [NumberPicker] Ignoring dialog response from wrong player. Expected: " + (string)currentPlayerKey + ", Got: " + (string)id + ", Message: " + message);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🚫 [NumberPicker] Ignoring dialog response from wrong player. Expected: " + (string)currentPlayerKey + ", Got: " + (string)id + ", Message: " + message);
+            }
             return;
         }
         
@@ -291,13 +330,17 @@ default {
         if (messageNum > 0 && messageNum <= currentDiceType) {
             // This looks like a number selection - verify it's not already globally picked
             if (llListFindList(globallyPickedNumbers, [message]) != -1) {
-                llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already globally picked. Player: " + name);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already globally picked. Player: " + name);
+                }
                 return;
             }
             
             // Also verify it's not already in current picks
             if (llListFindList(currentPicks, [message]) != -1) {
-                llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already in current picks. Player: " + name);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🚫 [NumberPicker] Ignoring stale dialog response - number " + message + " already in current picks. Player: " + name);
+                }
                 return;
             }
         }
@@ -325,19 +368,27 @@ default {
         
         // Handle completion
         if (message == "✅ Done") {
-            llOwnerSay("📋 [NumberPicker] Done button clicked by " + name + ", currentPicks: " + llList2CSV(currentPicks) + ", needed: " + (string)picksNeeded);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("📋 [NumberPicker] Done button clicked by " + name + ", currentPicks: " + llList2CSV(currentPicks) + ", needed: " + (string)picksNeeded);
+            }
             if (llGetListLength(currentPicks) >= picksNeeded) {
                 string picksStr = llList2CSV(currentPicks);
                 string response = "HUMAN_PICKED:" + currentPlayer + ":" + picksStr;
-                llOwnerSay("📤 [NumberPicker] SENDING HUMAN_PICKED: " + response);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("📤 [NumberPicker] SENDING HUMAN_PICKED: " + response);
+                }
                 llMessageLinked(LINK_SET, -9998, response, NULL_KEY);
                 // Reset state
-                llOwnerSay("📋 [NumberPicker] Resetting session state for " + currentPlayer);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("📋 [NumberPicker] Resetting session state for " + currentPlayer);
+                }
                 currentPlayer = "";
                 currentPlayerKey = NULL_KEY;
                 currentPicks = [];
             } else {
-                llOwnerSay("⚠️ " + currentPlayer + " needs " + (string)(picksNeeded - llGetListLength(currentPicks)) + " more picks");
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("⚠️ " + currentPlayer + " needs " + (string)(picksNeeded - llGetListLength(currentPicks)) + " more picks");
+                }
                 showPickDialog(currentPlayer, currentPlayerKey, currentDiceType, picksNeeded);
             }
             return;

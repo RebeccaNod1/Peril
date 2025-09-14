@@ -6,7 +6,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 **Peril Dice** is a multiplayer elimination game for Second Life, built using LSL (Linden Scripting Language). It's a professional-grade linkset system where players select numbers before dice rolls, with the peril player losing lives when their number comes up. The project features a single 74-prim linkset architecture with sophisticated inter-script communication.
 
-**Current Version**: 2.8.2 - Scoreboard Spam & Display Fixes  
+**Current Version**: 2.8.4 - Disconnect Recovery & System-Wide Debug Control
 **Technology**: LSL (Linden Scripting Language) for Second Life virtual world  
 **Architecture**: Single linkset with 16 modular LSL scripts communicating via `llMessageLinked()`
 

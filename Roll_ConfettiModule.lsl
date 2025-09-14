@@ -69,6 +69,9 @@ integer rollInProgress = FALSE; // Prevent multiple simultaneous rolls
 integer lastRollTime = 0; // Track when last roll happened
 integer diceTypeProcessed = FALSE; // Prevent duplicate dice type processing
 
+// Verbose logging control - toggled by owner
+integer VERBOSE_LOGGING = FALSE;
+
 list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
@@ -185,6 +188,20 @@ default {
             llOwnerSay("🎲 [Roll Module] RECEIVED GET_DICE_TYPE: " + str);
         }
         
+        // Handle verbose logging toggle from Main Controller
+        if (num == 9011 && llSubStringIndex(str, "VERBOSE_LOGGING|") == 0) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                VERBOSE_LOGGING = (integer)llList2String(parts, 1);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔍 [Roll Module] Verbose logging ON");
+                } else {
+                    llOwnerSay("🔍 [Roll Module] Verbose logging OFF");
+                }
+            }
+            return;
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset roll confetti module state
@@ -200,15 +217,27 @@ default {
         
         // Handle game state sync from main controller
         if (num == MSG_SYNC_GAME_STATE) {
+            if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Received sync: " + str);
             list parts = llParseString2List(str, ["~"], []);
+            if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Parsed into " + (string)llGetListLength(parts) + " parts");
+            
+            // Handle special RESET sync message
+            if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
+                llOwnerSay("🔄 [Roll Module] Received reset sync - ignoring during reset");
+                return;
+            }
+            
             if (llGetListLength(parts) >= 4) {
                 lives = llCSV2List(llList2String(parts, 0));
                 // Use ^ delimiter for picksData to avoid comma conflicts
                 string picksDataStr = llList2String(parts, 1);
+                if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Received picksDataStr: '" + picksDataStr + "'");
                 if (picksDataStr == "" || picksDataStr == "EMPTY") {
                     picksData = [];
+                    if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Set picksData to empty");
                 } else {
                     picksData = llParseString2List(picksDataStr, ["^"], []);
+                    if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Set picksData: " + llDumpList2String(picksData, " | "));
                 }
                 string receivedPeril = llList2String(parts, 2);
                 if (receivedPeril == "NONE") {
@@ -217,6 +246,7 @@ default {
                     perilPlayer = receivedPeril;
                 }
                 names = llCSV2List(llList2String(parts, 3));
+                if (VERBOSE_LOGGING) llOwnerSay("🔍 [Roll Module] Updated names: " + llDumpList2String(names, ", "));
             }
             return;
         }
@@ -290,6 +320,25 @@ default {
                 return;
             }
             
+            // CRITICAL: Verify we have picks data for at least some players before processing roll
+            integer hasAnyPicks = FALSE;
+            integer validationIdx;
+            for (validationIdx = 0; validationIdx < llGetListLength(picksData) && !hasAnyPicks; validationIdx++) {
+                string entry = llList2String(picksData, validationIdx);
+                list entryParts = llParseString2List(entry, ["|"], []);
+                if (llGetListLength(entryParts) >= 2 && llList2String(entryParts, 1) != "") {
+                    hasAnyPicks = TRUE;
+                }
+            }
+            
+            if (!hasAnyPicks) {
+                llOwnerSay("⚠️ [Roll Module] No picks data available - delaying roll to wait for sync");
+                rollInProgress = FALSE; // Reset roll state
+                // Request a re-sync of game state
+                llMessageLinked(LINK_SET, 998, "REQUEST_SYNC", NULL_KEY);
+                return;
+            }
+            
             integer diceType = (integer)str;
             integer result = rollDice(diceType);
             string resultStr = (string)result;
@@ -306,14 +355,19 @@ default {
             
             
             // Find all players who picked the rolled number
+            llOwnerSay("🔍 [Roll Module] Checking picks for rolled number: " + resultStr);
+            llOwnerSay("🔍 [Roll Module] Current picksData: " + llDumpList2String(picksData, " | "));
             for (i = 0; i < llGetListLength(names); i++) {
                 string pname = llList2String(names, i);
                 list picks = getPicksFor(pname);
+                llOwnerSay("🔍 [Roll Module] " + pname + "'s picks: " + llDumpList2String(picks, ","));
                 if (llListFindList(picks, [resultStr]) != -1) {
                     matched = TRUE;
                     matchedPlayers += [pname];
+                    llOwnerSay("🔍 [Roll Module] MATCH! " + pname + " picked " + resultStr);
                 }
             }
+            llOwnerSay("🔍 [Roll Module] Final matched status: " + (string)matched + ", players: " + llDumpList2String(matchedPlayers, ","));
             
             
             // If anyone matched, pick the first non-peril player as new peril

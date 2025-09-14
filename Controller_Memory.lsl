@@ -2,6 +2,10 @@
 // Handles memory monitoring and reporting for the Main Controller
 // Communicates with other scripts via link messages
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 // Memory monitoring system
 float MEMORY_WARNING_THRESHOLD = 0.8;   // Warn at 80% usage
 float MEMORY_CRITICAL_THRESHOLD = 0.9;  // Critical at 90% usage
@@ -33,9 +37,11 @@ checkMemoryUsage(string context) {
     } else if (memoryPercentage > MEMORY_WARNING_THRESHOLD) {
         // Only warn once per interval to avoid spam
         if ((currentTime - lastMemoryCheck) >= MEMORY_CHECK_INTERVAL) {
-            llOwnerSay("⚠️ [Memory Monitor] High memory in " + context + ": " + 
-                       (string)usedMemory + " bytes (" + 
-                       (string)llRound(memoryPercentage * 100.0) + "% of 64KB limit)");
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("⚠️ [Memory Monitor] High memory in " + context + ": " + 
+                           (string)usedMemory + " bytes (" + 
+                           (string)llRound(memoryPercentage * 100.0) + "% of 64KB limit)");
+            }
             lastMemoryCheck = currentTime;
         }
     }
@@ -131,6 +137,17 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [Memory Monitor] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [Memory Monitor] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         if (num == MSG_MEMORY_CHECK) {
             // Manual memory check request
             checkMemoryUsage(str);

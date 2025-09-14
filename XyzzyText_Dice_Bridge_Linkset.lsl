@@ -7,6 +7,10 @@
 // LINKSET COMMUNICATION - NO DISCOVERY NEEDED
 // =============================================================================
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 // Message constants for link communication
 // Dice messages (from link 1 - controller)
 integer MSG_DICE_ROLL = 3020;
@@ -36,23 +40,40 @@ displayDiceText(string text) {
     llMessageLinked(DICE_PRIM_1, DISPLAY_STRING, leftText, "");
     llMessageLinked(DICE_PRIM_2, DISPLAY_STRING, rightText, "");
     
-    llOwnerSay("🎲 Dice display updated: '" + text + "'");
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("🎲 Dice display updated: '" + text + "'");
+    }
 }
 
 default {
     state_entry() {
-        llOwnerSay("🎲 Dice Display Bridge ready! (Linkset Version)");
-        llOwnerSay("🎲 This is link " + (string)llGetLinkNumber() + " - should be link 73");
-        llOwnerSay("🎲 Managing dice display links 73-74 (2 prims total)");
-        llOwnerSay("✅ Linkset communication active - listening for messages from link 1!");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("🎲 Dice Display Bridge ready! (Linkset Version)");
+            llOwnerSay("🎲 This is link " + (string)llGetLinkNumber() + " - should be link 73");
+            llOwnerSay("🎲 Managing dice display links 73-74 (2 prims total)");
+            llOwnerSay("✅ Linkset communication active - listening for messages from link 1!");
+        }
         
         // Initialize dice display with blank text (10 spaces each prim)
         displayDiceText("                    "); // 20 spaces
         
-        llOwnerSay("Dice display initialized - using simple XyzzyText v1.0 (like leaderboard)");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("Dice display initialized - using simple XyzzyText v1.0 (like leaderboard)");
+        }
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [Dice Bridge] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [Dice Bridge] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Only listen to messages from the main controller (link 1)
         if (sender != 1) return;
         
@@ -83,7 +104,9 @@ default {
         else if (num == MSG_CLEAR_DICE) {
             // Clear dice display (20 spaces)
             displayDiceText("                    ");
-            llOwnerSay("🎲 Dice display cleared");
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🎲 Dice display cleared");
+            }
         }
     }
     

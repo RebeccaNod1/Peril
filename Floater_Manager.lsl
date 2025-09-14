@@ -9,6 +9,10 @@ integer MSG_REZ_FLOAT = 105;
 integer MSG_REGISTER_PLAYER = 106;
 integer MSG_SYNC_GAME_STATE = 107;
 
+// Debug control message constants
+integer MSG_DEBUG_PICKS_ON = 7001;
+integer MSG_DEBUG_PICKS_OFF = 7002;
+
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION FOR FLOATERS
 // =============================================================================
@@ -44,6 +48,12 @@ initializeChannels() {
 // Maximum number of players allowed in the game
 integer MAX_PLAYERS = 10;
 
+// Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
+integer DEBUG_PICKS = FALSE;
+
+// Verbose logging control - affects general debug messages, toggled by owner
+integer VERBOSE_LOGGING = FALSE;
+
 list players = [];
 list names = [];
 list lives = [];
@@ -52,9 +62,13 @@ string perilPlayer = "";
 
 // Returns a list of picks for the given player name, filtering out invalid values
 list getPicksFor(string nameInput) {
+    // ENHANCED DEBUG: Log the request and current data state
+    if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] getPicksFor(" + nameInput + "), picksData entries: " + (string)llGetListLength(picksData));
+    
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
         string entry = llList2String(picksData, i);
+        if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Examining entry [" + (string)i + "]: " + entry);
 
         if (llSubStringIndex(entry, "|") == -1) {
             if (entry != "") llOwnerSay("⚠️ Malformed picks entry (missing pipe): " + entry);
@@ -69,25 +83,45 @@ list getPicksFor(string nameInput) {
             }
             else if (llList2String(parts, 0) == nameInput) {
                 string pickString = llList2String(parts, 1);
+                if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Found match for " + nameInput + ", pickString: '" + pickString + "'");
+                
                 if (pickString == "") {
                     // Empty picks are normal during initialization, don't warn
+                    if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Empty picks for " + nameInput + ", returning []");
                     return [];
                 } else {
-                    // Convert semicolons back to commas for display
-                    list pickList = llParseString2List(pickString, [";"], []);
+                    // IMPROVED PARSING: Handle both comma AND semicolon delimited picks
+                    // First, try parsing as comma-separated (most common format from Game Manager)
+                    list pickList = llParseString2List(pickString, [","], []);
+                    
+                    // If that gives us only one item, try semicolon-separated
+                    if (llGetListLength(pickList) == 1 && llSubStringIndex(pickString, ";") != -1) {
+                        pickList = llParseString2List(pickString, [";"], []);
+                        if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Using semicolon parsing for: " + pickString);
+                    } else {
+                        if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Using comma parsing for: " + pickString + ", got " + (string)llGetListLength(pickList) + " picks");
+                    }
+                    
                     list filtered = [];
                     integer j;
                     for (j = 0; j < llGetListLength(pickList); j++) {
                         string val = llStringTrim(llList2String(pickList, j), STRING_TRIM);
                         if (val != "" && (string)((integer)val) == val) {
                             filtered += [val];
+                            if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Added valid pick: " + val);
+                        } else if (val != "") {
+                            if (DEBUG_PICKS) llOwnerSay("⚠️ [Floater Manager] Filtered out invalid pick: '" + val + "'");
                         }
                     }
+                    
+                    if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] Final filtered picks for " + nameInput + ": " + llList2CSV(filtered));
                     return filtered;
                 }
             }
         }
     }
+    
+    if (DEBUG_PICKS) llOwnerSay("🔍 [Floater Manager] No picks found for " + nameInput + ", returning []");
     return [];
 }
 
@@ -139,6 +173,20 @@ default {
             picksData = [];
             perilPlayer = "";
             llOwnerSay("📦 Floater Manager reset!");
+            return;
+        }
+        
+        // Handle verbose logging toggle from Main Controller
+        if (num == 9011 && llSubStringIndex(str, "VERBOSE_LOGGING|") == 0) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                VERBOSE_LOGGING = (integer)llList2String(parts, 1);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔍 [Floater Manager] Verbose logging ON");
+                } else {
+                    llOwnerSay("🔍 [Floater Manager] Verbose logging OFF");
+                }
+            }
             return;
         }
         
@@ -221,13 +269,17 @@ default {
         else if (num == MSG_UPDATE_FLOAT) {
             string name = str;
             integer idx = llListFindList(names, [name]);
-            if (idx == -1) return;
+            if (idx == -1) {
+                llOwnerSay("⚠️ [Floater Manager] MSG_UPDATE_FLOAT: Player '" + name + "' not found in names list");
+                return;
+            }
             key avKey = llList2Key(players, idx);
             integer ch = FLOATER_BASE_CHANNEL + idx;
             integer lifeCount = llList2Integer(lives, idx);
 
+            if (VERBOSE_LOGGING) llOwnerSay("🔄 [Floater Manager] Updating floater for " + name + " (lives: " + (string)lifeCount + ")");
             list picks = getPicksFor(name);
-
+            if (VERBOSE_LOGGING) llOwnerSay("🔄 [Floater Manager] Retrieved picks for " + name + ": " + llList2CSV(picks));
 
             string perilName;
             // Show proper peril status based on current game state
@@ -261,29 +313,76 @@ default {
             // Always send cleanup message to the channel (even for orphaned floaters)
             llRegionSay(ch, "CLEANUP");
             
-            // Only clean up internal lists if this corresponds to a valid player
+            // IMPROVED: Clean up internal lists more carefully to handle race conditions
+            // Instead of relying on index calculation, find by channel and remove consistently
             if (idx >= 0 && idx < llGetListLength(players)) {
-                players = llDeleteSubList(players, idx, idx);
-                names = llDeleteSubList(names, idx, idx);
-                lives = llDeleteSubList(lives, idx, idx);
-                picksData = llDeleteSubList(picksData, idx, idx);
+                // Store player info before removal for debugging
+                string removedPlayer = "";
+                if (idx < llGetListLength(names)) {
+                    removedPlayer = llList2String(names, idx);
+                }
+                
+                // Remove from all lists at the same index to maintain synchronization
+                if (idx < llGetListLength(players)) players = llDeleteSubList(players, idx, idx);
+                if (idx < llGetListLength(names)) names = llDeleteSubList(names, idx, idx);
+                if (idx < llGetListLength(lives)) lives = llDeleteSubList(lives, idx, idx);
+                if (idx < llGetListLength(picksData)) picksData = llDeleteSubList(picksData, idx, idx);
+                
+                if (removedPlayer != "") {
+                    llOwnerSay("🧹 [Floater Manager] Cleaned up floater for: " + removedPlayer + " (channel: " + (string)ch + ")");
+                    
+                    // CRITICAL: Update all remaining floaters to refresh peril status after player removal
+                    // This prevents stale peril player information from persisting in floaters
+                    llSleep(0.2); // Brief delay to ensure cleanup completes
+                    integer i;
+                    for (i = 0; i < llGetListLength(names); i++) {
+                        string remainingPlayerName = llList2String(names, i);
+                        key remainingPlayerKey = NULL_KEY;
+                        if (i < llGetListLength(players)) {
+                            remainingPlayerKey = llList2Key(players, i);
+                        }
+                        llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, remainingPlayerName, remainingPlayerKey);
+                    }
+                }
+            } else {
+                // Orphaned floater cleanup
+                llOwnerSay("🧹 [Floater Manager] Cleaned up orphaned floater (channel: " + (string)ch + ")");
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
             // Synchronize the lists for lives and picksData when receiving a new game state
             list parts = llParseString2List(str, ["~"], []);
+            
+            // Handle special RESET sync message
+            if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
+                llOwnerSay("🔄 [Floater Manager] Received reset sync - ignoring during reset");
+                return;
+            }
+            
             if (llGetListLength(parts) < 4) {
                 llOwnerSay("⚠️ Floater Manager: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
                 return;
             }
             string livesStr = llList2String(parts, 0);
             lives = llCSV2List(livesStr);
-            // Use ^ delimiter for picksData to avoid comma conflicts
+            
+            // ENHANCED DEBUG: Log the received picks data
             string picksDataStr = llList2String(parts, 1);
+            if (VERBOSE_LOGGING) llOwnerSay("📥 [Floater Manager] Received picks data: '" + picksDataStr + "'");
+            
+            // Use ^ delimiter for picksData to avoid comma conflicts
             if (picksDataStr == "" || picksDataStr == "EMPTY") {
                 picksData = [];
+                if (VERBOSE_LOGGING) llOwnerSay("📥 [Floater Manager] Picks data empty, cleared picksData list");
             } else {
                 picksData = llParseString2List(picksDataStr, ["^"], []);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("📥 [Floater Manager] Parsed " + (string)llGetListLength(picksData) + " picks data entries:");
+                    integer debugIdx;
+                    for (debugIdx = 0; debugIdx < llGetListLength(picksData); debugIdx++) {
+                        llOwnerSay("  [" + (string)debugIdx + "]: " + llList2String(picksData, debugIdx));
+                    }
+                }
             }
             string receivedPeril = llList2String(parts, 2);
             string oldPeril = perilPlayer;
@@ -307,10 +406,9 @@ default {
                 llOwnerSay("🎯 Floater Manager: Peril player updated from '" + oldPeril + "' to '" + perilPlayer + "'");
             }
 
-            // After synchronizing the game state, update all existing floats so
-            // they reflect the current peril status.  Without this, floats
-            // created in previous rounds may continue to display an old
-            // peril name until another manual update occurs.
+            // CRITICAL: After synchronizing the game state, ALWAYS update all existing floats
+            // This ensures they reflect the current peril status and prevents desynchronization
+            // Force update even if peril player didn't change - other state may have changed
             integer idx;
             for (idx = 0; idx < llGetListLength(names); idx++) {
                 string n = llList2String(names, idx);
@@ -323,6 +421,33 @@ default {
                 }
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, n, k);
             }
+            
+            // Additional safety: If there was a peril player change, add a brief delay and update again
+            // This handles edge cases where floater updates might race with other state changes
+            if (oldPeril != perilPlayer && perilPlayer != "" && perilPlayer != "NONE") {
+                llOwnerSay("🔄 [Floater Manager] Peril player changed - scheduling secondary update for stability");
+                llSleep(0.3); // Brief delay to let initial updates complete
+                for (idx = 0; idx < llGetListLength(names); idx++) {
+                    string n = llList2String(names, idx);
+                    key k;
+                    if (idx < llGetListLength(players)) {
+                        k = llList2Key(players, idx);
+                    } else {
+                        k = NULL_KEY;
+                    }
+                    llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, n, k);
+                }
+            }
+        }
+        
+        // Handle debug control messages
+        else if (num == MSG_DEBUG_PICKS_ON) {
+            DEBUG_PICKS = TRUE;
+            llOwnerSay("🔍 [Floater Manager] Pick debugging ENABLED");
+        }
+        else if (num == MSG_DEBUG_PICKS_OFF) {
+            DEBUG_PICKS = FALSE;
+            llOwnerSay("🔇 [Floater Manager] Pick debugging DISABLED");
         }
     }
 }

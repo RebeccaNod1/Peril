@@ -7,6 +7,10 @@
 // LINKSET COMMUNICATION - NO DISCOVERY NEEDED
 // =============================================================================
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 // Message constants for link communication
 // Leaderboard messages (from link 2 - scoreboard)
 integer MSG_GAME_WON = 3010;
@@ -112,16 +116,29 @@ distributeToBank(string text, list linkNumbers) {
 
 default {
     state_entry() {
-        llOwnerSay("📋 Leaderboard Communication Script ready! (Linkset Version)");
-        llOwnerSay("📋 This is link " + (string)llGetLinkNumber() + " - should be link 25");
-        llOwnerSay("📋 Managing XyzzyText links 25-72 (48 prims total)");
-        llOwnerSay("✅ Linkset communication active - listening for messages from link 2!");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("📋 Leaderboard Communication Script ready! (Linkset Version)");
+            llOwnerSay("📋 This is link " + (string)llGetLinkNumber() + " - should be link 25");
+            llOwnerSay("📋 Managing XyzzyText links 25-72 (48 prims total)");
+            llOwnerSay("✅ Linkset communication active - listening for messages from link 2!");
+        }
         
         // Start with blank display - real data will come from scoreboard script
         distributeFullText("");
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [Leaderboard] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [Leaderboard] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Only listen to messages from the scoreboard (link 2)
         if (sender != 2) {
             return;
@@ -154,7 +171,9 @@ default {
             else if (llSubStringIndex(str, "LEADERBOARD") == 0) {
                 // Legacy leaderboard format - not used with linkset version
                 // Scoreboard now sends pre-formatted text via FORMATTED_TEXT
-                llOwnerSay("⚠️ [Leaderboard] Received legacy LEADERBOARD format - ignoring");
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("⚠️ [Leaderboard] Received legacy LEADERBOARD format - ignoring");
+                }
             }
         }
     }

@@ -3,6 +3,10 @@
 // This version chooses a dice size based on the number of players,
 // ensuring at least three numbers are available per player.
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 integer MSG_GET_DICE_TYPE = 1001;
 integer MSG_DICE_TYPE_RESULT = 1005;
 integer MSG_GET_PICKS_REQUIRED = 1002;
@@ -80,12 +84,16 @@ integer showPickManager(string player, key id) {
             string testName = llList2String(names, i);
             if (llSubStringIndex(testName, searchName) != -1) {
                 idx = i;
-                llOwnerSay("✅ Matched pick list for: " + testName);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("✅ Matched pick list for: " + testName);
+                }
                 i = llGetListLength(names);
             }
         }
         if (idx == -1) {
-            llOwnerSay("⚠️ Could not find player: " + player);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("⚠️ Could not find player: " + player);
+            }
             return 0;
         }
     }
@@ -111,7 +119,9 @@ integer showPickManager(string player, key id) {
     }
 
     // Don't show hardcoded dialog - let the Owner Dialog Handler manage this
-    llOwnerSay("🧮 Calculator delegating pick management to dialog handler for: " + (string)id);
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("🧮 Calculator delegating pick management to dialog handler for: " + (string)id);
+    }
     // Return without showing dialog - this should be handled by the proper dialog handler
 
     // Return dummy value since LSL does not have a void return type
@@ -130,7 +140,9 @@ default {
     }
     
     on_rez(integer start_param) {
-        llOwnerSay("🔄 Game Calculator rezzed - reinitializing...");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("🔄 Game Calculator rezzed - reinitializing...");
+        }
         
         // Reset all state variables on rez
         lives = [];
@@ -139,10 +151,23 @@ default {
         names = [];
         pickQueue = [];
         
-        llOwnerSay("✅ Game Calculator reset complete after rez!");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("✅ Game Calculator reset complete after rez!");
+        }
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [Game Calculator] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [Game Calculator] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset helper state
@@ -157,8 +182,20 @@ default {
         
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
+            
+            // Handle special RESET sync message
+            if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔄 [Game Calculator] Received reset sync - ignoring during reset");
+                }
+                return;
+            }
+            
             if (llGetListLength(parts) < 4) {
-                llOwnerSay("⚠️ Game Calculator: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("⚠️ Game Calculator: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
+                    llOwnerSay("⚠️ Incomplete game state received.");
+                }
                 return;
             }
             lives = llCSV2List(llList2String(parts, 0));
@@ -183,7 +220,9 @@ default {
         }
         else if (num == MSG_GET_DICE_TYPE) {
             integer playerCount = (integer)str;
-            llOwnerSay("📈 Calculator: Calculating dice type for " + (string)playerCount + " players");
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("📈 Calculator: Calculating dice type for " + (string)playerCount + " players");
+            }
             integer result = getDiceType(playerCount);
             // Send result only to the requester (sender), not broadcast to everyone
             llMessageLinked(sender, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);

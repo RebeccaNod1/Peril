@@ -6,6 +6,10 @@
 // LINKSET COMMUNICATION - NO DISCOVERY NEEDED
 // =============================================================================
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 // Message constants for link communication
 // Scoreboard messages (from link 1 - controller)
 integer MSG_GAME_STATUS = 3001;
@@ -50,6 +54,7 @@ string TEXTURE_DIRECT_HIT = "ecd2dba2-3969-6c39-ad59-319747307f55"; // Direct Hi
 string TEXTURE_NO_SHIELD = "2440174f-e385-44e2-8016-ac34934f11f5"; // No Shield texture
 string TEXTURE_PLOT_TWIST = "ec533379-4f7f-8183-e877-e68af703dcce"; // Plot Twist texture
 string TEXTURE_TITLE = "624bb7a7-e856-965c-bae8-94d75226c1bc"; // Title texture
+string TEXTURE_ELIMINATED_X = "90524092-03b0-1b3c-bcea-3ea5118c6dba"; // Red X overlay for eliminated players
 
 // Player data - used for BOTH current game display AND leaderboard
 list playerNames = []; // Current game players for display
@@ -97,7 +102,9 @@ updateActionsPrim(string status) {
     
     // SAFETY CHECK - prevent overflow into leaderboard prims
     if (ACTIONS_PRIM > LAST_PLAYER_PRIM) {
-        llOwnerSay("❌ ERROR: ACTIONS_PRIM (" + (string)ACTIONS_PRIM + ") exceeds safety boundary (" + (string)LAST_PLAYER_PRIM + ")");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("❌ ERROR: ACTIONS_PRIM (" + (string)ACTIONS_PRIM + ") exceeds safety boundary (" + (string)LAST_PLAYER_PRIM + ")");
+        }
         return;
     }
     
@@ -326,8 +333,10 @@ clearAllPlayers() {
         
         // SAFETY CHECK - prevent overflow into leaderboard prims
         if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
-            llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex +
-                       " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex +
+                           " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+            }
             return; // Don't modify prims outside our range!
         }
         
@@ -359,7 +368,9 @@ removePlayer(string playerName) {
         // Refresh the entire display to shift remaining players up
         refreshPlayerDisplay();
         
-        llOwnerSay("📊 Removed " + playerName + " from the scoreboard and shifted remaining players.");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("📊 Removed " + playerName + " from the scoreboard and shifted remaining players.");
+        }
     }
 }
 
@@ -402,12 +413,17 @@ refreshPlayerDisplay() {
         
         // SAFETY CHECK
         if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
-            llOwnerSay("⚠️ Warning: Player " + name + " cannot be displayed - out of prim range");
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("⚠️ Warning: Player " + name + " cannot be displayed - out of prim range");
+            }
             return;
         }
         
-        // Determine profile texture to use
-        if (isBot(name)) {
+        // Determine profile texture to use - check for elimination first
+        if (lives <= 0) {
+            // Player is eliminated - show red X overlay
+            profileTexture = TEXTURE_ELIMINATED_X;
+        } else if (isBot(name)) {
             profileTexture = TEXTURE_BOT_PROFILE;
         } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
             profileTexture = TEXTURE_DEFAULT_PROFILE;
@@ -453,7 +469,9 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
         // New player - find next available slot
         playerIndex = llGetListLength(playerNames);
         if (playerIndex >= 10) {
-            llOwnerSay("WARNING: Maximum 10 players supported, ignoring: " + playerName);
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("WARNING: Maximum 10 players supported, ignoring: " + playerName);
+            }
             return;
         }
         
@@ -474,37 +492,51 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     
     // SAFETY CHECK - prevent overflow into leaderboard prims
     if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
-        llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex + 
-                   " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex + 
+                       " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+        }
         return; // Don't modify prims outside our range!
     }
     
-    // Update profile prim texture
-    string profileTexture = profileUUID;
+    // Update profile prim texture - show red X if eliminated, otherwise show profile
+    string profileTexture;
     
-    // Check if we already have a cached profile texture for this player
-    if (playerIndex < llGetListLength(playerProfiles)) {
-        string cachedTexture = llList2String(playerProfiles, playerIndex);
-        if (cachedTexture != "" && cachedTexture != profileUUID && 
-            cachedTexture != TEXTURE_DEFAULT_PROFILE && cachedTexture != TEXTURE_BOT_PROFILE) {
-            // We have a previously fetched profile picture, use it
-            profileTexture = cachedTexture;
+    if (lives <= 0) {
+        // Player is eliminated - show red X (replaces profile picture)
+        profileTexture = TEXTURE_ELIMINATED_X;
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("💀 Scoreboard: Showing elimination X for " + playerName);
         }
-    }
-    
-    // If no cached texture or using original UUID, determine what to use
-    if (profileTexture == profileUUID) {
-        if (isBot(playerName)) {
-            profileTexture = TEXTURE_BOT_PROFILE;
-        } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
-            profileTexture = TEXTURE_DEFAULT_PROFILE;
-        } else {
-            // Request profile picture via HTTP
-            string URL_RESIDENT = "https://world.secondlife.com/resident/";
-            key httpRequestID = llHTTPRequest(URL_RESIDENT + profileUUID, [HTTP_METHOD, "GET"], "");
-            
-            // Store the HTTP request mapping: requestID -> playerIndex
-            httpRequests += [httpRequestID, playerIndex];
+    } else {
+        // Player is alive - determine profile texture to use
+        profileTexture = profileUUID;
+        
+        // Check if we already have a cached profile texture for this player
+        if (playerIndex < llGetListLength(playerProfiles)) {
+            string cachedTexture = llList2String(playerProfiles, playerIndex);
+            if (cachedTexture != "" && cachedTexture != profileUUID && 
+                cachedTexture != TEXTURE_DEFAULT_PROFILE && cachedTexture != TEXTURE_BOT_PROFILE &&
+                cachedTexture != TEXTURE_ELIMINATED_X) {
+                // We have a previously fetched profile picture, use it
+                profileTexture = cachedTexture;
+            }
+        }
+        
+        // If no cached texture or using original UUID, determine what to use
+        if (profileTexture == profileUUID) {
+            if (isBot(playerName)) {
+                profileTexture = TEXTURE_BOT_PROFILE;
+            } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
+                profileTexture = TEXTURE_DEFAULT_PROFILE;
+            } else {
+                // Request profile picture via HTTP
+                string URL_RESIDENT = "https://world.secondlife.com/resident/";
+                key httpRequestID = llHTTPRequest(URL_RESIDENT + profileUUID, [HTTP_METHOD, "GET"], "");
+                
+                // Store the HTTP request mapping: requestID -> playerIndex
+                httpRequests += [httpRequestID, playerIndex];
+            }
         }
     }
     
@@ -525,8 +557,10 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
 
 default {
     state_entry() {
-        llOwnerSay("📊 Scoreboard Manager ready! (Linkset Version)");
-        llOwnerSay("📊 Managing prims " + (string)FIRST_PLAYER_PRIM + "-" + (string)LAST_PLAYER_PRIM);
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("📊 Scoreboard Manager ready! (Linkset Version)");
+            llOwnerSay("📊 Managing prims " + (string)FIRST_PLAYER_PRIM + "-" + (string)LAST_PLAYER_PRIM);
+        }
         
         // Initialize profile picture extraction constants
         profile_key_prefix_length = llStringLength(profile_key_prefix);
@@ -538,11 +572,24 @@ default {
         // Generate initial leaderboard
         generateLeaderboardText();
         
-        llOwnerSay("✅ Linkset communication active - no discovery needed!");
-        llOwnerSay("📊 Loaded " + (string)llGetListLength(leaderboardNames) + " players from leaderboard data");
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("✅ Linkset communication active - no discovery needed!");
+            llOwnerSay("📊 Loaded " + (string)llGetListLength(leaderboardNames) + " players from leaderboard data");
+        }
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [Scoreboard] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [Scoreboard] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Only listen to messages from the main controller (link 1)
         if (sender != 1) return;
         
@@ -557,7 +604,9 @@ default {
                 string profileUUID = llList2String(parts, 2);
                 
                 // Debug: Show what data scoreboard received
-                llOwnerSay("📊 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("📊 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
+                }
                 
                 updatePlayerDisplay(playerName, lives, profileUUID);
             }

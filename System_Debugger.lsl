@@ -1,6 +1,10 @@
 // === System Debugger - Game State Validation ===
 // Validates game state consistency and reports issues
 
+// Verbose logging control
+integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+
 integer MSG_SYNC_GAME_STATE = 107;
 
 list validatePicksData(list picksData, list names) {
@@ -41,7 +45,7 @@ list validatePicksData(list picksData, list names) {
             }
 
             // Only show picks if player has actually picked something
-            if (picks != "") {
+            if (picks != "" && VERBOSE_LOGGING) {
                 llOwnerSay("✅ " + name + "'s picks: " + llList2CSV(pickNums));
             }
         } else if (entry != "") {
@@ -73,6 +77,17 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
+        // Handle verbose logging toggle
+        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔊 [System Debugger] Verbose logging ENABLED");
+            } else {
+                llOwnerSay("🔊 [System Debugger] Verbose logging DISABLED");
+            }
+            return;
+        }
+        
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Debugger doesn't maintain state, but acknowledge reset
@@ -83,7 +98,9 @@ default {
         if (num == MSG_SYNC_GAME_STATE) {
             list parts = llParseString2List(str, ["~"], []);
             if (llGetListLength(parts) < 4) {
-                llOwnerSay("⚠️ Incomplete game state received.");
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("⚠️ Incomplete game state received.");
+                }
                 return;
             }
 

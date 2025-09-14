@@ -77,6 +77,12 @@ integer TIMER_DISCOVERY = 3;
 integer currentTimerMode = 0;    // Track what the timer is currently doing
 float timerInterval = 1.0;       // How often timer() is called for checks
 
+// Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
+integer DEBUG_PICKS = FALSE;
+
+// Verbose logging system - affects all modules when toggled
+integer VERBOSE_LOGGING = FALSE;
+
 // Status message timing
 float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
 integer statusTimer = 0;         // Track when status messages were sent
@@ -91,6 +97,9 @@ list globalPickedNumbers = [];
 list picksData = [];
 list readyPlayers = [];
 list floaterChannels = []; // Track actual floater channels for cleanup
+
+// Victory state tracking
+integer victoryInProgress = FALSE;
 
 // Lockout system variables
 integer isLocked = FALSE;
@@ -260,6 +269,12 @@ sendStatusMessage(string status) {
 
 // Forward game state to helpers when it changes
 updateHelpers() {
+    // Skip sending sync messages during victory sequence to prevent stale data broadcasts
+    if (victoryInProgress) {
+        llOwnerSay("🏆 [Main Controller] Skipping updateHelpers during victory sequence");
+        return;
+    }
+    
     checkMemoryUsage("updateHelpers_start");
     
     string perilForSync = "NONE";
@@ -272,11 +287,40 @@ updateHelpers() {
     if (dataCount > 0) {
         picksDataStr = llDumpList2String(picksData, "^");
         checkMemoryUsage("updateHelpers_after_picks_processing");
+        
+        // DEBUG: Log what we're sending
+        llOwnerSay("📤 [Main Controller] Sending picks data (" + (string)dataCount + " entries):");
+        integer debugIdx;
+        for (debugIdx = 0; debugIdx < llGetListLength(picksData); debugIdx++) {
+            llOwnerSay("  [" + (string)debugIdx + "]: " + llList2String(picksData, debugIdx));
+        }
+        llOwnerSay("📤 [Main Controller] Encoded picks data: '" + picksDataStr + "'");
+    } else {
+        llOwnerSay("📤 [Main Controller] No picks data to send (empty)");
     }
     
     // Send core game state to internal scripts (include players list for floater management)
-    string syncMessage = llList2CSV(lives) + "~" + picksDataStr + "~" + perilForSync + "~" + llList2CSV(names) + "~" + llList2CSV(players);
-    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
+    // CRITICAL: Always ensure we have at least 4 parts in sync message to prevent incomplete sync warnings
+    string livesStr = llList2CSV(lives);
+    string namesStr = llList2CSV(names);
+    string playersStr = llList2CSV(players);
+    
+    // During reset/empty states, ensure we have proper empty values instead of completely empty strings
+    if (livesStr == "") livesStr = "EMPTY_LIVES";
+    if (namesStr == "") namesStr = "EMPTY_NAMES";
+    if (playersStr == "") playersStr = "EMPTY_PLAYERS";
+    
+    string syncMessage = livesStr + "~" + picksDataStr + "~" + perilForSync + "~" + namesStr + "~" + playersStr;
+    llOwnerSay("📤 [Main Controller] Full sync message: " + syncMessage);
+    
+    // Only send sync if we have actual game data OR it's a proper reset sync
+    if (llGetListLength(names) > 0 || picksDataStr != "EMPTY" || perilForSync != "NONE") {
+        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
+    } else {
+        // This is a true empty state (reset), send a special reset sync instead
+        llOwnerSay("📤 [Main Controller] Sending reset sync instead of empty sync");
+        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, "RESET~RESET~RESET~RESET~RESET", NULL_KEY);
+    }
     
     // Send scoreboard updates using link messages
     integer i;
@@ -342,6 +386,7 @@ resetGame() {
     currentPickerIdx = 0;
     roundStarted = FALSE;
     gameStarting = FALSE;
+    victoryInProgress = FALSE;
     currentPicker = NULL_KEY;
     timeoutTimer = 0;
     lastWarning = 0;
@@ -405,16 +450,52 @@ default {
         key toucher = llDetectedKey(0);
         integer idx = llListFindList(players, [toucher]);
         
-        // Check if player has a current dialog they can recover
+        // Enhanced disconnect/reconnect handling - check if this player should be picking
         if (idx != -1 && toucher != llGetOwner() && roundStarted) {
             string playerName = llList2String(names, idx);
-            if (currentPicker == toucher) {
-                llRegionSayTo(toucher, 0, "🔄 Restoring your number picking dialog...");
+            
+            // ENHANCED: Check if this player is supposed to be the current picker based on game state
+            // This handles cases where currentPicker got corrupted due to disconnect
+            integer shouldBePicking = FALSE;
+            if (currentPickerIdx < llGetListLength(pickQueue)) {
+                string expectedPickerName = llList2String(pickQueue, currentPickerIdx);
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔍 [Touch Debug] Player: " + playerName + ", Expected picker: " + expectedPickerName + ", PickerIdx: " + (string)currentPickerIdx);
+                    llOwnerSay("🔍 [Touch Debug] CurrentPicker: " + (string)currentPicker + ", Toucher: " + (string)toucher);
+                }
+                if (playerName == expectedPickerName) {
+                    shouldBePicking = TRUE;
+                    // Fix corrupted currentPicker state
+                    if (currentPicker != toucher) {
+                        llOwnerSay("🔄 [Disconnect Recovery] Fixing currentPicker for returning player: " + playerName);
+                        llOwnerSay("🔄 [Disconnect Recovery] Old currentPicker: " + (string)currentPicker + " -> New: " + (string)toucher);
+                        currentPicker = toucher;
+                    }
+                }
+            } else if (VERBOSE_LOGGING) {
+                llOwnerSay("🔍 [Touch Debug] Pick phase complete - currentPickerIdx (" + (string)currentPickerIdx + ") >= pickQueue length (" + (string)llGetListLength(pickQueue) + ")");
+            }
+            
+            // FALLBACK: If game is stuck and no one is set as current picker, but we're in pick phase,
+            // let any registered player attempt to resume (with owner confirmation)
+            if (!shouldBePicking && currentPicker == NULL_KEY && currentPickerIdx < llGetListLength(pickQueue)) {
+                if (toucher == llGetOwner()) {
+                    llOwnerSay("⚠️ [Recovery] Game appears stuck - no current picker set!");
+                    llOwnerSay("⚠️ [Recovery] Expected picker: " + llList2String(pickQueue, currentPickerIdx));
+                    llOwnerSay("⚠️ [Recovery] You (owner) touched - fixing by assigning you as current picker");
+                    currentPicker = toucher;
+                    shouldBePicking = TRUE;
+                }
+            }
+            
+            // Check for dialog recovery (original logic OR enhanced detection)
+            if (currentPicker == toucher || shouldBePicking) {
+                llRegionSayTo(toucher, 0, "🔄 Welcome back! Restoring your number picking dialog...");
                 llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, playerName, toucher);
                 return;
             }
             else if (playerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
-                llRegionSayTo(toucher, 0, "🔄 Restoring your roll dialog...");
+                llRegionSayTo(toucher, 0, "🔄 Welcome back! Restoring your roll dialog...");
                 llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, toucher);
                 return;
             }
@@ -614,14 +695,8 @@ default {
                     floaterChannels = llDeleteSubList(floaterChannels, idx, idx);
                     
                     
-                    // CHANGED: Send to scoreboard, which will handle leaderboard updates
-                    llMessageLinked(SCOREBOARD_LINK, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
-                    
-                    sendStatusMessage("Elimination");
-                    updateHelpers();
-                    
-                    // CRITICAL: Update perilPlayer if the eliminated player was the peril player
-                    // This prevents sending stale sync messages in updateHelpers()
+                    // CRITICAL: Update perilPlayer BEFORE any updateHelpers() calls
+                    // This prevents sending stale sync messages with eliminated players
                     if (perilPlayer == eliminatedPlayer) {
                         // Find first remaining alive player to be new peril player
                         string newPerilPlayer = "";
@@ -646,10 +721,32 @@ default {
                         }
                     }
                     
-                    // Check for victory condition AFTER the 0 hearts display AND removal
+                    // CHANGED: Send to scoreboard, which will handle leaderboard updates
+                    llMessageLinked(SCOREBOARD_LINK, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
+                    
+                    sendStatusMessage("Elimination");
+                    
+                    // Check for victory condition BEFORE calling updateHelpers()
                     if (llGetListLength(names) <= 1) {
                         if (llGetListLength(names) == 1) {
                             string winner = llList2String(names, 0);
+                            
+                            // CRITICAL: Set victory flag immediately to prevent sync processing
+                            victoryInProgress = TRUE;
+                            
+                            // CRITICAL: Clear all game state immediately before any sync messages
+                            // This prevents broadcasting stale winner data to other scripts
+                            players = [];
+                            names = [];
+                            lives = [];
+                            picksData = [];
+                            perilPlayer = "";
+                            pickQueue = [];
+                            currentPickerIdx = 0;
+                            roundStarted = FALSE;
+                            gameStarting = FALSE;
+                            currentPicker = NULL_KEY;
+                            
                             llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
                             
                             llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
@@ -662,6 +759,19 @@ default {
                             sendStatusMessage("Victory");
                             llSleep(STATUS_DISPLAY_TIME + 1.0);
                         } else {
+                            // CRITICAL: Set victory flag and clear state for no survivors scenario too
+                            victoryInProgress = TRUE;
+                            players = [];
+                            names = [];
+                            lives = [];
+                            picksData = [];
+                            perilPlayer = "";
+                            pickQueue = [];
+                            currentPickerIdx = 0;
+                            roundStarted = FALSE;
+                            gameStarting = FALSE;
+                            currentPicker = NULL_KEY;
+                            
                             llSay(0, "💀 DESPAIR WINS! No Ultimate Survivors remain!");
                             llSleep(STATUS_DISPLAY_TIME + 1.0);
                         }
@@ -669,9 +779,24 @@ default {
                         return;
                     }
                     
+                    // Only call updateHelpers() if victory was NOT detected
+                    updateHelpers();
+                    
+                    // Final updateHelpers() call after all elimination processing is complete
                     updateHelpers();
                 }
             }
+            return;
+        }
+        
+        // Handle emergency reset for stuck games
+        if (num == -99998 && str == "EMERGENCY_RESET") {
+            llOwnerSay("🚨 [Main Controller] Emergency reset triggered - sending emergency reset to all scripts");
+            // Signal all scripts to emergency reset
+            llMessageLinked(LINK_SET, -99998, "EMERGENCY_RESET", NULL_KEY);
+            llSleep(0.5);
+            // Then do full reset
+            resetGame();
             return;
         }
         
@@ -690,6 +815,12 @@ default {
         
         // Handle incoming sync updates from Roll Confetti Module
         if (num == MSG_SYNC_GAME_STATE) {
+            // Skip processing sync messages during victory sequence
+            if (victoryInProgress) {
+                llOwnerSay("🏆 [Main Controller] Ignoring sync message during victory sequence");
+                return;
+            }
+            
             list parts = llParseString2List(str, ["~"], []);
             if (llGetListLength(parts) >= 4) {
                 list newLives = llCSV2List(llList2String(parts, 0));
@@ -905,6 +1036,33 @@ default {
                     integer ch = FLOATER_BASE_CHANNEL + idx;
                     llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
                     
+                    // CRITICAL: If the leaving player was the peril player, update before updateHelpers()
+                    if (perilPlayer == leavingName) {
+                        // Find first remaining alive player to be new peril player  
+                        string newPerilPlayer = "";
+                        integer k;
+                        for (k = 0; k < llGetListLength(names) && newPerilPlayer == ""; k++) {
+                            string candidateName = llList2String(names, k);
+                            if (candidateName != leavingName) { // Skip the player being removed
+                                integer candidateIdx = llListFindList(names, [candidateName]);
+                                if (candidateIdx != -1 && candidateIdx < llGetListLength(lives)) {
+                                    integer candidateLives = llList2Integer(lives, candidateIdx);
+                                    if (candidateLives > 0) {
+                                        newPerilPlayer = candidateName;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (newPerilPlayer != "") {
+                            llOwnerSay("🎯 [Main Controller] Peril player left - assigning new peril player: " + newPerilPlayer);
+                            perilPlayer = newPerilPlayer;
+                        } else {
+                            llOwnerSay("⚠️ [Main Controller] No valid peril player candidates found after player left!");
+                            perilPlayer = "NONE";
+                        }
+                    }
+                    
                     // Update main controller's lists to match the message handler
                     players = llDeleteSubList(players, idx, idx);
                     names = llDeleteSubList(names, idx, idx);
@@ -962,6 +1120,22 @@ default {
                 updateFloatingText();
                 llOwnerSay("🔓 [Main Controller] Game has been UNLOCKED - Floating text updated");
             }
+            return;
+        }
+        
+        // Handle verbose logging toggle
+        if (num == 9010 && str == "TOGGLE_VERBOSE_LOGS") {
+            VERBOSE_LOGGING = !VERBOSE_LOGGING;
+            if (VERBOSE_LOGGING) {
+                llOwnerSay("🔍 [Main Controller] Verbose logging turned ON");
+                llSay(0, "🔍 Verbose logging system-wide: ON");
+            } else {
+                llOwnerSay("🔍 [Main Controller] Verbose logging turned OFF");
+                llSay(0, "🔍 Verbose logging system-wide: OFF");
+            }
+            
+            // Broadcast the setting to all modules
+            llMessageLinked(LINK_SET, 9011, "VERBOSE_LOGGING|" + (string)VERBOSE_LOGGING, id);
             return;
         }
         

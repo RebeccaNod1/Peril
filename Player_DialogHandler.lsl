@@ -96,7 +96,7 @@ list mainOwnerOptionsUnlocked = ["👥 Player Management", "🔄 Reset Options",
 // Sub-menu options for each category
 list playerManagementOptions = ["Add Test Player", "Kick Player", "⬅️ Back to Main"];
 list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
-list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "🔍 Toggle Verbose Logs", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
@@ -639,6 +639,13 @@ default {
             llOwnerSay("🔧 Requesting floater creation for all registered players...");
             // This will be handled by Main Controller's dialog listener
             // No need to forward via link_message - the Main Controller is already listening on DIALOG_CHANNEL
+        }
+        else if (msg == "🔍 Toggle Verbose Logs") {
+            // Toggle verbose logging system-wide
+            llOwnerSay("🔍 Toggling verbose logging system-wide...");
+            llMessageLinked(LINK_SET, 9010, "TOGGLE_VERBOSE_LOGS", id);
+            // Return to troubleshooting menu after toggling
+            showTroubleshootingMenu(id);
         }
         else if (msg == "Manage Picks") {
             llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
