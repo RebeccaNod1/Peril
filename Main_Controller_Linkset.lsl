@@ -250,7 +250,7 @@ checkMemoryUsage(string context) {
 }
 
 emergencyMemoryCleanup() {
-    llOwnerSay("🎆 [Main Controller] Emergency memory cleanup initiated!");
+    ownerMsg("SUCCESS|Emergency memory cleanup initiated");
     
     globalPickedNumbers = llListSort(globalPickedNumbers, 1, TRUE); 
     
@@ -266,8 +266,7 @@ emergencyMemoryCleanup() {
     names = tempNames;
     lives = tempLives;
     
-    llOwnerSay("🎆 [Main Controller] Emergency cleanup complete - memory: " + 
-               (string)llGetUsedMemory() + " bytes");
+    ownerMsg("SUCCESS|Emergency cleanup complete");
 }
 
 reportMemoryStats() {
@@ -293,7 +292,7 @@ sendStatusMessage(string status) {
     // CHANGED: Use link message instead of llRegionSay
     llMessageLinked(SCOREBOARD_LINK, MSG_GAME_STATUS, status, NULL_KEY);
     
-    llOwnerSay("📢 Status: " + status + " (showing for " + (string)STATUS_DISPLAY_TIME + "s)");
+    ownerMsg("DEBUG|Status|" + status);
     
     currentTimerMode = TIMER_STATUS;
     llSetTimerEvent(STATUS_DISPLAY_TIME + 1.0);
@@ -302,10 +301,10 @@ sendStatusMessage(string status) {
 // Forward game state to helpers when it changes
 updateHelpers() {
     // Skip sending sync messages during victory sequence to prevent stale data broadcasts
-    if (victoryInProgress) {
-        llOwnerSay("🏆 [Main Controller] Skipping updateHelpers during victory sequence");
-        return;
-    }
+        if (victoryInProgress) {
+            ownerMsg("DEBUG|Main|Skipping updateHelpers during victory");
+            return;
+        }
     
     checkMemoryUsage("updateHelpers_start");
     
@@ -320,15 +319,10 @@ updateHelpers() {
         picksDataStr = llDumpList2String(picksData, "^");
         checkMemoryUsage("updateHelpers_after_picks_processing");
         
-        // DEBUG: Log what we're sending
-        llOwnerSay("📤 [Main Controller] Sending picks data (" + (string)dataCount + " entries):");
-        integer debugIdx;
-        for (debugIdx = 0; debugIdx < llGetListLength(picksData); debugIdx++) {
-            llOwnerSay("  [" + (string)debugIdx + "]: " + llList2String(picksData, debugIdx));
-        }
-        llOwnerSay("📤 [Main Controller] Encoded picks data: '" + picksDataStr + "'");
+        // DEBUG: Simple pick data logging
+        debugMsg("Sending picks data: " + (string)dataCount + " entries");
     } else {
-        llOwnerSay("📤 [Main Controller] No picks data to send (empty)");
+        debugMsg("No picks data to send");
     }
     
     // Send core game state to internal scripts (include players list for floater management)
@@ -343,7 +337,7 @@ updateHelpers() {
     if (playersStr == "") playersStr = "EMPTY_PLAYERS";
     
     string syncMessage = livesStr + "~" + picksDataStr + "~" + perilForSync + "~" + namesStr + "~" + playersStr;
-    llOwnerSay("📤 [Main Controller] Full sync message: " + syncMessage);
+    debugMsg("Full sync message prepared");
     
     // Only send sync if we have actual game data OR it's a proper reset sync
     if (llGetListLength(names) > 0 || picksDataStr != "EMPTY" || perilForSync != "NONE") {
