@@ -88,10 +88,31 @@ integer MSG_VERBOSE_TOGGLE = 9010;
 // Script ID for Main Controller (used by Verbose_Logger for prefixes)
 integer SCRIPT_ID_MAIN = 0;
 
+// Message handling constants (delegate to Controller_MessageHandler)
+integer MSG_OWNER_MESSAGE = 9030;
+integer MSG_PUBLIC_MESSAGE = 9031;
+integer MSG_REGION_MESSAGE = 9032;
+integer MSG_DIALOG_REQUEST = 9033;
+
 // Memory-safe debug function - forwards to dedicated logger
 debugMsg(string msg) {
     // Forward to dedicated verbose logger to save memory in Main Controller
     llMessageLinked(LINK_SET, MSG_VERBOSE_LOG, (string)SCRIPT_ID_MAIN + "|" + msg, NULL_KEY);
+}
+
+// Memory-safe owner message function
+ownerMsg(string msg) {
+    llMessageLinked(LINK_SET, MSG_OWNER_MESSAGE, msg, NULL_KEY);
+}
+
+// Memory-safe public message function
+publicMsg(string msg) {
+    llMessageLinked(LINK_SET, MSG_PUBLIC_MESSAGE, msg, NULL_KEY);
+}
+
+// Memory-safe region message function
+regionMsg(key player, string msg) {
+    llMessageLinked(LINK_SET, MSG_REGION_MESSAGE, (string)player + "|" + msg, NULL_KEY);
 }
 
 // Status message timing
@@ -475,8 +496,7 @@ default {
                     shouldBePicking = TRUE;
                     // Fix corrupted currentPicker state
                     if (currentPicker != toucher) {
-                        llOwnerSay("🔄 [Disconnect Recovery] Fixing currentPicker for returning player: " + playerName);
-                        llOwnerSay("🔄 [Disconnect Recovery] Old currentPicker: " + (string)currentPicker + " -> New: " + (string)toucher);
+                        ownerMsg("DEBUG|Recovery|Fixing currentPicker for " + playerName);
                         currentPicker = toucher;
                     }
                 }
@@ -488,9 +508,8 @@ default {
             // let any registered player attempt to resume (with owner confirmation)
             if (!shouldBePicking && currentPicker == NULL_KEY && currentPickerIdx < llGetListLength(pickQueue)) {
                 if (toucher == llGetOwner()) {
-                    llOwnerSay("⚠️ [Recovery] Game appears stuck - no current picker set!");
-                    llOwnerSay("⚠️ [Recovery] Expected picker: " + llList2String(pickQueue, currentPickerIdx));
-                    llOwnerSay("⚠️ [Recovery] You (owner) touched - fixing by assigning you as current picker");
+                    ownerMsg("ERROR|Game stuck - no current picker set");
+                    ownerMsg("DEBUG|Recovery|Owner touched - fixing picker");
                     currentPicker = toucher;
                     shouldBePicking = TRUE;
                 }

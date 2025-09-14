@@ -13,6 +13,10 @@ integer MSG_REQUEST_LIFE_DATA = 8003;
 integer MSG_PICK_ACTION = 8004;
 integer MSG_DICE_TYPE_REQUEST = 8005;
 integer MSG_LEAVE_GAME_REQUEST = 8006;
+integer MSG_OWNER_MESSAGE = 9030;        // Send formatted owner message
+integer MSG_PUBLIC_MESSAGE = 9031;       // Send formatted public message
+integer MSG_REGION_MESSAGE = 9032;       // Send formatted region message
+integer MSG_DIALOG_REQUEST = 9033;       // Send formatted dialog
 
 // Game state data synchronized from Main Controller
 list players = [];
@@ -277,6 +281,89 @@ syncGameState(string stateData) {
     }
 }
 
+// Memory-efficient message handling functions
+
+// Handle owner messages
+handleOwnerMessage(string messageData) {
+    // Format: "simple_message" or "type|param1|param2"
+    list parts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(parts) == 1) {
+        // Simple message
+        llOwnerSay(messageData);
+    } else {
+        // Formatted message
+        string msgType = llList2String(parts, 0);
+        if (msgType == "JOIN") {
+            string playerName = llList2String(parts, 1);
+            llOwnerSay("👋 " + playerName + " joined the game!");
+        } else if (msgType == "LEAVE") {
+            string playerName = llList2String(parts, 1);
+            llOwnerSay("👋 " + playerName + " left the game.");
+        } else if (msgType == "ERROR") {
+            string error = llList2String(parts, 1);
+            llOwnerSay("⚠️ " + error);
+        } else if (msgType == "SUCCESS") {
+            string msg = llList2String(parts, 1);
+            llOwnerSay("✅ " + msg);
+        } else if (msgType == "DEBUG") {
+            string component = llList2String(parts, 1);
+            string msg = llList2String(parts, 2);
+            llOwnerSay("🔧 [" + component + "] " + msg);
+        }
+    }
+}
+
+// Handle public messages
+handlePublicMessage(string messageData) {
+    list parts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(parts) == 1) {
+        llSay(0, messageData);
+    } else {
+        string msgType = llList2String(parts, 0);
+        if (msgType == "GAME") {
+            string state = llList2String(parts, 1);
+            llSay(0, "🎮 " + state);
+        }
+    }
+}
+
+// Handle region messages to specific players
+handleRegionMessage(string messageData) {
+    // Format: "player_key|message" or "player_key|type|param1|param2"
+    list parts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(parts) >= 2) {
+        key playerKey = llList2Key(parts, 0);
+        string message = llList2String(parts, 1);
+        
+        if (llGetListLength(parts) == 2) {
+            // Simple message
+            llRegionSayTo(playerKey, 0, message);
+        } else {
+            // Formatted message
+            string msgType = llList2String(parts, 1);
+            if (msgType == "WELCOME") {
+                string msg = llList2String(parts, 2);
+                llRegionSayTo(playerKey, 0, "🔄 " + msg);
+            }
+        }
+    }
+}
+
+// Handle dialog requests
+handleDialogRequest(string dialogData) {
+    // Format: "player_key|dialog_text|option1,option2,option3|channel"
+    list parts = llParseString2List(dialogData, ["|"], []);
+    if (llGetListLength(parts) >= 4) {
+        key playerKey = llList2Key(parts, 0);
+        string dialogText = llList2String(parts, 1);
+        string optionsStr = llList2String(parts, 2);
+        integer channel = llList2Integer(parts, 3);
+        
+        list options = llParseString2List(optionsStr, [","], []);
+        llDialog(playerKey, dialogText, options, channel);
+    }
+}
+
 default {
     state_entry() {
         llOwnerSay("📨 [Message Handler] Helper script ready!");
@@ -355,6 +442,27 @@ default {
         // Sync player list for reference
         if (num == MSG_SYNC_PICKQUEUE) {
             // Update players list reference (if needed for future functionality)
+            return;
+        }
+        
+        // Handle memory-heavy message operations
+        if (num == MSG_OWNER_MESSAGE) {
+            handleOwnerMessage(str);
+            return;
+        }
+        
+        if (num == MSG_PUBLIC_MESSAGE) {
+            handlePublicMessage(str);
+            return;
+        }
+        
+        if (num == MSG_REGION_MESSAGE) {
+            handleRegionMessage(str);
+            return;
+        }
+        
+        if (num == MSG_DIALOG_REQUEST) {
+            handleDialogRequest(str);
             return;
         }
         
