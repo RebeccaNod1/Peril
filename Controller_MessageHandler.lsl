@@ -295,20 +295,20 @@ handleOwnerMessage(string messageData) {
         string msgType = llList2String(parts, 0);
         if (msgType == "JOIN") {
             string playerName = llList2String(parts, 1);
-            llOwnerSay("[JOIN] " + playerName + " joined the game!");
+            llOwnerSay("👋 " + playerName + " joined the game!");
         } else if (msgType == "LEAVE") {
             string playerName = llList2String(parts, 1);
-            llOwnerSay("[LEAVE] " + playerName + " left the game.");
+            llOwnerSay("👋 " + playerName + " left the game.");
         } else if (msgType == "ERROR") {
             string error = llList2String(parts, 1);
-            llOwnerSay("[ERROR] " + error);
+            llOwnerSay("⚠️ " + error);
         } else if (msgType == "SUCCESS") {
             string msg = llList2String(parts, 1);
-            llOwnerSay("[SUCCESS] " + msg);
+            llOwnerSay("✅ " + msg);
         } else if (msgType == "DEBUG") {
             string component = llList2String(parts, 1);
             string msg = llList2String(parts, 2);
-            llOwnerSay("[DEBUG] [" + component + "] " + msg);
+            llOwnerSay("🔧 [" + component + "] " + msg);
         }
     }
 }
@@ -322,7 +322,7 @@ handlePublicMessage(string messageData) {
         string msgType = llList2String(parts, 0);
         if (msgType == "GAME") {
             string stateVal = llList2String(parts, 1);
-            llSay(0, "[GAME] " + stateVal);
+            llSay(0, "🎮 " + stateVal);
         }
     }
 }
@@ -343,7 +343,7 @@ handleRegionMessage(string messageData) {
             string msgType = llList2String(parts, 1);
             if (msgType == "WELCOME") {
                 string msg = llList2String(parts, 2);
-                llRegionSayTo(playerKey, 0, "[WELCOME] " + msg);
+                llRegionSayTo(playerKey, 0, "🔄 " + msg);
             }
         }
     }
@@ -366,7 +366,7 @@ handleDialogRequest(string dialogData) {
 
 default {
     state_entry() {
-        llOwnerSay("[Message Handler] Helper script ready!");
+        llOwnerSay("📨 [Message Handler] Helper script ready!");
         initializeChannels();
     }
     
@@ -375,9 +375,9 @@ default {
         if (num == MSG_TOGGLE_VERBOSE_LOGS) {
             VERBOSE_LOGGING = !VERBOSE_LOGGING;
             if (VERBOSE_LOGGING) {
-                llOwnerSay("[Message Handler] Verbose logging ENABLED");
+                llOwnerSay("🔊 [Message Handler] Verbose logging ENABLED");
             } else {
-                llOwnerSay("[Message Handler] Verbose logging DISABLED");
+                llOwnerSay("🔊 [Message Handler] Verbose logging DISABLED");
             }
             return;
         }
@@ -393,9 +393,9 @@ default {
             // Send back kick-specific message ID to avoid conflict with pick management
             string namesCSV = llList2CSV(names);
             if (VERBOSE_LOGGING) {
-                llOwnerSay("[Message Handler] Received request: '" + str + "'");
-                llOwnerSay("[Message Handler] Names list: " + llDumpList2String(names, ", "));
-                llOwnerSay("[Message Handler] Sending kick player list: '" + namesCSV + "'");
+                llOwnerSay("🔍 [Message Handler] Received request: '" + str + "'");
+                llOwnerSay("🔍 [Message Handler] Names list: " + llDumpList2String(names, ", "));
+                llOwnerSay("🔍 [Message Handler] Sending kick player list: '" + namesCSV + "'");
             }
             llMessageLinked(LINK_SET, 8009, namesCSV, id);
             return;
