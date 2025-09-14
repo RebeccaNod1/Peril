@@ -44,6 +44,13 @@ All notable changes to Peril Dice are documented in this file.
   * Solution: Enhanced pick data validation and sync message reliability across all game modules
   * Impact: Shield detection now works correctly - proper "PLOT TWIST!" and shield mechanics restored
 
+❌ ENHANCED ELIMINATION VISUAL FEEDBACK
+- Red X Elimination Marker: Added clear visual indicator for eliminated players on scoreboard
+  * Visual Enhancement: Eliminated players now display a red X overlay on their profile picture
+  * Immediate Feedback: Red X appears instantly when player reaches 0 lives for clear elimination status
+  * Persistent Display: Red X remains visible on scoreboard until game reset for historical reference
+  * User Experience: Players can easily see who has been eliminated without checking heart counts
+
 🛡️ GAME STATE DESYNCHRONIZATION FIXES
 - Sync Message Reliability: Fixed various state sync issues that could cause game confusion
 - Pick Queue Protection: Enhanced pick queue management to prevent corruption during disconnections
