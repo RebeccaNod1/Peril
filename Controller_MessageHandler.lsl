@@ -295,20 +295,20 @@ handleOwnerMessage(string messageData) {
         string msgType = llList2String(parts, 0);
         if (msgType == "JOIN") {
             string playerName = llList2String(parts, 1);
-            llOwnerSay("👋 " + playerName + " joined the game!");
+            llOwnerSay("[JOIN] " + playerName + " joined the game!");
         } else if (msgType == "LEAVE") {
             string playerName = llList2String(parts, 1);
-            llOwnerSay("👋 " + playerName + " left the game.");
+            llOwnerSay("[LEAVE] " + playerName + " left the game.");
         } else if (msgType == "ERROR") {
             string error = llList2String(parts, 1);
-            llOwnerSay("⚠️ " + error);
+            llOwnerSay("[ERROR] " + error);
         } else if (msgType == "SUCCESS") {
             string msg = llList2String(parts, 1);
-            llOwnerSay("✅ " + msg);
+            llOwnerSay("[SUCCESS] " + msg);
         } else if (msgType == "DEBUG") {
             string component = llList2String(parts, 1);
             string msg = llList2String(parts, 2);
-            llOwnerSay("🔧 [" + component + "] " + msg);
+            llOwnerSay("[DEBUG] [" + component + "] " + msg);
         }
     }
 }
@@ -322,7 +322,7 @@ handlePublicMessage(string messageData) {
         string msgType = llList2String(parts, 0);
         if (msgType == "GAME") {
             string state = llList2String(parts, 1);
-            llSay(0, "🎮 " + state);
+            llSay(0, "[GAME] " + state);
         }
     }
 }
@@ -343,7 +343,7 @@ handleRegionMessage(string messageData) {
             string msgType = llList2String(parts, 1);
             if (msgType == "WELCOME") {
                 string msg = llList2String(parts, 2);
-                llRegionSayTo(playerKey, 0, "🔄 " + msg);
+                llRegionSayTo(playerKey, 0, "[WELCOME] " + msg);
             }
         }
     }
