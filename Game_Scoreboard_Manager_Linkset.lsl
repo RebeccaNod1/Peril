@@ -7,7 +7,7 @@
 // =============================================================================
 
 // Verbose logging control
-integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
+integer VERBOSE_LOGGING = FALSE;  // Global flag for verbose debug logs - DISABLED to save memory
 integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
 
 // Message constants for link communication
@@ -17,20 +17,22 @@ integer MSG_PLAYER_UPDATE = 3002;
 integer MSG_CLEAR_GAME = 3003;
 integer MSG_REMOVE_PLAYER = 3004;
 
-// Leaderboard messages (to link 25)  
+// Leaderboard messages (to link 35)  
 integer MSG_GAME_WON = 3010;
 integer MSG_GAME_LOST = 3011;
 integer MSG_RESET_LEADERBOARD = 3012;
 
-// Dice messages (to link 73)
+// Dice messages (to link 83)
 integer MSG_DICE_ROLL = 3020;
 integer MSG_CLEAR_DICE = 3021;
 
-// Prim indices (UPDATED for linkset - all shifted by +1 from standalone version)
-integer BACKGROUND_PRIM = 3;      // Now link 3 (was 2)
-integer ACTIONS_PRIM = 4;         // Now link 4 (was 3)
-integer FIRST_PLAYER_PRIM = 5;    // Now link 5 (was 4)
-integer LAST_PLAYER_PRIM = 24;    // Now link 24 (was 23) - SAFETY BOUNDARY
+// Prim indices (UPDATED after overlay prim insertion - overlays are links 2-11)
+integer BACKGROUND_PRIM = 13;     // Now link 13 (backboard)
+integer ACTIONS_PRIM = 14;        // Now link 14 (title/action)
+integer FIRST_PROFILE_PRIM = 15;  // Profile prims start at 15
+integer LAST_PROFILE_PRIM = 34;   // Profile/life prims end at 34
+integer FIRST_OVERLAY_PRIM = 2;   // Overlay prims start at 2
+integer LAST_OVERLAY_PRIM = 11;   // Overlay prims end at 11
 
 // Heart texture UUIDs - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
 string TEXTURE_0_HEARTS = "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b"; // 0 hearts (dead)
@@ -70,11 +72,51 @@ list leaderboardLosses = []; // Loaded from linkset data at startup
 list profileRequests = []; // Track which profile requests belong to which player
 list httpRequests = []; // Track HTTP requests for profile pictures
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 // Profile picture extraction constants
 string profile_key_prefix = "<meta name=\"imageid\" content=\"";
 string profile_img_prefix = "<img alt=\"profile image\" src=\"http://secondlife.com/app/image/";
 integer profile_key_prefix_length;
 integer profile_img_prefix_length;
+
+// Reset background prim to proper black background
+resetBackgroundPrim() {
+    // Reset main background prim (link 13)
+    llSetLinkPrimitiveParamsFast(BACKGROUND_PRIM, [
+        PRIM_TEXTURE, ALL_SIDES, TEXTURE_BACKGROUND, <1,1,0>, <0,0,0>, 0.0,
+        PRIM_COLOR, ALL_SIDES, <0.0, 0.0, 0.0>, 1.0, // Black color
+        PRIM_TEXT, "", <0,0,0>, 0.0 // Remove any text
+    ]);
+    
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("🖤 Reset background prim " + (string)BACKGROUND_PRIM + " to black");
+    }
+}
+
+// Reset the scoreboard manager cube (link 12) to neutral state
+resetManagerCube() {
+    llSetLinkPrimitiveParamsFast(12, [
+        PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0,
+        PRIM_COLOR, ALL_SIDES, <0.0, 0.0, 0.0>, 1.0, // Black color to blend in
+        PRIM_TEXT, "", <0,0,0>, 0.0 // Remove any text
+    ]);
+    
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("📦 Reset manager cube (link 12) to black");
+    }
+}
 
 // Update actions prim with appropriate status texture
 updateActionsPrim(string status) {
@@ -101,9 +143,9 @@ updateActionsPrim(string status) {
     }
     
     // SAFETY CHECK - prevent overflow into leaderboard prims
-    if (ACTIONS_PRIM > LAST_PLAYER_PRIM) {
+    if (ACTIONS_PRIM > LAST_PROFILE_PRIM) {
         if (VERBOSE_LOGGING) {
-            llOwnerSay("❌ ERROR: ACTIONS_PRIM (" + (string)ACTIONS_PRIM + ") exceeds safety boundary (" + (string)LAST_PLAYER_PRIM + ")");
+            llOwnerSay("❌ ERROR: ACTIONS_PRIM (" + (string)ACTIONS_PRIM + ") exceeds safety boundary (" + (string)LAST_PROFILE_PRIM + ")");
         }
         return;
     }
@@ -296,7 +338,7 @@ generateLeaderboardText() {
     }
     
     // Send formatted text to leaderboard bridge
-    llMessageLinked(25, MSG_RESET_LEADERBOARD, "FORMATTED_TEXT|" + leaderboardText, NULL_KEY);
+    llMessageLinked(35, MSG_RESET_LEADERBOARD, "FORMATTED_TEXT|" + leaderboardText, NULL_KEY);
 }
 
 // Reset leaderboard data
@@ -328,14 +370,14 @@ clearAllPlayers() {
     // Reset all player prims to default state
     integer i;
     for (i = 0; i < 10; i++) {
-        integer profilePrimIndex = FIRST_PLAYER_PRIM + (i * 2);
-        integer heartsPrimIndex = FIRST_PLAYER_PRIM + (i * 2) + 1;
+        integer profilePrimIndex = getProfilePrimLink(i);
+        integer heartsPrimIndex = getHeartsPrimLink(i);
+        integer overlayPrimIndex = getOverlayPrimLink(i);
         
         // SAFETY CHECK - prevent overflow into leaderboard prims
-        if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
+        if (profilePrimIndex < FIRST_PROFILE_PRIM || profilePrimIndex > LAST_PROFILE_PRIM) {
             if (VERBOSE_LOGGING) {
-                llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex +
-                           " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+                llOwnerSay("❌ ERROR: Player prim index out of range! Profile: " + (string)profilePrimIndex);
             }
             return; // Don't modify prims outside our range!
         }
@@ -351,6 +393,13 @@ clearAllPlayers() {
         llSetLinkPrimitiveParamsFast(heartsPrimIndex, [
             PRIM_TEXTURE, ALL_SIDES, TEXTURE_3_HEARTS, <1,1,0>, <0,0,0>, 0.0,
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+            PRIM_TEXT, "", <1,1,1>, 0.0
+        ]);
+        
+        // Reset overlay prim to transparent
+        llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+            PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0,
+            PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Fully transparent
             PRIM_TEXT, "", <1,1,1>, 0.0
         ]);
     }
@@ -376,18 +425,22 @@ removePlayer(string playerName) {
 
 // Refresh the entire player display - shows all current players in order
 refreshPlayerDisplay() {
-    // Clear all player slots first
+    // Clear only unused player slots (beyond current player count)
+    integer numActivePlayers = llGetListLength(playerNames);
     integer i;
-    for (i = 0; i < 10; i++) {
-        integer profilePrimIndex = FIRST_PLAYER_PRIM + (i * 2);
-        integer heartsPrimIndex = FIRST_PLAYER_PRIM + (i * 2) + 1;
+    
+    // Only reset prims for unused slots (avoid flickering for active players)
+    for (i = numActivePlayers; i < 10; i++) {
+        integer profilePrimIndex = getProfilePrimLink(i);
+        integer heartsPrimIndex = getHeartsPrimLink(i);
+        integer overlayPrimIndex = getOverlayPrimLink(i);
         
         // SAFETY CHECK
-        if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
+        if (profilePrimIndex < FIRST_PROFILE_PRIM || profilePrimIndex > LAST_PROFILE_PRIM) {
             return; // Stop if we'd go out of bounds
         }
         
-        // Reset to default
+        // Reset to default only for unused slots
         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
             PRIM_TEXTURE, ALL_SIDES, TEXTURE_DEFAULT_PROFILE, <1,1,0>, <0,0,0>, 0.0,
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
@@ -399,6 +452,13 @@ refreshPlayerDisplay() {
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
             PRIM_TEXT, "", <1,1,1>, 0.0
         ]);
+        
+        // Hide overlay prim (make transparent)
+        llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+            PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0,
+            PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Fully transparent
+            PRIM_TEXT, "", <1,1,1>, 0.0
+        ]);
     }
     
     // Now display all current players in their new positions
@@ -408,22 +468,20 @@ refreshPlayerDisplay() {
         string profileTexture = llList2String(playerProfiles, i);
         
         // Calculate prim indices for this position
-        integer profilePrimIndex = FIRST_PLAYER_PRIM + (i * 2);
-        integer heartsPrimIndex = FIRST_PLAYER_PRIM + (i * 2) + 1;
+        integer profilePrimIndex = getProfilePrimLink(i);
+        integer heartsPrimIndex = getHeartsPrimLink(i);
+        integer overlayPrimIndex = getOverlayPrimLink(i);
         
         // SAFETY CHECK
-        if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
+        if (profilePrimIndex < FIRST_PROFILE_PRIM || profilePrimIndex > LAST_PROFILE_PRIM) {
             if (VERBOSE_LOGGING) {
                 llOwnerSay("⚠️ Warning: Player " + name + " cannot be displayed - out of prim range");
             }
             return;
         }
         
-        // Determine profile texture to use - check for elimination first
-        if (lives <= 0) {
-            // Player is eliminated - show red X overlay
-            profileTexture = TEXTURE_ELIMINATED_X;
-        } else if (isBot(name)) {
+        // Determine profile texture to use - don't replace with X, keep profile
+        if (isBot(name)) {
             profileTexture = TEXTURE_BOT_PROFILE;
         } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
             profileTexture = TEXTURE_DEFAULT_PROFILE;
@@ -431,7 +489,7 @@ refreshPlayerDisplay() {
         // Note: If we have a cached profile texture, use it; otherwise use default for now
         // HTTP requests for new profile pictures will update later
         
-        // Set profile texture
+        // Set profile texture (always normal coloring now)
         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
             PRIM_TEXTURE, ALL_SIDES, profileTexture, <1,1,0>, <0,0,0>, 0.0,
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
@@ -445,12 +503,91 @@ refreshPlayerDisplay() {
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
             PRIM_TEXT, "", <1,1,1>, 0.0
         ]);
+        
+        // Control overlay prim - show red X if eliminated, hide if alive
+        if (lives <= 0) {
+            // Show red X overlay for eliminated player
+            llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+                PRIM_TEXTURE, ALL_SIDES, TEXTURE_ELIMINATED_X, <1,1,0>, <0,0,0>, 0.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0, // Fully visible
+                PRIM_TEXT, "", <1,1,1>, 0.0
+            ]);
+        } else {
+            // Hide overlay for alive player
+            llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+                PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Fully transparent
+                PRIM_TEXT, "", <1,1,1>, 0.0
+            ]);
+        }
     }
 }
 
 // Check if a player name indicates it's a bot
 integer isBot(string playerName) {
     return (llSubStringIndex(playerName, "Bot") == 0);
+}
+
+// Map player index to profile prim link number
+integer getProfilePrimLink(integer playerIndex) {
+    // From link scan: Row 1 (top) has profile 31,33; Row 2 has 27,29; etc.
+    // Player index 0,1 = row 1; 2,3 = row 2; 4,5 = row 3; etc.
+    // Each row has 4 prims: profile col1, hearts col1, profile col2, hearts col2
+    
+    integer row = playerIndex / 2;  // Which row (0=top, 1=second, etc)
+    integer col = playerIndex % 2;  // Which column (0=left, 1=right)
+    
+    // Base link for each row (profile col1): 31, 27, 23, 19, 15
+    integer baseLink = 31 - (row * 4);
+    
+    if (col == 0) {
+        // Column 1 (left): profile prim
+        return baseLink;
+    } else {
+        // Column 2 (right): profile prim (skip hearts prim)
+        return baseLink + 2;
+    }
+}
+
+// Map player index to hearts prim link number
+integer getHeartsPrimLink(integer playerIndex) {
+    // Hearts prims are adjacent to profile prims
+    // Row 1: profile 31->hearts 32, profile 33->hearts 34
+    // Row 2: profile 27->hearts 28, profile 29->hearts 30, etc.
+    
+    integer row = playerIndex / 2;  // Which row (0=top, 1=second, etc)
+    integer col = playerIndex % 2;  // Which column (0=left, 1=right)
+    
+    // Base link for each row (hearts col1): 32, 28, 24, 20, 16
+    integer baseLink = 32 - (row * 4);
+    
+    if (col == 0) {
+        // Column 1 (left): hearts prim
+        return baseLink;
+    } else {
+        // Column 2 (right): hearts prim (skip profile prim)
+        return baseLink + 2;
+    }
+}
+
+// Map player index to overlay prim link number
+integer getOverlayPrimLink(integer playerIndex) {
+    // Overlay prims arrangement: row 1 col 1=3, row 1 col 2=2, row 2 col 1=5, row 2 col 2=4, etc.
+    // Pattern: odd rows (0,2,4,6,8) start at 3,7,11 for col1 and 2,6,10 for col2
+    //          Wait, let me check the actual pattern from the scan...
+    // Link 2: overlay row 1 col 2, Link 3: overlay row 1 col 1
+    // Link 4: overlay row 2 col 2, Link 5: overlay row 2 col 1
+    // So pattern is: row N col 1 = 3 + (row * 2), row N col 2 = 2 + (row * 2)
+    integer row = playerIndex / 2;
+    integer col = playerIndex % 2;
+    
+    if (col == 0) {
+        // Column 1: 3, 5, 7, 9, 11
+        return 3 + (row * 2);
+    } else {
+        // Column 2: 2, 4, 6, 8, 10
+        return 2 + (row * 2);
+    }
 }
 
 string getHeartTexture(integer lives) {
@@ -478,7 +615,26 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
         // Add to tracking lists
         playerNames += [playerName];
         playerLives += [lives];
-        playerProfiles += [profileUUID];
+        // For bots, always store the bot texture UUID to prevent HTTP requests
+        if (isBot(playerName)) {
+            playerProfiles += [TEXTURE_BOT_PROFILE];
+        } else {
+            playerProfiles += [profileUUID];
+        }
+        
+        // DEBUG: Show prim mapping - DISABLED to save memory
+        // if (VERBOSE_LOGGING) {
+        //     integer debugProfile = getProfilePrimLink(playerIndex);
+        //     integer debugHearts = getHeartsPrimLink(playerIndex);
+        //     integer debugOverlay = getOverlayPrimLink(playerIndex);
+        //     llOwnerSay("🔧 [Scoreboard] Player " + (string)playerIndex + " (" + playerName + "): Profile=" + (string)debugProfile + ", Hearts=" + (string)debugHearts + ", Overlay=" + (string)debugOverlay);
+        //     llOwnerSay("🔍 [Scoreboard] Prim ranges: FIRST_PROFILE=" + (string)FIRST_PROFILE_PRIM + ", LAST_PROFILE=" + (string)LAST_PROFILE_PRIM);
+        //     
+        //     // Test if the calculated prim is actually valid
+        //     if (debugProfile < FIRST_PROFILE_PRIM || debugProfile > LAST_PROFILE_PRIM) {
+        //         llOwnerSay("⚠️ [Scoreboard] WARNING: Calculated profile prim " + (string)debugProfile + " is outside valid range!");
+        //     }
+        // }
         
     } else {
         // Update existing player
@@ -487,14 +643,16 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     }
     
     // Update the physical prims for this player
-    integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);
-    integer heartsPrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2) + 1;
+    integer profilePrimIndex = getProfilePrimLink(playerIndex);
+    integer heartsPrimIndex = getHeartsPrimLink(playerIndex);
+    integer overlayPrimIndex = getOverlayPrimLink(playerIndex);
     
-    // SAFETY CHECK - prevent overflow into leaderboard prims
-    if (profilePrimIndex > LAST_PLAYER_PRIM || heartsPrimIndex > LAST_PLAYER_PRIM) {
+    // SAFETY CHECK - prevent overflow
+    if (profilePrimIndex < FIRST_PROFILE_PRIM || profilePrimIndex > LAST_PROFILE_PRIM || 
+        overlayPrimIndex < FIRST_OVERLAY_PRIM || overlayPrimIndex > LAST_OVERLAY_PRIM) {
         if (VERBOSE_LOGGING) {
-            llOwnerSay("❌ ERROR: Player prim index overflow! Attempted: " + (string)profilePrimIndex + 
-                       " or " + (string)heartsPrimIndex + ", max allowed: " + (string)LAST_PLAYER_PRIM);
+            llOwnerSay("❌ ERROR: Player prim index out of range! Profile: " + (string)profilePrimIndex + 
+                       ", Overlay: " + (string)overlayPrimIndex + ", Player: " + (string)playerIndex);
         }
         return; // Don't modify prims outside our range!
     }
@@ -503,10 +661,26 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
     string profileTexture;
     
     if (lives <= 0) {
-        // Player is eliminated - show red X (replaces profile picture)
-        profileTexture = TEXTURE_ELIMINATED_X;
+        // Player is eliminated - keep profile picture but show red X on overlay prim
         if (VERBOSE_LOGGING) {
-            llOwnerSay("💀 Scoreboard: Showing elimination X for " + playerName);
+            llOwnerSay("💀 Scoreboard: Showing elimination X overlay for " + playerName);
+        }
+        
+        // CRITICAL: Still need to set profileTexture for eliminated players
+        if (isBot(playerName)) {
+            profileTexture = TEXTURE_BOT_PROFILE;
+        } else if (playerIndex < llGetListLength(playerProfiles)) {
+            string cachedTexture = llList2String(playerProfiles, playerIndex);
+            if (cachedTexture != "" && cachedTexture != profileUUID && 
+                cachedTexture != TEXTURE_DEFAULT_PROFILE && cachedTexture != TEXTURE_BOT_PROFILE &&
+                cachedTexture != TEXTURE_ELIMINATED_X) {
+                // We have a previously fetched profile picture, use it
+                profileTexture = cachedTexture;
+            } else {
+                profileTexture = TEXTURE_DEFAULT_PROFILE;
+            }
+        } else {
+            profileTexture = TEXTURE_DEFAULT_PROFILE;
         }
     } else {
         // Player is alive - determine profile texture to use
@@ -524,27 +698,74 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
         }
         
         // If no cached texture or using original UUID, determine what to use
+        // if (VERBOSE_LOGGING) {
+        //     llOwnerSay("🔍 [DEBUG] " + playerName + " - profileTexture='" + profileTexture + "', profileUUID='" + profileUUID + "', isBot=" + (string)isBot(playerName));
+        // }
+        
         if (profileTexture == profileUUID) {
             if (isBot(playerName)) {
                 profileTexture = TEXTURE_BOT_PROFILE;
+                // if (VERBOSE_LOGGING) {
+                //     llOwnerSay("🤖 [DEBUG] " + playerName + " is a bot, using bot texture");
+                // }
             } else if (profileTexture == "" || profileTexture == "00000000-0000-0000-0000-000000000000") {
                 profileTexture = TEXTURE_DEFAULT_PROFILE;
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("❓ [DEBUG] " + playerName + " has empty/null UUID, using default texture");
+                }
             } else {
-                // Request profile picture via HTTP
+                // CRITICAL: Set default texture FIRST, then request profile picture
+                profileTexture = TEXTURE_DEFAULT_PROFILE;
+                
+                // if (VERBOSE_LOGGING) {
+                //     llOwnerSay("🔄 [DEBUG] " + playerName + " making HTTP request for UUID: " + profileUUID);
+                // }
+                
+                // Request profile picture via HTTP (will update later)
                 string URL_RESIDENT = "https://world.secondlife.com/resident/";
                 key httpRequestID = llHTTPRequest(URL_RESIDENT + profileUUID, [HTTP_METHOD, "GET"], "");
                 
                 // Store the HTTP request mapping: requestID -> playerIndex
                 httpRequests += [httpRequestID, playerIndex];
+                
+                // if (VERBOSE_LOGGING) {
+                //     llOwnerSay("🔄 [Scoreboard] Requesting profile pic for " + playerName + ", showing default for now");
+                // }
             }
+        } else {
+            // if (VERBOSE_LOGGING) {
+            //     llOwnerSay("🔍 [DEBUG] " + playerName + " - profileTexture != profileUUID, not making HTTP request");
+            // }
         }
     }
     
+    // Enhanced visual effects for eliminated vs alive players
+    vector primColor;
+    if (lives <= 0) {
+        // Eliminated player - red tint to make X more prominent
+        primColor = <1.0, 0.3, 0.3>; // Red tinted
+    } else {
+        // Alive player - normal coloring
+        primColor = <1.0, 1.0, 1.0>; // White/normal
+    }
+    
+    // AGGRESSIVE VISUAL UPDATE: Force immediate rendering with glow
     llSetLinkPrimitiveParamsFast(profilePrimIndex, [
         PRIM_TEXTURE, ALL_SIDES, profileTexture, <1,1,0>, <0,0,0>, 0.0,
-        PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
-        PRIM_TEXT, "", <1,1,1>, 0.0 // Remove player name text
+        PRIM_COLOR, ALL_SIDES, primColor, 1.0,
+        PRIM_TEXT, "", <1,1,1>, 0.0, // Remove player name text
+        PRIM_GLOW, ALL_SIDES, 0.01 // Tiny glow to force re-render
     ]);
+    
+    // Remove the glow after a moment to make it normal
+    llSleep(0.1);
+    llSetLinkPrimitiveParamsFast(profilePrimIndex, [
+        PRIM_GLOW, ALL_SIDES, 0.0 // Remove glow
+    ]);
+    
+    // if (VERBOSE_LOGGING) {
+    //     llOwnerSay("🖼️ [Scoreboard] Applied texture " + profileTexture + " to prim " + (string)profilePrimIndex + " with forced refresh");
+    // }
     
     // Update hearts prim texture
     string heartTexture = getHeartTexture(lives);
@@ -553,18 +774,42 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
         PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
         PRIM_TEXT, "", <1,0,0>, 0.0 // Remove lives text
     ]);
+    
+    // Update overlay prim - show red X if eliminated, hide if alive
+    if (lives <= 0) {
+        // Show red X overlay for eliminated player
+        llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+            PRIM_TEXTURE, ALL_SIDES, TEXTURE_ELIMINATED_X, <1,1,0>, <0,0,0>, 0.0,
+            PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0, // Fully visible
+            PRIM_TEXT, "", <1,1,1>, 0.0
+        ]);
+    } else {
+        // Hide overlay for alive player (make it transparent)
+        llSetLinkPrimitiveParamsFast(overlayPrimIndex, [
+            PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0,
+            PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Fully transparent
+            PRIM_TEXT, "", <1,1,1>, 0.0
+        ]);
+    }
 }
 
 default {
     state_entry() {
+        reportMemoryUsage("Scoreboard Manager");
         if (VERBOSE_LOGGING) {
-            llOwnerSay("📊 Scoreboard Manager ready! (Linkset Version)");
-            llOwnerSay("📊 Managing prims " + (string)FIRST_PLAYER_PRIM + "-" + (string)LAST_PLAYER_PRIM);
+            llOwnerSay("📈 Scoreboard Manager ready! (Linkset Version)");
+            llOwnerSay("📈 Managing prims " + (string)FIRST_PROFILE_PRIM + "-" + (string)LAST_PROFILE_PRIM);
         }
         
         // Initialize profile picture extraction constants
         profile_key_prefix_length = llStringLength(profile_key_prefix);
         profile_img_prefix_length = llStringLength(profile_img_prefix);
+        
+        // Reset background prim to proper state
+        resetBackgroundPrim();
+        
+        // Reset manager cube to neutral state
+        resetManagerCube();
         
         // Load persistent leaderboard data
         loadLeaderboardData();
@@ -603,16 +848,18 @@ default {
                 integer lives = (integer)llList2String(parts, 1);
                 string profileUUID = llList2String(parts, 2);
                 
-                // Debug: Show what data scoreboard received
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("📊 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
-                }
+                // Debug: Show what data scoreboard received - DISABLED to save memory
+                // if (VERBOSE_LOGGING) {
+                //     llOwnerSay("📈 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
+                // }
                 
                 updatePlayerDisplay(playerName, lives, profileUUID);
             }
         }
         else if (num == MSG_CLEAR_GAME) {
             // Reset to default state
+            resetBackgroundPrim(); // Reset background to black
+            resetManagerCube(); // Reset manager cube to neutral
             clearAllPlayers(); // Clear all current players
             updateActionsPrim("Title"); // Reset to title
             
@@ -674,14 +921,32 @@ default {
                     // Update the cached profile texture
                     playerProfiles = llListReplaceList(playerProfiles, [profileUUID], playerIndex, playerIndex);
                     
-                    // Update the physical prim
-                    integer profilePrimIndex = FIRST_PLAYER_PRIM + (playerIndex * 2);
+                    // Update the physical prim using correct mapping
+                    integer profilePrimIndex = getProfilePrimLink(playerIndex);
                     
                     // SAFETY CHECK
-                    if (profilePrimIndex <= LAST_PLAYER_PRIM) {
+                    if (profilePrimIndex >= FIRST_PROFILE_PRIM && profilePrimIndex <= LAST_PROFILE_PRIM) {
+                        // AGGRESSIVE VISUAL UPDATE: Force immediate rendering
                         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
-                            PRIM_TEXTURE, ALL_SIDES, profileUUID, <1,1,0>, <0,0,0>, 0.0
+                            PRIM_TEXTURE, ALL_SIDES, profileUUID, <1,1,0>, <0,0,0>, 0.0,
+                            PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+                            PRIM_GLOW, ALL_SIDES, 0.01 // Tiny glow to force re-render
                         ]);
+                        
+                        // Remove the glow after a moment to make it normal
+                        llSleep(0.1);
+                        llSetLinkPrimitiveParamsFast(profilePrimIndex, [
+                            PRIM_GLOW, ALL_SIDES, 0.0 // Remove glow
+                        ]);
+                        
+                        if (VERBOSE_LOGGING) {
+                            string playerName = llList2String(playerNames, playerIndex);
+                            llOwnerSay("🖼️ Updated profile picture for " + playerName + " on prim " + (string)profilePrimIndex + " with forced refresh");
+                        }
+                    } else {
+                        if (VERBOSE_LOGGING) {
+                            llOwnerSay("❌ ERROR: HTTP response tried to update invalid prim " + (string)profilePrimIndex + " for player " + (string)playerIndex);
+                        }
                     }
                 }
             }

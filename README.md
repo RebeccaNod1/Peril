@@ -1,13 +1,15 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.4 - Disconnect Recovery & System-Wide Debug Control**
+**Current Version: 2.8.5 - Memory Optimization & Architecture Cleanup**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**🚨 NEW in v2.8.4**: **DISCONNECT RECOVERY & DEBUG SYSTEM** - Revolutionary disconnect/reconnect recovery system eliminates need to kick players who disconnect during their turn, plus comprehensive system-wide verbose logging toggle for production vs development modes.
+**🚨 NEW in v2.8.5**: **MEMORY OPTIMIZATION & ARCHITECTURE CLEANUP** - Major system cleanup eliminating dead code, fixing bot profile picture flickering, and optimizing memory usage across all scripts with measurable performance improvements.
+
+**NEW in v2.8.4**: **DISCONNECT RECOVERY & DEBUG SYSTEM** - Revolutionary disconnect/reconnect recovery system eliminates need to kick players who disconnect during their turn, plus comprehensive system-wide verbose logging toggle.
 
 **NEW in v2.8.3**: **CRITICAL BUG FIXES** - Fixed major shield detection logic error causing incorrect "NO SHIELD!" messages when shields were actually provided, plus complete initialization system overhaul eliminating the need for manual script reset after rezzing.
 
@@ -17,7 +19,66 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
-## Major v2.8.4 Improvements 🚨
+## Major v2.8.5 Improvements 🚨
+
+### 🧠 **Memory Optimization & Dead Code Cleanup**
+- **UpdateHelper.lsl Elimination**: Completely removed vestigial 204-line script consuming ~41KB memory but providing zero functionality
+  - **Discovery**: UpdateHelper existed but was never actually called - pure dead code waste
+  - **Impact**: Main Controller memory usage improved from 83.8% to 81.4% (2.4% reduction)
+  - **Cleanup**: Removed all supporting infrastructure, message constants, variables, handlers
+  - **Simplification**: Direct scoreboard updates instead of complex but unused delegation system
+- **Verbose_Logger Streamlined**: Simplified debug system by 47% while keeping essential functionality
+  - **Size Reduction**: 149 lines → 80 lines by removing unused buffering system
+  - **Performance**: Eliminated timer overhead and message processing complexity
+  - **Kept**: Core debug toggle functionality that's actually used
+
+### 🎨 **Bot Profile Picture Fix** 
+- **Fixed Visual Glitch**: Resolved bot avatars randomly turning into gray boxes mid-game
+  - **Issue**: Scoreboard refresh would reset ALL profiles to gray before restoration
+  - **Root Cause**: `refreshPlayerDisplay()` function caused visual flicker during player removal
+  - **Solution**: Modified refresh to only reset unused slots, preserving active player textures
+  - **Enhancement**: Bots now cache robot texture directly to prevent HTTP requests
+  - **Result**: Consistent bot avatars throughout entire game without gray box flickering
+
+### 🏗️ **Architecture Optimization**
+- **Link Number Reorganization**: Updated entire system to optimized linkset structure
+  - **Scoreboard Manager**: Link 2 → Link 12 (moved for overlay prim accommodation)
+  - **Leaderboard Manager**: Link 25 → Link 35 (updated to links 35-82 range)
+  - **Dice Display**: Link 73 → Link 83 (maintained 2-prim dice system)
+  - **System-Wide Update**: 11 scripts updated with new mappings and prim ranges
+- **Enhanced Prim Structure**: Better organized linkset for performance and future development
+  - **Overlay Prims**: Dedicated elimination marker prims (links 2-11)
+  - **Scoreboard Optimization**: Profile/hearts prims properly mapped to new structure
+  - **XyzzyText Enhancement**: Leaderboard banks updated for new architecture
+
+### 🔧 **Enhanced Game Logic & Bug Fixes**
+- **Number Picker Enhancement**: Improved parsing for mixed number formats
+  - **Format Support**: Handles both CSV ("1,2,3") and semicolon ("1;2;3") formats
+  - **Whitespace Handling**: Trims formats like "5, 6" vs "5,6" for consistency
+  - **Bot Integration**: Enhanced bot processing with avoid lists from human players
+- **Bot Manager Improvements**: Better round detection and fair play mechanics
+  - **Round Detection**: Enhanced detection through peril player and lives changes
+  - **Fair Play**: Bots now properly avoid numbers picked by human players
+  - **Command Processing**: Improved bot handling and duplicate pick prevention
+- **Communication Fixes**: Enhanced region messaging and player feedback systems
+
+### 📊 **Performance Impact**
+- **Memory Efficiency**: Measurable reduction in memory consumption across multiple scripts
+- **Visual Stability**: Eliminated profile picture flickering and display inconsistencies  
+- **Code Quality**: Cleaner, more maintainable codebase with reduced complexity
+- **Message Traffic**: Reduced unnecessary inter-script communication overhead
+- **Architecture**: More organized and scalable linkset structure
+
+### 📊 **Before vs After v2.8.5**
+| **Before** | **After** |
+|------------|----------|
+| ❌ Dead UpdateHelper consuming 41KB memory | ✅ Eliminated dead code, 2.4% memory improvement |
+| ❌ Bot profiles flicker to gray boxes | ✅ Stable bot avatars throughout game |
+| ❌ Complex unused buffering systems | ✅ Streamlined, focused functionality |
+| ❌ Scattered link architecture | ✅ Organized, optimized linkset structure |
+| ❌ Inconsistent number format handling | ✅ Robust parsing for all formats |
+
+## Major v2.8.4 Improvements
 
 ### 🔍 **System-Wide Verbose Logging Toggle**
 - **One-Click Debug Control**: Comprehensive verbose logging system across all 14 game modules

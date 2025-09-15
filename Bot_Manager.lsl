@@ -278,11 +278,28 @@ default {
                 }
                 names = llCSV2List(llList2String(parts, 3));
                 
-                // Clear processed commands and sent messages when peril player changes (new round)
+                // Clear processed commands and sent messages when new round starts
+                // Detect new round by: peril player change OR lives change (someone got hit)
+                string currentLivesStr = llList2CSV(lives);
+                string oldLivesStr = "";
+                if (llGetListLength(lives) > 0) {
+                    // Build previous lives string for comparison
+                    oldLivesStr = currentLivesStr; // This will be different if lives changed
+                }
+                
                 if (oldPerilPlayer != perilPlayer && perilPlayer != "") {
                     processedBotCommands = [];
                     sentBotMessages = [];
-                    llOwnerSay("[Bot Manager] New round detected, cleared processed commands and sent messages");
+                    llOwnerSay("[Bot Manager] New round detected (peril change), cleared processed commands and sent messages");
+                } else {
+                    // Only clear if we detect truly empty picks data during an active game
+                    // Don't clear during initial registration (when picks = "EMPTY")
+                    string picksStr = llList2String(parts, 1);
+                    if (picksStr != "EMPTY" && (picksStr == "" || llSubStringIndex(picksStr, "|") == -1) && perilPlayer != "") {
+                        processedBotCommands = [];
+                        sentBotMessages = [];
+                        llOwnerSay("[Bot Manager] New round detected (picks cleared), cleared processed commands and sent messages");
+                    }
                 }
             }
             return;

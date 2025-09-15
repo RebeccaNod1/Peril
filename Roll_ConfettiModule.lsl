@@ -92,7 +92,16 @@ list getPicksFor(string nameInput) {
             }
             
             picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-            list result = llParseString2List(picks, [","], []);
+            list rawResult = llParseString2List(picks, [","], []);
+            // Trim whitespace from each number to handle "5, 6" vs "5,6" formats
+            list result = [];
+            integer j;
+            for (j = 0; j < llGetListLength(rawResult); j++) {
+                string num = llStringTrim(llList2String(rawResult, j), STRING_TRIM);
+                if (num != "") {
+                    result += [num];
+                }
+            }
             return result;
         }
     }
@@ -267,8 +276,8 @@ default {
                 // Send message to main controller to get the player's key and show dialog
                 llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
             } else {
-                // Clear dice display before showing new roll dialog
-                llMessageLinked(LINK_SET, MSG_CLEAR_DICE, "", NULL_KEY);
+                // Clear dice display directly (link 83)
+                llMessageLinked(83, 3021, "", NULL_KEY);
                 
                 // Update peril player from the roll dialog message
                 perilPlayer = str;
@@ -345,8 +354,8 @@ default {
             lastRollTime = llGetUnixTime(); // Record roll time
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
-            // Send dice roll to Main Controller for forwarding to dice display
-            llMessageLinked(LINK_SET, MSG_DICE_ROLL, perilPlayer + "|" + resultStr + "|" + (string)diceType, NULL_KEY);
+            // Send dice roll directly to dice display (link 83)
+            llMessageLinked(83, 3020, perilPlayer + "|" + resultStr, NULL_KEY);
 
             string newPeril = "";
             integer matched = FALSE;
@@ -383,7 +392,8 @@ default {
                 llSay(0, "⚡ PLOT TWIST! " + newPeril + " picked " + resultStr + " (rolled on d" + (string)diceType + ") and is now in ULTIMATE PERIL! ⚡");
                 perilPlayer = newPeril;
                 
-                // Plot Twist status will be sent by Main Controller via link messages
+                // Direct scoreboard status update
+                llMessageLinked(12, 3001, "Plot Twist", NULL_KEY);
                 // Add delay to let status display before next phase
                 llSleep(2.0);
                 
@@ -393,9 +403,13 @@ default {
                 integer pidx = llListFindList(names, [perilPlayer]);
                 if (pidx != -1) {
                     integer currentLives = llList2Integer(lives, pidx);
+                    llOwnerSay("🔧 DEBUG: Before lives update - " + perilPlayer + " at index " + (string)pidx + " has " + (string)currentLives + " lives");
+                    llOwnerSay("🔧 DEBUG: Current lives list: " + llList2CSV(lives));
                     lives = llListReplaceList(lives, [currentLives - 1], pidx, pidx);
+                    llOwnerSay("🔧 DEBUG: After lives update - lives list: " + llList2CSV(lives));
                     
-                    // Player update will be sent by Main Controller via sync message and updateHelpers()
+                    // Send direct scoreboard update when lives change
+                    llMessageLinked(12, 3002, perilPlayer + "|" + (string)(currentLives - 1) + "|" + "NULL_KEY", NULL_KEY);
                     llOwnerSay("💗 Player lives updated: " + perilPlayer + " now has " + (string)(currentLives - 1) + " lives");
                     
                     // Check if peril player picked the rolled number
@@ -409,12 +423,14 @@ default {
                     
                     if (matched && perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
-                        // Direct Hit status will be sent by Main Controller via link messages
+                        // Direct scoreboard status update
+                        llMessageLinked(12, 3001, "Direct Hit", NULL_KEY);
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     } else if (!matched) {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
-                        // No Shield status will be sent by Main Controller via link messages
+                        // Direct scoreboard status update
+                        llMessageLinked(12, 3001, "No Shield", NULL_KEY);
                         // Add delay to let status display before next phase
                         llSleep(2.0);
                     } else {
@@ -505,9 +521,12 @@ default {
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, fname, NULL_KEY);
             }
             
-            // Let Main Controller handle next round logic to avoid loops
-            // Don't immediately trigger next round dialog - let game flow naturally
-            llOwnerSay("🎯 Round complete, waiting for Main Controller to handle next phase...");
+            // After roll is processed and sync is sent, start next round automatically
+            llOwnerSay("🎯 Round complete, starting next round with peril player: " + perilPlayer);
+            
+            // Brief delay to ensure sync propagates, then start next round
+            llSleep(1.0);
+            llMessageLinked(LINK_SET, 997, "CONTINUE_ROUND|" + perilPlayer, NULL_KEY);
             
             // Clear roll protection after processing is complete
             rollInProgress = FALSE;

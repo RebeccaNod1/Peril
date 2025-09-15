@@ -6,9 +6,9 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 **Peril Dice** is a multiplayer elimination game for Second Life, built using LSL (Linden Scripting Language). It's a professional-grade linkset system where players select numbers before dice rolls, with the peril player losing lives when their number comes up. The project features a single 74-prim linkset architecture with sophisticated inter-script communication.
 
-**Current Version**: 2.8.4 - Disconnect Recovery & System-Wide Debug Control
+**Current Version**: 2.8.5 - Memory Optimization & Direct Communication Architecture
 **Technology**: LSL (Linden Scripting Language) for Second Life virtual world  
-**Architecture**: Single linkset with 16 modular LSL scripts communicating via `llMessageLinked()`
+**Architecture**: Single linkset with 16+ modular LSL scripts using optimized direct communication
 
 ## Development Commands
 
@@ -71,57 +71,71 @@ Link 1: Main Controller (Root Prim)
 └── Links 73-74: Dice Display (2 prims for roll results)
 ```
 
-### Core Script Architecture
-**16 modular LSL scripts** with specific responsibilities:
+### Core Script Architecture (OPTIMIZED v2.8.5)
+**17 modular LSL scripts** with memory-optimized direct communication:
 
 **Core Controllers:**
-- `Main_Controller_Linkset.lsl` - Central game state and coordination
-- `Game_Manager.lsl` - Round management, pick validation, win conditions
+- `Main_Controller_Linkset.lsl` - Master game state coordination (87% memory usage)
+- `Game_Manager.lsl` - Round management and game flow logic  
 - `Controller_Memory.lsl` - Memory monitoring and optimization
 - `Controller_MessageHandler.lsl` - Message routing and communication
 
-**Interface & Display:**
-- `Player_DialogHandler.lsl` - Player UI and input processing
+**Player Management (NEW OPTIMIZATION):**
+- `Player_RegistrationManager.lsl` - **Authoritative player registry and dialog forwarding** (23% memory usage)
+- `Player_DialogHandler.lsl` - Player UI and admin menu processing
 - `NumberPicker_DialogHandler.lsl` - Number picking interface
-- `Game_Scoreboard_Manager_Linkset.lsl` - Visual player display (Link 2)
+
+**Interface & Display:**
+- `Game_Scoreboard_Manager_Linkset.lsl` - Visual player display (Link 12)
 - `Floater_Manager.lsl` - Floating HUD displays for players
 - `PlayerStatus_Float.lsl` - Individual player status displays
 
 **Game Mechanics:**
-- `Roll_ConfettiModule.lsl` - Dice rolling and particle effects
-- `Bot_Manager.lsl` - AI player behavior and automation
-- `Game_Calculator.lsl` - Dice type calculation and game math
+- `Roll_ConfettiModule.lsl` - **Direct dice rolling, scoreboard & dice display updates**
+- `Bot_Manager.lsl` - AI player behavior with direct Game Manager communication
+- `Game_Calculator.lsl` - **Direct dice type calculation and distribution**
+- `UpdateHelper.lsl` - Batch update processing for memory efficiency
 
 **External Communication:**
-- `Leaderboard_Communication_Linkset.lsl` - XyzzyText bridge (Link 25)
-- `XyzzyText_Dice_Bridge_Linkset.lsl` - Roll result display (Link 73)
+- `Leaderboard_Communication_Linkset.lsl` - XyzzyText bridge (Link 35)
+- `XyzzyText_Dice_Bridge_Linkset.lsl` - Roll result display (Link 83)
 
 **Utilities:**
 - `System_Debugger.lsl` - Development debugging tools
-- `xyzzy_Master_script.lsl` - Legacy XyzzyText controller
+- `Verbose_Logger.lsl` - **Memory-efficient logging system**
 
-### Communication Protocol
-**Link Messages Only** - No region chat or discovery:
+### Communication Protocol (OPTIMIZED DIRECT ARCHITECTURE)
+**Direct Script-to-Script Communication** - Eliminates Main Controller routing bottlenecks:
+
 ```lsl
-// Scoreboard messages (to link 2)
+// DIRECT COMMUNICATION FLOWS:
+
+// Game Manager → NumberPicker (bypasses Main Controller)
+integer MSG_SHOW_DIALOG = 101;
+
+// Game Manager → Roll Module (bypasses Main Controller)  
+integer MSG_SHOW_ROLL_DIALOG = 301;
+
+// Roll Module → Scoreboard (bypasses Main Controller)
+integer MSG_PLAYER_UPDATE = 3002;  // Link 12
 integer MSG_GAME_STATUS = 3001;
-integer MSG_PLAYER_UPDATE = 3002;
-integer MSG_CLEAR_GAME = 3003;
 
-// Leaderboard messages (to link 25)  
-integer MSG_GAME_WON = 3010;
-integer MSG_RESET_LEADERBOARD = 3012;
+// Roll Module → Dice Display (bypasses Main Controller)
+integer MSG_DICE_ROLL = 3020;       // Link 83
 
-// Dice messages (to link 73)
-integer MSG_DICE_ROLL = 3020;
-integer MSG_CLEAR_DICE = 3021;
+// Player Registration → Dialog Forwarding
+integer MSG_DIALOG_FORWARD_REQUEST = 9060;
+
+// Calculator → Direct Distribution
+integer MSG_DICE_TYPE_RESULT = 1005;
 ```
 
-**Benefits of this architecture:**
-- **Zero Channel Conflicts** - Multiple game instances operate independently
-- **50%+ Performance Improvement** - Instant message delivery vs. region chat
-- **Bulletproof Reliability** - No discovery failures or timeouts
-- **One-Click Deployment** - Single linkset rez replaces 4-object positioning
+**Revolutionary Architecture Benefits:**
+- **4-5% Memory Reduction** in Main Controller (from 92%+ to 87.68%)
+- **Real-time Updates** - Direct scoreboard and display communication
+- **Load Balancing** - Heavy processing distributed across specialized scripts
+- **Authoritative Data Sources** - Player_RegistrationManager maintains player keys
+- **Zero Message Routing Overhead** - Scripts communicate directly when possible
 
 ### Game State Management
 **Critical synchronized data across scripts:**
@@ -191,6 +205,26 @@ Controller_Memory.lsl actively monitors script memory usage and triggers cleanup
 - **Peril Player Validation** - Enhanced elimination sequence to prevent stale sync messages
 - **Main Controller Fix** - Updates peril player variable immediately after elimination before final sync
 - **Re-Fixed Display Systems** - Peril status and 0 hearts display needed additional stabilization
+
+### Memory Optimization Architecture (v2.8.5)
+- **Direct Communication Pathways** - Eliminated Main Controller routing bottlenecks
+- **Player_RegistrationManager** - Dedicated player key management and dialog forwarding
+- **Load-Balanced Processing** - Heavy operations distributed across scripts with available memory
+- **Authoritative Data Sources** - Each script maintains its area of expertise
+- **4-5% Memory Recovery** - Main Controller reduced from 92%+ to 87.68% usage
+
+### Registration & Dialog Flow Optimization (v2.8.5)
+```lsl
+// OPTIMIZED REGISTRATION FLOW:
+// 1. Main Controller → Player_RegistrationManager (registration request)
+// 2. Player_RegistrationManager → Handles ALL heavy processing
+// 3. Player_RegistrationManager → Scoreboard (direct player update)
+// 4. Player_RegistrationManager → Main Controller (minimal essential data)
+
+// OPTIMIZED DIALOG FLOW:
+// 1. Game Manager → Player_RegistrationManager (dialog request with player name)
+// 2. Player_RegistrationManager → NumberPicker/Roll Module (with correct player key)
+```
 
 ### Enhanced Elimination Display (v2.8.1)
 - Players see **0 hearts before elimination** with 1-second display

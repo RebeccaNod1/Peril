@@ -12,7 +12,7 @@ integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
 integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
 
 // Message constants for link communication
-// Leaderboard messages (from link 2 - scoreboard)
+// Leaderboard messages (from link 12 - scoreboard)
 integer MSG_GAME_WON = 3010;
 integer MSG_GAME_LOST = 3011;
 integer MSG_RESET_LEADERBOARD = 3012;
@@ -20,11 +20,11 @@ integer MSG_RESET_LEADERBOARD = 3012;
 integer DISPLAY_STRING = 204000;
 
 // Bank assignments based on actual link testing - UPDATED FOR LINKSET:
-// Original links were 1-48, now they are 25-72 (offset by +24)
-list leftmostLinks = [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];     // Links 25-36 = Leftmost bank (was 1-12)
-list middleLeftLinks = [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48];   // Links 37-48 = Middle-left bank (was 13-24)  
-list middleRightLinks = [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60];  // Links 49-60 = Middle-right bank (was 25-36)
-list rightmostLinks = [61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72];    // Links 61-72 = Rightmost bank (was 37-48)
+// Original links were 1-48, now they are 35-82 (offset by +34)
+list leftmostLinks = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46];     // Links 35-46 = Leftmost bank (was 1-12)
+list middleLeftLinks = [47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58];   // Links 47-58 = Middle-left bank (was 13-24)  
+list middleRightLinks = [59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70];  // Links 59-70 = Middle-right bank (was 25-36)
+list rightmostLinks = [71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82];    // Links 71-82 = Rightmost bank (was 37-48)
 
 string leftText = "";
 string middleLeftText = "";
@@ -118,9 +118,9 @@ default {
     state_entry() {
         if (VERBOSE_LOGGING) {
             llOwnerSay("📋 Leaderboard Communication Script ready! (Linkset Version)");
-            llOwnerSay("📋 This is link " + (string)llGetLinkNumber() + " - should be link 25");
-            llOwnerSay("📋 Managing XyzzyText links 25-72 (48 prims total)");
-            llOwnerSay("✅ Linkset communication active - listening for messages from link 2!");
+            llOwnerSay("📋 This is link " + (string)llGetLinkNumber() + " - should be link 35");
+            llOwnerSay("📋 Managing XyzzyText links 35-82 (48 prims total)");
+            llOwnerSay("✅ Linkset communication active - listening for messages from link 12!");
         }
         
         // Start with blank display - real data will come from scoreboard script
@@ -139,8 +139,8 @@ default {
             return;
         }
         
-        // Only listen to messages from the scoreboard (link 2)
-        if (sender != 2) {
+        // Only listen to messages from the scoreboard (link 12)
+        if (sender != 12) {
             return;
         }
         
@@ -184,8 +184,8 @@ default {
             llOwnerSay("📋 Leaderboard Status:");
             llOwnerSay("  Link Number: " + (string)llGetLinkNumber());
             llOwnerSay("  Total prims in linkset: " + (string)llGetNumberOfPrims());
-            llOwnerSay("  Managing links 25-72 (48 XyzzyText prims)");
-            llOwnerSay("  Listening for messages from link 2 (scoreboard)");
+            llOwnerSay("  Managing links 35-82 (48 XyzzyText prims)");
+            llOwnerSay("  Listening for messages from link 12 (scoreboard)");
             llOwnerSay("  Current text sections:");
             string leftStatus;
             if (leftText != "") {

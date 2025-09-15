@@ -38,6 +38,19 @@ string lastHumanPickMessage = "";
 string lastBotPickMessage = "";
 integer lastProcessTime = 0;
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 // Verbose logging control - toggled by owner
 integer VERBOSE_LOGGING = FALSE;
 
@@ -50,13 +63,11 @@ integer MSG_SYNC_GAME_STATE = 107;
 integer MSG_SYNC_PICKQUEUE = 2001;
 integer MSG_PLAYER_WON = 551;
 integer MSG_UPDATE_FLOAT = 2010;
+integer MSG_DIALOG_FORWARD_REQUEST = 9060; // Request dialog forwarding from Player_RegistrationManager
 
 continueCurrentRound() {
-    // CRITICAL PROTECTION: Don't start rounds if game is ending or players are eliminated
-    if (llGetListLength(names) <= 1) {
-        llOwnerSay("🛑 [Game Manager] continueCurrentRound: Game ending (" + (string)llGetListLength(names) + " players) - aborting round start");
-        return;
-    }
+    // MEMORY OPTIMIZED: Skip complex validation - trust game state
+    // Main Controller handles all game ending validation
     
     // Check for eliminated players (0 lives) - don't continue if any exist
     integer i;
@@ -93,10 +104,9 @@ continueCurrentRound() {
         return;
     }
     
-    // ALWAYS start fresh for a new round - clear all picks and global picked numbers
-    // After a roll, we need everyone to pick new numbers
+    // Start fresh for a new round - clear picks data
+    // globalPickedNumbers will be cleared when first player picks
     picksData = [];
-    globalPickedNumbers = [];
     
     llOwnerSay("🔄 [Game Manager] continueCurrentRound: All validation passed, starting fresh round with " + (string)llGetListLength(names) + " players");
     
@@ -169,7 +179,7 @@ startNextRound() {
     }
     
     picksData = [];
-    globalPickedNumbers = [];
+    // globalPickedNumbers will be cleared when first player picks
     
     // Create pick queue with peril player first
     llOwnerSay("🎯 Debug - Creating pickQueue. names: " + llList2CSV(names) + ", perilPlayer: " + perilPlayer);
@@ -190,10 +200,13 @@ startNextRound() {
 }
 
 showNextPickerDialog() {
-    // CRITICAL PROTECTION: Don't show dialogs if game is ending or players eliminated
-    if (llGetListLength(names) <= 1) {
-        llOwnerSay("🛑 [Game Manager] showNextPickerDialog: Game ending (" + (string)llGetListLength(names) + " players) - aborting dialog");
-        return;
+    // MEMORY OPTIMIZED: Skip complex validation - trust that game is active
+    // Main Controller handles all game ending logic
+    
+    // Clear globalPickedNumbers if this is the first picker of a new round
+    if (currentPickerIdx == 0 && llGetListLength(picksData) == 0) {
+        globalPickedNumbers = [];
+        llOwnerSay("🔄 [Game Manager] Cleared globalPickedNumbers at start of new round");
     }
     
     if (diceType <= 0) {
@@ -249,12 +262,9 @@ showNextPickerDialog() {
         if (currentPickerIdx < llGetListLength(pickQueue)) {
             showNextPickerDialog();
         } else {
-            // All picked, show roll dialog
-            integer perilIdx = llListFindList(names, [perilPlayer]);
-            if (perilIdx != -1) {
-                key perilKey = llList2Key(players, perilIdx);
-                llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-            }
+            // All picked, show roll dialog through Player_RegistrationManager
+            string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+            llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
         }
         return;
     }
@@ -265,11 +275,12 @@ showNextPickerDialog() {
         return;
     }
     
-    currentPicker = llList2Key(players, nameIdx);
-    
-    llSleep(DIALOG_DELAY);
-    
-    if (llSubStringIndex(firstName, "Bot") == 0) {
+        // SIMPLE FIX: Send dialog request to Main Controller with player name
+        // Main Controller has the player keys and can forward to NumberPicker with correct key
+        
+        llSleep(DIALOG_DELAY);
+        
+        if (llSubStringIndex(firstName, "Bot") == 0) {
         // Bot picking - but first double-check this bot doesn't already have picks
         integer botAlreadyHasPicks = FALSE;
         integer j;
@@ -291,8 +302,9 @@ showNextPickerDialog() {
             }
             integer picksNeeded = 4 - perilLives;
             
-            string alreadyPicked = llList2CSV(globalPickedNumbers);
-            string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + alreadyPicked;
+            // Send proper avoid list to bots so they don't pick human numbers
+            string globalPicksStr = llList2CSV(globalPickedNumbers);
+            string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + globalPicksStr;
             llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
             llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)picksNeeded + " numbers...");
         } else {
@@ -301,12 +313,9 @@ showNextPickerDialog() {
             if (currentPickerIdx < llGetListLength(pickQueue)) {
                 showNextPickerDialog();
             } else {
-                // All picked, show roll dialog
-                integer perilIdx = llListFindList(names, [perilPlayer]);
-                if (perilIdx != -1) {
-                    key perilKey = llList2Key(players, perilIdx);
-                    llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                }
+                // All picked, show roll dialog through Player_RegistrationManager
+                string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
             }
         }
     } else {
@@ -318,13 +327,16 @@ showNextPickerDialog() {
         }
         integer picksNeeded = 4 - perilLives;
         
-        string alreadyPicked = llList2CSV(globalPickedNumbers);
-        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + alreadyPicked;
+        // Send dialog payload with current globally picked numbers
+        string globalPicksStr = llList2CSV(globalPickedNumbers);
+        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + globalPicksStr;
         
         llOwnerSay("🎯 Showing pick dialog for " + firstName);
         llSleep(0.5);  // Brief delay to prevent spam
         
-        llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, currentPicker);
+        // Send dialog request through Player_RegistrationManager (it has the correct player keys)
+        string dialogRequest = "SHOW_DIALOG|" + firstName + "|" + dialogPayload;
+        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
     }
 }
 
@@ -332,23 +344,14 @@ showNextPickerDialog() {
 // This prevents loops. Main Controller handles all dice type requests.
 
 syncStateToMain() {
-    // Send updated state back to main controller
-    string perilForSync = "NONE";
-    if (roundStarted) perilForSync = perilPlayer;
-    
-    string picksDataStr = "EMPTY";
-    if (llGetListLength(picksData) > 0) {
-        picksDataStr = llDumpList2String(picksData, "^");
-    }
-    
-    // Keep sync message format standard for all modules (4 parts)
-    string serialized = llList2CSV(lives) + "~" + picksDataStr + "~" + perilForSync + "~" + llList2CSV(names);
-    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, serialized, NULL_KEY);
-    llMessageLinked(LINK_SET, MSG_SYNC_PICKQUEUE, llList2CSV(pickQueue), NULL_KEY);
+    // MEMORY OPTIMIZED: Skip ALL sync operations to prevent corrupting Main Controller's data
+    // Main Controller is the master - Game Manager should not send sync messages
+    return;
 }
 
 default {
     state_entry() {
+        reportMemoryUsage("Game Manager");
         llOwnerSay("🎯 Game Manager initializing...");
         
         // Initialize/reset all game state variables
@@ -374,6 +377,7 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("Game Manager");
         llOwnerSay("🔄 Game Manager rezzed - reinitializing...");
         
         // Reset all game state variables on rez
@@ -400,44 +404,93 @@ default {
     
     link_message(integer sender, integer num, string str, key id) {
         
-        // Receive game state updates from main controller
+        // Handle incoming sync updates from Roll Confetti Module and other sources
         if (num == MSG_SYNC_GAME_STATE) {
-            list parts = llParseString2List(str, ["~"], []);
+            // Only skip sync messages if we're explicitly ignoring them
+            // Allow player registration syncs even when game is not active
             
-            // EARLY VALIDATION: Extract peril player from any sync message and validate it
-            // This prevents loops from incomplete sync messages with invalid peril players
-            if (llGetListLength(parts) >= 3) {
-                string receivedPerilPlayer = llList2String(parts, 2);
-                list newNames = [];
-                if (llGetListLength(parts) >= 4) {
-                    newNames = llCSV2List(llList2String(parts, 3));
+            list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) >= 4) {
+                list newLives = llCSV2List(llList2String(parts, 0));
+                string currentLivesStr = llList2CSV(lives);
+                string newLivesStr = llList2CSV(newLives);
+                
+                string newPerilPlayerCheck = llList2String(parts, 2);
+                list newNames = llCSV2List(llList2String(parts, 3));
+                
+                // MEMORY OPTIMIZED: Skip complex validation that causes circular sync issues
+                // Trust that sender sends valid data
+                
+                if (newPerilPlayerCheck == "NONE" && perilPlayer != "" && perilPlayer != "NONE") {
+                    integer perilStillInGame = llListFindList(names, [perilPlayer]) != -1;
+                    if (perilStillInGame) {
+                        return;
+                    }
                 }
                 
-                // PROTECTION: Don't accept peril player updates for players that don't exist OR have 0 lives
-                if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != perilPlayer) {
-                    // If we have the names list, validate against it
-                    if (llGetListLength(newNames) > 0) {
-                        integer receivedPlayerExists = llListFindList(newNames, [receivedPerilPlayer]) != -1;
-                        if (!receivedPlayerExists) {
-                            llOwnerSay("⚠️ [Game Manager] EARLY REJECTION: Invalid peril player update " + receivedPerilPlayer + " (player no longer exists) - IGNORING entire message");
-                            return; // Reject the entire sync message
-                        }
-                        
-                        // ADDITIONAL CHECK: If we have lives data, reject players with 0 lives
-                        if (llGetListLength(parts) >= 1) {
-                            list newLivesCheck = llCSV2List(llList2String(parts, 0));
-                            integer receivedPlayerIdx = llListFindList(newNames, [receivedPerilPlayer]);
-                            if (receivedPlayerIdx != -1 && receivedPlayerIdx < llGetListLength(newLivesCheck)) {
-                                integer receivedPlayerLives = llList2Integer(newLivesCheck, receivedPlayerIdx);
-                                if (receivedPlayerLives <= 0) {
-                                    llOwnerSay("⚠️ [Game Manager] EARLY REJECTION: Invalid peril player update " + receivedPerilPlayer + " (player has 0 lives) - IGNORING entire message");
-                                    return; // Reject the entire sync message
-                                }
+                integer perilChanged = (perilPlayer != newPerilPlayerCheck);
+                integer livesChanged = (newLivesStr != currentLivesStr);
+                
+                if (livesChanged || perilChanged) {
+                    string encodedPicksDataStr = llList2String(parts, 1);
+                    list newPicksData = [];
+                    if (encodedPicksDataStr != "") {
+                        list encodedEntries = llParseString2List(encodedPicksDataStr, ["^"], []);
+                        integer i;
+                        for (i = 0; i < llGetListLength(encodedEntries); i++) {
+                            string entry = llList2String(encodedEntries, i);
+                            list entryParts = llParseString2List(entry, ["|"], []);
+                            if (llGetListLength(entryParts) >= 2) {
+                                string playerName = llList2String(entryParts, 0);
+                                string picks = llList2String(entryParts, 1);
+                                picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
+                                newPicksData += [playerName + "|" + picks];
+                            } else {
+                                newPicksData += [entry];
                             }
                         }
                     }
+                    string newPerilPlayer = llList2String(parts, 2);
+                    list newNames = llCSV2List(llList2String(parts, 3));
+                    
+                    lives = newLives;
+                    picksData = newPicksData;
+                    perilPlayer = newPerilPlayer;
+                    names = newNames;
+                    
+                    // Send lightweight update to Main Controller for floating text (only if substantial change)
+                    if (perilChanged && perilPlayer != "" && perilPlayer != "NONE") {
+                        string lightUpdate = "PERIL_UPDATE|" + perilPlayer + "|" + (string)llGetListLength(names);
+                        llMessageLinked(LINK_SET, 9070, lightUpdate, NULL_KEY);
+                    }
+                    
+                    integer allPicksEmpty = TRUE;
+                    integer i;
+                    for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
+                        string entry = llList2String(newPicksData, i);
+                        list parts = llParseString2List(entry, ["|"], []);
+                        if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
+                            allPicksEmpty = FALSE;
+                        }
+                    }
+                    
+                    if (livesChanged && newPerilPlayer != "" && newPerilPlayer != "NONE" && roundStarted && allPicksEmpty) {
+                        llOwnerSay("🎯 Post-roll state update detected - continuing round");
+                        continueCurrentRound();
+                    }
                 }
             }
+            return;
+        }
+        
+        // Receive legacy game state updates from main controller (simplified version)
+        if (num == 9071) {
+            llOwnerSay("🔧 [Game Manager] Received sync: " + str);
+            list parts = llParseString2List(str, ["~"], []);
+            llOwnerSay("🔧 [Game Manager] Parsed into " + (string)llGetListLength(parts) + " parts");
+            
+            // MEMORY OPTIMIZED: Skip heavy validation that causes sync rejections
+            // Trust that Main Controller sends valid data
             
             // Handle special RESET sync message
             if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
@@ -450,197 +503,49 @@ default {
                 return;
             }
             {
-                list newLives = llCSV2List(llList2String(parts, 0));
-                
-                string picksDataStr = llList2String(parts, 1);
-                list newPicksData = [];
-                if (picksDataStr == "" || picksDataStr == "EMPTY") {
-                    newPicksData = [];
-                } else {
-                    newPicksData = llParseString2List(picksDataStr, ["^"], []);
-                }
-                
-                // Accept peril player updates from Roll module (Plot Twist, elimination, etc.)
-                list newNames = llCSV2List(llList2String(parts, 3));
-                string receivedPerilPlayer = llList2String(parts, 2);
-                
-                // SAVE original peril player BEFORE any updates for Plot Twist detection
-                string originalPerilPlayer = perilPlayer;
-                
-                // Update peril player if Roll module sent a change
-                // PROTECTION: Don't accept peril player updates for players that don't exist in the current game
-                if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != perilPlayer) {
-                    integer receivedPlayerExists = llListFindList(newNames, [receivedPerilPlayer]) != -1;
-                    if (receivedPlayerExists) {
-                        llOwnerSay("🎯 [Game Manager] Peril player updated from Roll module: " + perilPlayer + " -> " + receivedPerilPlayer);
-                        perilPlayer = receivedPerilPlayer;
-                    } else {
-                        llOwnerSay("⚠️ [Game Manager] REJECTING peril player update from Roll module: " + receivedPerilPlayer + " (player no longer exists)");
-                        // Keep current peril player instead of accepting the invalid update
-                    }
-                }
-                
-                // Handle elimination case - if current peril player was eliminated, find a new one
-                if (perilPlayer != "" && perilPlayer != "NONE") {
-                    integer perilStillExists = llListFindList(newNames, [perilPlayer]) != -1;
-                    if (!perilStillExists && llListFindList(names, [perilPlayer]) != -1) {
-                        // Peril player was eliminated! Game Manager needs to assign new peril player
-                        llOwnerSay("🚨 [Game Manager] Detected elimination of peril player: " + perilPlayer);
+                // MEMORY OPTIMIZED: Handle compatible format efficiently
+                if (llGetListLength(parts) >= 4) {
+                    // Parse names from part 3 (compatible with standard format)
+                    string namesStr = llList2String(parts, 3);
+                    
+                    // CRITICAL: Must use real player names for dialog system
+                    if (llSubStringIndex(namesStr, ",") != -1) {
+                        // Multiple players - extract real names and trim spaces
+                        integer commaPos = llSubStringIndex(namesStr, ",");
+                        string firstName = llStringTrim(llGetSubString(namesStr, 0, commaPos - 1), STRING_TRIM);
+                        string secondName = llStringTrim(llGetSubString(namesStr, commaPos + 1, -1), STRING_TRIM);
                         
-                        // Find first remaining alive player to be new peril player
-                        string newPerilPlayer = "";
-                        integer k;
-                        for (k = 0; k < llGetListLength(newNames) && newPerilPlayer == ""; k++) {
-                            string candidateName = llList2String(newNames, k);
-                            integer candidateIdx = llListFindList(newNames, [candidateName]);
-                            if (candidateIdx != -1 && candidateIdx < llGetListLength(newLives)) {
-                                integer candidateLives = llList2Integer(newLives, candidateIdx);
-                                if (candidateLives > 0) {
-                                    newPerilPlayer = candidateName;
-                                }
-                            }
-                        }
-                        
-                        if (newPerilPlayer != "") {
-                            llOwnerSay("🎯 [Game Manager] Assigning new peril player after elimination: " + newPerilPlayer);
-                            perilPlayer = newPerilPlayer;
+                        names = [firstName, secondName];
+                        // Parse lives from sync message instead of hardcoding
+                        string livesStr = llList2String(parts, 0);
+                        if (llSubStringIndex(livesStr, ",") != -1) {
+                            lives = llCSV2List(livesStr);
                         } else {
-                            llOwnerSay("⚠️ [Game Manager] No valid peril player candidates found!");
-                            perilPlayer = "NONE";
+                            lives = [3, 3]; // Fallback for single player
                         }
-                    }
-                }
-                
-                names = newNames;
-                
-                // New: also receive players list if available (for dialog targeting)
-                if (llGetListLength(parts) >= 5) {
-                    players = llCSV2List(llList2String(parts, 4));
-                }
-                
-                // Always update state normally - check for round completion regardless of lives changes
-                lives = newLives;
-                picksData = newPicksData;
-                
-                // Check if all picks are empty (round is complete) - this works for ALL roll outcomes
-                integer allPicksEmpty = TRUE;
-                integer i;
-                for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
-                    string entry = llList2String(newPicksData, i);
-                    list parts = llParseString2List(entry, ["|"], []);
-                    if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
-                        allPicksEmpty = FALSE;
-                    }
-                }
-                
-                // Check for win condition FIRST to prevent infinite loops
-                if (roundStarted && llGetListLength(newNames) <= 1) {
-                    if (llGetListLength(newNames) == 1) {
-                        string winner = llList2String(newNames, 0);
-                        llOwnerSay("🏆 [Game Manager] Victory detected: " + winner + " wins!");
-                        // IMMEDIATE FULL STATE RESET to prevent any further round processing
-                        roundStarted = FALSE;
-                        perilPlayer = "";
-                        currentPickerIdx = 0;
-                        pickQueue = [];
-                        diceTypeProcessed = FALSE;
-                        roundContinueInProgress = FALSE;
-                        llOwnerSay("🔒 [Game Manager] Game state locked - no further round processing until reset");
-                        // Let Main Controller handle the victory celebration and reset
-                        return;
                     } else {
-                        llOwnerSay("💀 [Game Manager] No survivors remain!");
-                        // IMMEDIATE FULL STATE RESET to prevent any further round processing
-                        roundStarted = FALSE;
-                        perilPlayer = "";
-                        currentPickerIdx = 0;
-                        pickQueue = [];
-                        diceTypeProcessed = FALSE;
-                        roundContinueInProgress = FALSE;
-                        llOwnerSay("🔒 [Game Manager] Game state locked - no further round processing until reset");
-                        return;
-                    }
-                }
-                
-                // ADDITIONAL PROTECTION: Check for eliminated players in the current game
-                // Don't continue rounds if any player has 0 lives (elimination in progress)
-                integer hasEliminatedPlayers = FALSE;
-                integer e;
-                for (e = 0; e < llGetListLength(newLives) && !hasEliminatedPlayers; e++) {
-                    integer playerLives = llList2Integer(newLives, e);
-                    if (playerLives <= 0) {
-                        hasEliminatedPlayers = TRUE;
-                        string eliminatedPlayerName = llList2String(newNames, e);
-                        llOwnerSay("⚠️ [Game Manager] ELIMINATION DETECTED: " + eliminatedPlayerName + " has 0 lives - stopping round progression");
-                    }
-                }
-                
-                if (hasEliminatedPlayers) {
-                    llOwnerSay("🛑 [Game Manager] Elimination in progress - waiting for Main Controller to handle victory/elimination sequence");
-                    // IMMEDIATE STATE RESET to prevent further processing during elimination
-                    roundStarted = FALSE;
-                    perilPlayer = "";
-                    currentPickerIdx = 0;
-                    pickQueue = [];
-                    diceTypeProcessed = FALSE;
-                    roundContinueInProgress = FALSE;
-                    llOwnerSay("🔒 [Game Manager] Round state reset due to elimination - awaiting Main Controller reset");
-                    return; // Don't continue rounds during elimination
-                }
-                
-                // Only process game continuation if we have a valid active game
-                // During initial player joining (roundStarted=FALSE, single player), just skip processing quietly
-                if (!roundStarted) {
-                    // Game hasn't started yet (normal during player joining) - no warning needed
-                    return;
-                }
-                
-                // Check for actual game ending conditions only during active games
-                if (perilPlayer == "" || perilPlayer == "NONE") {
-                    llOwnerSay("⚠️ [Game Manager] Game ending - invalid peril player (" + perilPlayer + ")");
-                    return;
-                }
-                
-                // Check for game ending when we had multiple players but now have 1 or less
-                if (llGetListLength(newNames) <= 1 && llGetListLength(pickQueue) > 1) {
-                    llOwnerSay("⚠️ [Game Manager] Game ending - only " + (string)llGetListLength(newNames) + " player(s) remaining");
-                    return;
-                }
-                
-                // Only show debug and continue if game is actually active
-                if (VERBOSE_LOGGING) llOwnerSay("🔍 [Game Manager] DEBUG - allPicksEmpty: " + (string)allPicksEmpty + ", perilPlayer: " + perilPlayer + ", roundStarted: " + (string)roundStarted);
-                
-                // If picks are empty, round started, and we have a valid peril player, continue to next round
-                // This works for ALL outcomes: Direct Hit, No Shield, AND Plot Twist
-                // PROTECTION: Prevent rapid consecutive calls to continueCurrentRound
-                // ADDITIONAL PROTECTION: Verify peril player still exists in the game
-                // CRITICAL FIX: Prevent double processing during Plot Twist scenarios
-                // NEW PROTECTION: Prevent duplicate processing within short time windows
-                integer currentTime = llGetUnixTime();
-                integer perilPlayerExists = (perilPlayer != "" && perilPlayer != "NONE" && llListFindList(newNames, [perilPlayer]) != -1);
-                integer timingOk = ((currentTime - lastSyncProcessTime) > 1);
-                integer gameActive = (roundStarted && llGetListLength(newNames) > 1);
-                integer canContinue = (allPicksEmpty && perilPlayerExists && !roundContinueInProgress);
-                
-                if (gameActive && canContinue && timingOk) {
-                    // ADDITIONAL CHECK: Don't start new rounds if we just received a peril player update
-                    // This prevents double round starts during Plot Twist scenarios
-                    if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "" && receivedPerilPlayer != originalPerilPlayer) {
-                        llOwnerSay("🎯 [Game Manager] Plot Twist detected - peril player changed from " + originalPerilPlayer + " to " + perilPlayer + ", deferring round continuation");
-                        // Don't start new round immediately after Plot Twist - wait for next sync
-                        return;
+                        // Single player - use real name and trim spaces
+                        names = [llStringTrim(namesStr, STRING_TRIM)];
+                        // Parse lives from sync message instead of hardcoding
+                        string livesStr = llList2String(parts, 0);
+                        if (livesStr != "") {
+                            lives = llCSV2List(livesStr);
+                        } else {
+                            lives = [3]; // Fallback
+                        }
                     }
                     
-                    llOwnerSay("🎯 [Game Manager] Round complete - starting next round with peril player: " + perilPlayer);
-                    roundContinueInProgress = TRUE;  // Set flag to prevent rapid calls
-                    lastSyncProcessTime = currentTime;  // Record processing time
-                    llSleep(2.0); // Brief pause for dramatic effect
-                    continueCurrentRound(); // Use continueCurrentRound instead of startNextRound
-                    roundContinueInProgress = FALSE;  // Clear flag after completion
-                } else if (allPicksEmpty && roundStarted && !perilPlayerExists && llGetListLength(newNames) > 1) {
-                    llOwnerSay("⚠️ [Game Manager] Peril player " + perilPlayer + " no longer exists, but game continues with " + (string)llGetListLength(newNames) + " players");
-                    // Don't continue the round - let the elimination logic handle victory condition
+                    llOwnerSay("🎯 [Game Manager] Updated: " + (string)llGetListLength(names) + " players (minimal parsing)");
                 }
+                
+                // Update peril player
+                string receivedPerilPlayer = llList2String(parts, 2);
+                if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "") {
+                    perilPlayer = receivedPerilPlayer;
+                    llOwnerSay("🎯 [Game Manager] Peril player updated to: " + perilPlayer);
+                }
+                
+                // MEMORY OPTIMIZED: Skip all other complex processing
             }
             return;
         }
@@ -801,7 +706,8 @@ default {
                         integer picksNeeded = 4 - perilLives;
                         
                         string dialogPayload = playerName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + llList2CSV(globalPickedNumbers);
-                        llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, llList2Key(players, idx));
+                        string dialogRequest = "SHOW_DIALOG|" + playerName + "|" + dialogPayload;
+                        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
                     }
                     return;
                 }
@@ -859,14 +765,10 @@ default {
                         syncStateToMain();
                         llSleep(1.0); // Longer delay to ensure sync propagates to all modules
                         
-                        integer perilIdx = llListFindList(names, [perilPlayer]);
-                        if (perilIdx != -1) {
-                            key perilKey = llList2Key(players, perilIdx);
-                            llOwnerSay("🎯 [Game Manager] Sending MSG_SHOW_ROLL_DIALOG to key: " + (string)perilKey);
-                            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                        } else {
-                            llOwnerSay("⚠️ [Game Manager] ERROR: Could not find peril player " + perilPlayer + " in names list!");
-                        }
+                        // Send roll dialog through Player_RegistrationManager
+                        llOwnerSay("🎯 [Game Manager] Sending roll dialog request for: " + perilPlayer);
+                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     }
                 }
             }
@@ -923,11 +825,9 @@ default {
                         llOwnerSay("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
                         llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
-                        integer perilIdx = llListFindList(names, [perilPlayer]);
-                        if (perilIdx != -1) {
-                            key perilKey = llList2Key(players, perilIdx);
-                            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                        }
+                        // Send roll dialog through Player_RegistrationManager
+                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     }
                             return; // Ignore duplicate - bot already has real picks
                         }
@@ -936,8 +836,28 @@ default {
                     }
                 }
                 
+                // VALIDATE: Check for duplicate picks before saving
+                if (picksStr != "" && llListFindList(globalPickedNumbers, [picksStr]) != -1) {
+                    llOwnerSay("❌ [Game Manager] Bot " + playerName + " tried to pick duplicate number: " + picksStr + " - REJECTING");
+                    llOwnerSay("🙄 [Game Manager] Sending new pick command to Bot Manager for " + playerName);
+                    
+                    // Calculate picks needed for bot retry
+                    integer perilIdx = llListFindList(names, [perilPlayer]);
+                    integer perilLives = 3;
+                    if (perilIdx != -1) {
+                        perilLives = llList2Integer(lives, perilIdx);
+                    }
+                    integer picksNeeded = 4 - perilLives;
+                    
+                    // Send new bot command with updated avoid list
+                    string botCommand = "BOT_PICK:" + playerName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + llList2CSV(globalPickedNumbers);
+                    llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
+                    return; // Don't save this pick
+                }
+                
                 // Update picks data
                 integer idx = llListFindList(names, [playerName]);
+                llOwnerSay("🔧 [Game Manager] Looking for bot " + playerName + " in names list: " + llList2CSV(names) + " (idx: " + (string)idx + ")");
                 if (idx != -1) {
                     integer picksIdx = -1;
                     integer k;
@@ -953,15 +873,8 @@ default {
                         picksData = llListReplaceList(picksData, [newEntry], picksIdx, picksIdx);
                     }
                     
-                    // Update global picked numbers - bot picks use semicolon delimiters
-                    list newPicks = llParseString2List(picksStr, [";"], []);
-                    integer j;
-                    for (j = 0; j < llGetListLength(newPicks); j++) {
-                        string pick = llList2String(newPicks, j);
-                        if (llListFindList(globalPickedNumbers, [pick]) == -1) {
-                            globalPickedNumbers += [pick];
-                        }
-                    }
+                    // Update global picked numbers - bot picks are single numbers (already validated above)
+                    globalPickedNumbers += [picksStr];
                     
                     llSay(0, "🎯 " + playerName + " (bot) stakes their digital life on numbers: " + picksStr + " 🎲");
                     
@@ -1018,11 +931,9 @@ default {
                         llOwnerSay("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
                         llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
-                        integer perilIdx = llListFindList(names, [perilPlayer]);
-                        if (perilIdx != -1) {
-                            key perilKey = llList2Key(players, perilIdx);
-                            llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, perilKey);
-                        }
+                        // Send roll dialog through Player_RegistrationManager
+                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     } else {
                         // Move to next picker
                         currentPickerIdx++;

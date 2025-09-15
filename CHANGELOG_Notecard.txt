@@ -3,6 +3,75 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[2.8.5] - 2025-09-15
+====================
+
+🚨 MEMORY OPTIMIZATION & ARCHITECTURE CLEANUP
+
+🧠 MEMORY OPTIMIZATION & DEAD CODE CLEANUP
+- UpdateHelper.lsl Elimination: Completely removed vestigial UpdateHelper script that was consuming memory but providing no functionality
+  * Issue: 204-line script existed but was never actually called - pure dead code consuming ~41KB memory
+  * Fix: Removed UpdateHelper.lsl file and all supporting infrastructure from Main Controller
+  * Memory Impact: Main Controller memory usage improved from ~83.8% to 81.4% (2.4 percentage point reduction)
+  * Cleaned Up: updateNewPlayer() function, UpdateHelper message constants, variables, and handlers
+  * Simplified: updateHelpers() function now performs direct scoreboard updates without delegation
+- Verbose_Logger Simplification: Streamlined debug logging system by removing unused buffering infrastructure
+  * Removed: Message buffering system, timer events, unused message handlers (MSG_VERBOSE_LOG)
+  * Size Reduction: Simplified from 149 lines to 80 lines (~47% smaller)
+  * Kept: Essential debug toggle functionality and system-wide logging coordination
+  * Performance: Eliminated timer overhead and reduced message processing complexity
+
+🎨 BOT PROFILE PICTURE FIX
+- Fixed Bot Visual Glitch: Resolved issue where bot profile pictures would randomly turn into gray boxes mid-game
+  * Issue: During scoreboard refresh (e.g., player removal), all profiles were reset to default gray texture before restoration
+  * Root Cause: refreshPlayerDisplay() function reset ALL profile prims to default, causing visual flicker
+  * Fix: Modified refresh logic to only reset unused player slots, preserving active player textures
+  * Enhanced Caching: Bots now store TEXTURE_BOT_PROFILE directly in cache to prevent HTTP requests
+  * Result: Bot avatars maintain consistent robot icon throughout entire game without gray box flicker
+
+🏗️ DIRECT COMMUNICATION ARCHITECTURE UPDATE
+- Link Number Reorganization: Updated all scripts to use new optimized linkset architecture
+  * Scoreboard Manager: Link 2 → Link 12 (moved to accommodate overlay prims)
+  * Leaderboard Manager: Link 25 → Link 35 (updated prim range: links 35-82)
+  * Dice Display: Link 73 → Link 83 (maintained 2-prim dice display)
+  * Affected Scripts: 11 scripts updated with new link mappings and prim ranges
+- Optimized Prim Architecture: Enhanced linkset structure for better performance and organization
+  * Overlay Prims: Added dedicated overlay prims (links 2-11) for elimination markers
+  * Scoreboard Prims: Profile and hearts prims properly mapped to new link structure
+  * XyzzyText Banks: Updated leaderboard prim ranges to accommodate new architecture
+
+🔧 ENHANCED GAME LOGIC & BUG FIXES
+- Number Picker Dialog Enhancement: Improved parsing for mixed number formats
+  * Format Support: Now handles both CSV ("1,2,3") and semicolon ("1;2;3") separated pick lists
+  * Whitespace Handling: Added trimming for formats like "5, 6" vs "5,6" for consistent parsing
+  * Bot Integration: Enhanced bot pick processing to work with avoid lists from human players
+- Bot Manager Improvements: Enhanced round detection and pick avoidance logic
+  * Round Detection: Better detection of new rounds through peril player and lives changes
+  * Command Processing: Improved bot command handling and duplicate pick prevention
+  * Fair Play: Bots now correctly avoid numbers already picked by human players
+- Message Handler Fixes: Improved region communication handling
+  * Communication Method: Updated message broadcasting for better chat integration
+  * Player Feedback: Enhanced player join/leave notifications
+
+🛠️ TECHNICAL INFRASTRUCTURE
+- Memory Reporting: Added standardized memory usage reporting across core scripts
+- Code Quality: Removed dead code paths and simplified complex functions
+- Error Handling: Enhanced safety checks and boundary validation
+- Performance: Reduced inter-script message traffic by eliminating unused communication paths
+
+📊 SYSTEM PERFORMANCE IMPACT
+- Memory Usage: Overall reduction in memory consumption across multiple scripts
+- Message Traffic: Reduced unnecessary link messages between scripts
+- Visual Stability: Eliminated profile picture flickering and display inconsistencies
+- Code Maintainability: Cleaner, more focused codebase with reduced complexity
+- Link Architecture: More organized and scalable linkset structure for future development
+
+🎯 IMPACT SUMMARY
+- Before: Dead code consuming memory, bot profiles flickering, complex but unused systems
+- After: Leaner memory usage, stable bot visuals, simplified but fully functional architecture
+- Performance: Measurable memory improvements and cleaner system operation
+- Maintainability: Easier to understand and modify codebase with eliminated dead code
+
 [2.8.4] - 2025-09-14
 ====================
 

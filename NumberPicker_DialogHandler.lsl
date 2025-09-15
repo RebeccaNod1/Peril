@@ -163,6 +163,14 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
         dialogText = "Pick " + pickText + " (1-" + (string)diceType + ")" + pageInfo + currentPicksText;
     }
     
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("📋 [NumberPicker] About to show dialog to " + name + " (" + (string)id + ")");
+        llOwnerSay("📋 [NumberPicker] Dialog text: " + dialogText);
+        llOwnerSay("📋 [NumberPicker] Options (" + (string)llGetListLength(options) + "): " + llList2CSV(options));
+        llOwnerSay("📋 [NumberPicker] Channel: " + (string)numberPickChannel);
+        llOwnerSay("📋 [NumberPicker] globallyPickedNumbers: " + llList2CSV(globallyPickedNumbers));
+    }
+    
     llDialog(id, dialogText, options, numberPickChannel);
 }
 
@@ -282,7 +290,14 @@ default {
             if (llGetListLength(parts) >= 4) {
                 string globalPicksStr = llList2String(parts, 3);
                 if (globalPicksStr != "") {
-                    globallyPickedNumbers = llCSV2List(globalPicksStr);
+                    // Handle both CSV (comma) and semicolon-separated formats
+                    if (llSubStringIndex(globalPicksStr, ";") != -1) {
+                        // Semicolon-separated format from bots
+                        globallyPickedNumbers = llParseString2List(globalPicksStr, [";"], []);
+                    } else {
+                        // CSV format from humans
+                        globallyPickedNumbers = llCSV2List(globalPicksStr);
+                    }
                 } else {
                     globallyPickedNumbers = [];
                 }

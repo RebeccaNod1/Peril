@@ -2,11 +2,13 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 2.8.4 - DISCONNECT RECOVERY & DEBUG CONTROL
+CURRENT VERSION: 2.8.5 - MEMORY OPTIMIZATION & ARCHITECTURE CLEANUP
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V2.8.5: Major system cleanup eliminating dead code, fixing bot profile picture flickering, and optimizing memory usage across all scripts with measurable performance improvements.
 
 NEW IN V2.8.4: Revolutionary disconnect/reconnect recovery system eliminates need to kick players who disconnect during their turn, plus comprehensive system-wide verbose logging toggle for production vs development modes.
 
@@ -93,6 +95,65 @@ Player Count | Dice Type
 3–4          | d12
 5–6          | d20
 7–10         | d30
+
+RECENT IMPROVEMENTS (V2.8.5)
+============================
+
+🚨 MEMORY OPTIMIZATION & ARCHITECTURE CLEANUP
+
+🧠 MEMORY OPTIMIZATION & DEAD CODE CLEANUP
+- UpdateHelper.lsl Elimination: Completely removed vestigial 204-line script consuming ~41KB memory but providing zero functionality
+  * Discovery: UpdateHelper existed but was never actually called - pure dead code waste
+  * Impact: Main Controller memory usage improved from 83.8% to 81.4% (2.4% reduction)
+  * Cleanup: Removed all supporting infrastructure, message constants, variables, handlers
+  * Simplification: Direct scoreboard updates instead of complex but unused delegation system
+- Verbose_Logger Streamlined: Simplified debug system by 47% while keeping essential functionality
+  * Size Reduction: 149 lines → 80 lines by removing unused buffering system
+  * Performance: Eliminated timer overhead and message processing complexity
+  * Kept: Core debug toggle functionality that's actually used
+
+🎨 BOT PROFILE PICTURE FIX
+- Fixed Visual Glitch: Resolved bot avatars randomly turning into gray boxes mid-game
+  * Issue: Scoreboard refresh would reset ALL profiles to gray before restoration
+  * Root Cause: refreshPlayerDisplay() function caused visual flicker during player removal
+  * Solution: Modified refresh to only reset unused slots, preserving active player textures
+  * Enhancement: Bots now cache robot texture directly to prevent HTTP requests
+  * Result: Consistent bot avatars throughout entire game without gray box flickering
+
+🏗️ ARCHITECTURE OPTIMIZATION
+- Link Number Reorganization: Updated entire system to optimized linkset structure
+  * Scoreboard Manager: Link 2 → Link 12 (moved for overlay prim accommodation)
+  * Leaderboard Manager: Link 25 → Link 35 (updated to links 35-82 range)
+  * Dice Display: Link 73 → Link 83 (maintained 2-prim dice system)
+  * System-Wide Update: 11 scripts updated with new mappings and prim ranges
+- Enhanced Prim Structure: Better organized linkset for performance and future development
+  * Overlay Prims: Dedicated elimination marker prims (links 2-11)
+  * Scoreboard Optimization: Profile/hearts prims properly mapped to new structure
+  * XyzzyText Enhancement: Leaderboard banks updated for new architecture
+
+🔧 ENHANCED GAME LOGIC & BUG FIXES
+- Number Picker Enhancement: Improved parsing for mixed number formats
+  * Format Support: Handles both CSV ("1,2,3") and semicolon ("1;2;3") formats
+  * Whitespace Handling: Trims formats like "5, 6" vs "5,6" for consistency
+  * Bot Integration: Enhanced bot processing with avoid lists from human players
+- Bot Manager Improvements: Better round detection and fair play mechanics
+  * Round Detection: Enhanced detection through peril player and lives changes
+  * Fair Play: Bots now properly avoid numbers picked by human players
+  * Command Processing: Improved bot handling and duplicate pick prevention
+- Communication Fixes: Enhanced region messaging and player feedback systems
+
+📊 PERFORMANCE IMPACT
+- Memory Efficiency: Measurable reduction in memory consumption across multiple scripts
+- Visual Stability: Eliminated profile picture flickering and display inconsistencies
+- Code Quality: Cleaner, more maintainable codebase with reduced complexity
+- Message Traffic: Reduced unnecessary inter-script communication overhead
+- Architecture: More organized and scalable linkset structure
+
+🎯 IMPACT SUMMARY
+- Before: Dead code consuming memory, bot profiles flickering, complex but unused systems
+- After: Leaner memory usage, stable bot visuals, simplified but fully functional architecture
+- Performance: Measurable memory improvements and cleaner system operation
+- Maintainability: Easier to understand and modify codebase with eliminated dead code
 
 RECENT IMPROVEMENTS (V2.8.4)
 ============================

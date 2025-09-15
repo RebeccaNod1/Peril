@@ -296,6 +296,7 @@ handleOwnerMessage(string messageData) {
         if (msgType == "JOIN") {
             string playerName = llList2String(parts, 1);
             llOwnerSay("👋 " + playerName + " joined the game!");
+            llSay(0, "🔔 Added player: " + playerName);
         } else if (msgType == "LEAVE") {
             string playerName = llList2String(parts, 1);
             llOwnerSay("👋 " + playerName + " left the game.");
@@ -336,14 +337,14 @@ handleRegionMessage(string messageData) {
         string message = llList2String(parts, 1);
         
         if (llGetListLength(parts) == 2) {
-            // Simple message
-            llRegionSayTo(playerKey, 0, message);
+            // Simple message - use llSay since we can't use llRegionSayTo on channel 0
+            llSay(0, "[To " + llKey2Name(playerKey) + "] " + message);
         } else {
             // Formatted message
             string msgType = llList2String(parts, 1);
             if (msgType == "WELCOME") {
                 string msg = llList2String(parts, 2);
-                llRegionSayTo(playerKey, 0, "🔄 " + msg);
+                llSay(0, "[To " + llKey2Name(playerKey) + "] 🔄 " + msg);
             }
         }
     }

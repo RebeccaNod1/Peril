@@ -1,5 +1,5 @@
 // XyzzyText Bridge Script - Dice Display Bridge (Linkset Version)
-// This script goes in link 73 of the linkset
+// This script goes in link 83 of the linkset
 // Works with simple XyzzyText v1.0 script (like leaderboard)
 // Handles dice roll display across 2 prims (20 characters total)
 
@@ -19,8 +19,8 @@ integer MSG_CLEAR_DICE = 3021;
 integer DISPLAY_STRING = 204000;
 
 // Dice prim links
-integer DICE_PRIM_1 = 73;  // First dice prim (characters 0-9)
-integer DICE_PRIM_2 = 74;  // Second dice prim (characters 10-19)
+integer DICE_PRIM_1 = 83;  // First dice prim (characters 0-9)
+integer DICE_PRIM_2 = 84;  // Second dice prim (characters 10-19)
 
 // Function to display dice text across both prims
 displayDiceText(string text) {
@@ -49,8 +49,8 @@ default {
     state_entry() {
         if (VERBOSE_LOGGING) {
             llOwnerSay("🎲 Dice Display Bridge ready! (Linkset Version)");
-            llOwnerSay("🎲 This is link " + (string)llGetLinkNumber() + " - should be link 73");
-            llOwnerSay("🎲 Managing dice display links 73-74 (2 prims total)");
+            llOwnerSay("🎲 This is link " + (string)llGetLinkNumber() + " - should be link 83");
+            llOwnerSay("🎲 Managing dice display links 83-84 (2 prims total)");
             llOwnerSay("✅ Linkset communication active - listening for messages from link 1!");
         }
         
@@ -116,7 +116,7 @@ default {
             llOwnerSay("🎲 Dice Display Status:");
             llOwnerSay("  Link Number: " + (string)llGetLinkNumber());
             llOwnerSay("  Total prims in linkset: " + (string)llGetNumberOfPrims());
-            llOwnerSay("  Managing links 73-74 (2 XyzzyText prims)");
+            llOwnerSay("  Managing links 83-84 (2 XyzzyText prims)");
             llOwnerSay("  Listening for messages from link 1 (controller)");
             llOwnerSay("  Using simple XyzzyText v1.0 (like leaderboard)");
             

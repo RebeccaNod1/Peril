@@ -19,24 +19,24 @@ string getPlayerName(key id) {
 // LINKSET COMMUNICATION CONSTANTS
 // =============================================================================
 
-// Target link numbers (confirmed from actual linkset scan)
-integer SCOREBOARD_LINK = 2;      // Scoreboard manager (tiny controller box)
-integer LEADERBOARD_LINK = 25;    // Leaderboard manager (first XyzzyText prim)
-integer DICE_LINK = 73;           // Dice display manager (first dice prim)
+// Target link numbers (UPDATED after overlay prim insertion)
+integer SCOREBOARD_LINK = 12;     // Scoreboard manager cube
+integer LEADERBOARD_LINK = 35;    // Leaderboard manager (first XyzzyText prim)
+integer DICE_LINK = 83;           // Dice display manager (first dice prim)
 
 // Message constants for link communication
-// Scoreboard messages (to link 2)
+// Scoreboard messages (to link 12)
 integer MSG_GAME_STATUS = 3001;
 integer MSG_PLAYER_UPDATE = 3002;
 integer MSG_CLEAR_GAME = 3003;
 integer MSG_REMOVE_PLAYER = 3004;
 
-// Leaderboard messages (to link 25)  
+// Leaderboard messages (to link 35)  
 integer MSG_GAME_WON = 3010;
 integer MSG_GAME_LOST = 3011;
 integer MSG_RESET_LEADERBOARD = 3012;
 
-// Dice messages (to link 73)
+// Dice messages (to link 83)
 integer MSG_DICE_ROLL = 3020;
 integer MSG_CLEAR_DICE = 3021;
 
@@ -47,6 +47,7 @@ integer MSG_UPDATE_FLOAT = 103;
 integer MSG_CLEANUP_FLOAT = 104;
 integer MSG_REZ_FLOAT = 105;
 integer MSG_REGISTER_PLAYER = 106;
+integer MSG_REGISTER_PLAYER_REQUEST = 9050;  // New dedicated message to Player_RegistrationManager
 integer MSG_SYNC_GAME_STATE = 107;
 integer MSG_SHOW_MENU = 201;
 integer MSG_TOGGLE_READY = 202;
@@ -94,26 +95,22 @@ integer MSG_PUBLIC_MESSAGE = 9031;
 integer MSG_REGION_MESSAGE = 9032;
 integer MSG_DIALOG_REQUEST = 9033;
 
-// Memory-safe debug function - forwards to dedicated logger
-debugMsg(string msg) {
-    // Forward to dedicated verbose logger to save memory in Main Controller
-    llMessageLinked(LINK_SET, MSG_VERBOSE_LOG, (string)SCRIPT_ID_MAIN + "|" + msg, NULL_KEY);
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
 }
 
-// Memory-safe owner message function
-ownerMsg(string msg) {
-    llMessageLinked(LINK_SET, MSG_OWNER_MESSAGE, msg, NULL_KEY);
-}
+// REMOVED: debugMsg() - too memory intensive for Main Controller
 
-// Memory-safe public message function
-publicMsg(string msg) {
-    llMessageLinked(LINK_SET, MSG_PUBLIC_MESSAGE, msg, NULL_KEY);
-}
-
-// Memory-safe region message function
-regionMsg(key player, string msg) {
-    llMessageLinked(LINK_SET, MSG_REGION_MESSAGE, (string)player + "|" + msg, NULL_KEY);
-}
+// REMOVED: Heavy message forwarding functions - too memory intensive
 
 // Status message timing
 float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
@@ -249,40 +246,8 @@ checkMemoryUsage(string context) {
     llMessageLinked(LINK_SET, MSG_MEMORY_CHECK, context, NULL_KEY);
 }
 
-emergencyMemoryCleanup() {
-    ownerMsg("SUCCESS|Emergency memory cleanup initiated");
-    
-    globalPickedNumbers = llListSort(globalPickedNumbers, 1, TRUE); 
-    
-    list tempPlayers = players;
-    list tempNames = names;
-    list tempLives = lives;
-    
-    players = [];
-    names = [];
-    lives = [];
-    
-    players = tempPlayers;
-    names = tempNames;
-    lives = tempLives;
-    
-    ownerMsg("SUCCESS|Emergency cleanup complete");
-}
-
-reportMemoryStats() {
-    string statsData = (string)llGetUsedMemory() + "|" + 
-                       (string)llGetListLength(players) + "|" + 
-                       (string)llGetListLength(names) + "|" + 
-                       (string)llGetListLength(lives) + "|" + 
-                       (string)llGetListLength(picksData) + "|" + 
-                       (string)llGetListLength(readyPlayers) + "|" + 
-                       (string)llGetListLength(pickQueue) + "|" + 
-                       (string)llGetListLength(globalPickedNumbers) + "|" + 
-                       (string)llGetListLength(floaterChannels);
-    
-    llMessageLinked(LINK_SET, MSG_MEMORY_STATS_REQUEST, statsData, NULL_KEY);
-    llMessageLinked(LINK_SET, MSG_MEMORY_STATS, "REQUEST_REPORT", NULL_KEY);
-}
+// REMOVED: emergencyMemoryCleanup() - delegated to Controller_Memory.lsl
+// REMOVED: reportMemoryStats() - delegated to Controller_Memory.lsl
 
 // Send status message to scoreboard using link messages
 sendStatusMessage(string status) {
@@ -292,71 +257,32 @@ sendStatusMessage(string status) {
     // CHANGED: Use link message instead of llRegionSay
     llMessageLinked(SCOREBOARD_LINK, MSG_GAME_STATUS, status, NULL_KEY);
     
-    ownerMsg("DEBUG|Status|" + status);
+    // Removed ownerMsg call to save memory
     
     currentTimerMode = TIMER_STATUS;
     llSetTimerEvent(STATUS_DISPLAY_TIME + 1.0);
 }
 
-// Forward game state to helpers when it changes
+
+// Direct scoreboard update for most recently added player
 updateHelpers() {
-    // Skip sending sync messages during victory sequence to prevent stale data broadcasts
-        if (victoryInProgress) {
-            ownerMsg("DEBUG|Main|Skipping updateHelpers during victory");
-            return;
-        }
-    
-    checkMemoryUsage("updateHelpers_start");
-    
-    string perilForSync = "NONE";
-    if (perilPlayer != "" && perilPlayer != "NONE") {
-        perilForSync = perilPlayer;
+    // EMERGENCY memory check - much stricter threshold
+    integer freeMem = llGetFreeMemory();
+    if (victoryInProgress || freeMem < 4000) {
+        // Emergency: Don't even create strings if memory is critically low
+        return;
     }
     
-    string picksDataStr = "EMPTY";
-    integer dataCount = llGetListLength(picksData);
-    if (dataCount > 0) {
-        picksDataStr = llDumpList2String(picksData, "^");
-        checkMemoryUsage("updateHelpers_after_picks_processing");
-        
-        // DEBUG: Simple pick data logging
-        debugMsg("Sending picks data: " + (string)dataCount + " entries");
-    } else {
-        debugMsg("No picks data to send");
-    }
-    
-    // Send core game state to internal scripts (include players list for floater management)
-    // CRITICAL: Always ensure we have at least 4 parts in sync message to prevent incomplete sync warnings
-    string livesStr = llList2CSV(lives);
-    string namesStr = llList2CSV(names);
-    string playersStr = llList2CSV(players);
-    
-    // During reset/empty states, ensure we have proper empty values instead of completely empty strings
-    if (livesStr == "") livesStr = "EMPTY_LIVES";
-    if (namesStr == "") namesStr = "EMPTY_NAMES";
-    if (playersStr == "") playersStr = "EMPTY_PLAYERS";
-    
-    string syncMessage = livesStr + "~" + picksDataStr + "~" + perilForSync + "~" + namesStr + "~" + playersStr;
-    debugMsg("Full sync message prepared");
-    
-    // Only send sync if we have actual game data OR it's a proper reset sync
-    if (llGetListLength(names) > 0 || picksDataStr != "EMPTY" || perilForSync != "NONE") {
-        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
-    } else {
-        // This is a true empty state (reset), send a special reset sync instead
-        llOwnerSay("📤 [Main Controller] Sending reset sync instead of empty sync");
-        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, "RESET~RESET~RESET~RESET~RESET", NULL_KEY);
-    }
-    
-    // Send scoreboard updates using link messages
-    integer i;
-    for (i = 0; i < llGetListLength(names); i++) {
-        string updateData = llList2String(names, i) + "|" + 
-                           (string)llList2Integer(lives, i) + "|" + 
-                           (string)llList2Key(players, i);
-        
-        // CHANGED: Use link message instead of llRegionSay
-        llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, updateData, NULL_KEY);
+    // MINIMAL: Only send update for the most recently added player
+    // No CSV operations, no string building - just direct message
+    integer nameCount = llGetListLength(names);
+    if (nameCount > 0) {
+        integer lastIdx = nameCount - 1;
+        // Minimal string operations - direct message
+        llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, 
+                       llList2String(names, lastIdx) + "|" + 
+                       (string)llList2Integer(lives, lastIdx) + "|" + 
+                       (string)llList2Key(players, lastIdx), NULL_KEY);
     }
 }
 
@@ -370,7 +296,8 @@ requestPickerIndex(string name) {
 }
 
 string generateSerializedState() {
-    return llList2CSV(lives) + "~" + llList2CSV(picksData) + "~" + perilPlayer + "~" + llList2CSV(names);
+    // Simplified to avoid memory-intensive CSV operations
+    return "MINIMAL_STATE~" + perilPlayer + "~" + (string)llGetListLength(names);
 }
 
 // Update floating text based on lock status
@@ -379,7 +306,8 @@ updateFloatingText() {
         llSetText("🔒 GAME LOCKED\nOwner access only", <1.0, 0.5, 0.0>, 1.0);
     } else {
         if (roundStarted || gameStarting) {
-            llSetText("🎮 GAME IN PROGRESS\nRound " + (string)(llGetListLength(names)) + " players", <1.0, 0.2, 0.2>, 1.0);
+            integer actualPlayerCount = llGetListLength(names);
+            llSetText("🎮 GAME IN PROGRESS\n" + (string)actualPlayerCount + " players", <1.0, 0.2, 0.2>, 1.0);
         } else {
             llSetText("🎮 PERIL DICE GAME\nTouch to play!", <1.0, 1.0, 0.0>, 1.0);
         }
@@ -436,11 +364,16 @@ resetGame() {
     llSetTimerEvent(0);
     
     initListeners();
-    updateHelpers();
+    
+    // SAFETY: Only call updateHelpers if we have actual game data to prevent startup issues
+    if (llGetListLength(names) > 0) {
+        updateHelpers();
+    }
 }
 
 default {
     state_entry() {
+        reportMemoryUsage("Main Controller");
         llOwnerSay("🎮 Main Controller ready! (Linkset Version)");
         
         // Initialize lockout system
@@ -457,6 +390,7 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("Main Controller");
         llOwnerSay("🔄 Main Controller rezzed - resetting game state...");
         
         // Re-initialize lockout system
@@ -485,25 +419,25 @@ default {
             integer shouldBePicking = FALSE;
             if (currentPickerIdx < llGetListLength(pickQueue)) {
                 string expectedPickerName = llList2String(pickQueue, currentPickerIdx);
-                debugMsg("Touch recovery: " + playerName);
+                // Removed debugMsg call to save memory
                 if (playerName == expectedPickerName) {
                     shouldBePicking = TRUE;
                     // Fix corrupted currentPicker state
                     if (currentPicker != toucher) {
-                        ownerMsg("DEBUG|Recovery|Fixing currentPicker for " + playerName);
+                    // Removed ownerMsg call to save memory
                         currentPicker = toucher;
                     }
                 }
             } else {
-                debugMsg("Pick phase complete");
+                // Removed debugMsg call to save memory
             }
             
             // FALLBACK: If game is stuck and no one is set as current picker, but we're in pick phase,
             // let any registered player attempt to resume (with owner confirmation)
             if (!shouldBePicking && currentPicker == NULL_KEY && currentPickerIdx < llGetListLength(pickQueue)) {
                 if (toucher == llGetOwner()) {
-                    ownerMsg("ERROR|Game stuck - no current picker set");
-                    ownerMsg("DEBUG|Recovery|Owner touched - fixing picker");
+                    // Removed ownerMsg calls to save memory
+                    // Game stuck error and recovery logging removed
                     currentPicker = toucher;
                     shouldBePicking = TRUE;
                 }
@@ -511,12 +445,12 @@ default {
             
             // Check for dialog recovery (original logic OR enhanced detection)
             if (currentPicker == toucher || shouldBePicking) {
-                llRegionSayTo(toucher, 0, "🔄 Welcome back! Restoring your number picking dialog...");
+                llSay(0, "🔄 " + playerName + " - Welcome back! Restoring your number picking dialog...");
                 llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, playerName, toucher);
                 return;
             }
             else if (playerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
-                llRegionSayTo(toucher, 0, "🔄 Welcome back! Restoring your roll dialog...");
+                llSay(0, "🔄 " + playerName + " - Welcome back! Restoring your roll dialog...");
                 llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, toucher);
                 return;
             }
@@ -596,7 +530,7 @@ default {
                 }
                 
                 pendingRegistrations += [toucher];
-                llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, playerName + "|" + (string)toucher, NULL_KEY);
+                llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, playerName + "|" + (string)toucher, NULL_KEY);
                 
                 integer isStarter = TRUE;
                 integer n;
@@ -614,71 +548,49 @@ default {
     }
 
     link_message(integer sender, integer num, string str, key id) {
-        // Handle player registration
+        // Dialog forwarding now handled by Player_RegistrationManager
+        
+        // Handle player registration from other scripts (NOT delegated, this is for other internal communication)
         if (num == MSG_REGISTER_PLAYER) {
-            checkMemoryUsage("player_registration_start");
-            
-            list parts = llParseString2List(str, ["|"], []);
-            string newName = llList2String(parts, 0);
-            key newKey = (key)llList2String(parts, 1);
-            
-            if ((roundStarted || gameStarting) && newKey != llGetOwner()) {
-                ownerMsg("ERROR|" + newName + " cannot join - game started");
-                regionMsg(newKey, "Game already started - wait for current game to end");
-                return;
-            }
-            
-            integer existingIdx = llListFindList(players, [newKey]);
-            if (existingIdx == -1) {
-                players += [newKey];
+            // This is for other scripts that might still use the old MSG_REGISTER_PLAYER message
+            // Convert it to the new message for the Player_RegistrationManager
+            llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, str, id);
+            return;
+        }
+        
+        // Handle registration updates from Player_RegistrationManager
+        if (num == 9040) { // MSG_UPDATE_MAIN_LISTS
+            // ULTRA-OPTIMIZED: Player_RegistrationManager now handles all heavy processing
+            // Main Controller just adds the player to its master lists
+            list parts = llParseString2List(str, ["~"], []);
+            if (llGetListLength(parts) >= 2) {
+                integer ch = llList2Integer(parts, 0);
+                string newName = llList2String(parts, 1);
+                
+                // CHECK FOR DUPLICATES: Only check players list (names list may be populated by sync messages)
+                integer existingPlayerIdx = llListFindList(players, [id]);
+                
+                if (existingPlayerIdx != -1) {
+                    llOwnerSay("⚠️ [Main Controller] DUPLICATE PLAYER KEY DETECTED - Player: " + newName + " (" + (string)id + ") already exists!");
+                    llOwnerSay("⚠️ [Main Controller] Players list length: " + (string)llGetListLength(players) + ", Names list length: " + (string)llGetListLength(names));
+                    return; // Skip adding duplicate
+                }
+                
+                // Add new player directly to master lists (minimal operations)
+                players += [id];
                 names += [newName];
                 lives += [3];
-                checkMemoryUsage("player_registration_after_list_additions");
-                
-                integer newPlayerIdx = llGetListLength(names) - 1;
-                integer ch = FLOATER_BASE_CHANNEL + newPlayerIdx;
                 floaterChannels += [ch];
                 
-                if (llSubStringIndex(newName, "Bot") == 0) {
-                    readyPlayers += [newName];
-                    publicMsg("GAME|" + newName + " (Bot) ready to play!");
-                } else {
-                    integer humanCount = 0;
-                    integer i;
-                    for (i = 0; i < llGetListLength(names); i++) {
-                        string playerName = llList2String(names, i);
-                        if (llSubStringIndex(playerName, "Bot") != 0) {
-                            humanCount++;
-                        }
-                    }
-                    if (humanCount == 1) {
-                        // First human player becomes the starter - owner or not
-                        publicMsg("GAME|" + newName + " is the game starter!");
-                    } else {
-                        // Subsequent players need to set ready status
-                        publicMsg("GAME|" + newName + " joined - set ready status");
-                    }
+                // Clean up pending registrations
+                integer pendingIdx = llListFindList(pendingRegistrations, [id]);
+                if (pendingIdx != -1) {
+                    pendingRegistrations = llDeleteSubList(pendingRegistrations, pendingIdx, pendingIdx);
                 }
                 
-                // If this is the owner joining, show them the appropriate player menu
-                if (newKey == llGetOwner()) {
-                    integer isStarter = TRUE;
-                    integer j;
-                    for (j = 0; j < llGetListLength(names) - 1 && isStarter; j++) {
-                        string existingName = llList2String(names, j);
-                        if (llSubStringIndex(existingName, "Bot") != 0) {
-                            isStarter = FALSE;
-                        }
-                    }
-                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, newKey);
-                }
-                updateHelpers();
-                ownerMsg("JOIN|" + newName);
-            }
-            
-            integer pendingIdx = llListFindList(pendingRegistrations, [newKey]);
-            if (pendingIdx != -1) {
-                pendingRegistrations = llDeleteSubList(pendingRegistrations, pendingIdx, pendingIdx);
+                // That's it! Player_RegistrationManager already sent sync and scoreboard updates
+                llOwnerSay("✅ Player added to master lists: " + newName + " (" + (string)llGetFreeMemory() + " bytes free)");
+                llOwnerSay("🔍 [DEBUG] Updated lists - Players: " + (string)llGetListLength(players) + ", Names: " + (string)llGetListLength(names));
             }
             return;
         }
@@ -690,12 +602,13 @@ default {
                 string eliminatedPlayer = llList2String(parts, 1);
                 integer idx = llListFindList(names, [eliminatedPlayer]);
                 if (idx != -1) {
-                    // FIRST: Set the player's lives to 0 and update scoreboard/floaters before removal
+                    // FIRST: Set the player's lives to 0 and show 0 hearts
                     lives = llListReplaceList(lives, [0], idx, idx);
                     
-                    // Update scoreboard and floaters to show 0 hearts
-                    updateHelpers();
-                    llSleep(1.5); // Give extra time for the 0 hearts display to be visible
+                    // Send ONLY a direct scoreboard update to show 0 hearts
+                    llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, 
+                                   eliminatedPlayer + "|0|" + (string)llList2Key(players, idx), NULL_KEY);
+                    llSleep(1.5); // Give time for 0 hearts display
                     
                     // Check if this will cause victory BEFORE removing player
                     integer willCauseVictory = (llGetListLength(names) <= 2); // After removing one player
@@ -708,6 +621,7 @@ default {
                     // THEN: Clean up and remove the player
                     integer ch = llList2Integer(floaterChannels, idx);
                     llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
+                    llSleep(0.3); // Give floater time to cleanup
                     
                     players = llDeleteSubList(players, idx, idx);
                     names = llDeleteSubList(names, idx, idx);
@@ -745,7 +659,7 @@ default {
                     // CHANGED: Send to scoreboard, which will handle leaderboard updates
                     llMessageLinked(SCOREBOARD_LINK, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
                     
-                    sendStatusMessage("Elimination");
+                    // Status message now sent directly by Roll Module
                     
                     // Check for victory condition BEFORE calling updateHelpers()
                     if (llGetListLength(names) <= 1) {
@@ -776,9 +690,7 @@ default {
                             // CHANGED: Send to scoreboard, which will handle leaderboard updates
                             llMessageLinked(SCOREBOARD_LINK, MSG_GAME_WON, winner, NULL_KEY);
                             
-                            llSleep(STATUS_DISPLAY_TIME * 0.8);
-                            sendStatusMessage("Victory");
-                            llSleep(STATUS_DISPLAY_TIME + 1.0);
+                            llSleep(STATUS_DISPLAY_TIME * 2.0); // Combined delay
                         } else {
                             // CRITICAL: Set victory flag and clear state for no survivors scenario too
                             victoryInProgress = TRUE;
@@ -800,11 +712,8 @@ default {
                         return;
                     }
                     
-                    // Only call updateHelpers() if victory was NOT detected
-                    updateHelpers();
-                    
-                    // Final updateHelpers() call after all elimination processing is complete
-                    updateHelpers();
+                    // MINIMAL: Only send direct scoreboard update for remaining players
+                    // Skip heavy updateHelpers() calls to prevent memory crashes
                 }
             }
             return;
@@ -834,96 +743,28 @@ default {
             return;
         }
         
-        // Handle incoming sync updates from Roll Confetti Module
+        // Forward sync updates to Game Manager for processing
         if (num == MSG_SYNC_GAME_STATE) {
-            // Skip processing sync messages during victory sequence
+            // Skip forwarding during victory sequence
             if (victoryInProgress) {
-                llOwnerSay("🏆 [Main Controller] Ignoring sync message during victory sequence");
                 return;
             }
-            
-            list parts = llParseString2List(str, ["~"], []);
-            if (llGetListLength(parts) >= 4) {
-                list newLives = llCSV2List(llList2String(parts, 0));
-                string currentLivesStr = llList2CSV(lives);
-                string newLivesStr = llList2CSV(newLives);
+            // DON'T forward sync messages - this creates loops!
+            // Game Manager should receive the original message directly
+            // Main Controller just ignores sync messages now
+            return;
+        }
+        
+        // Receive lightweight updates from Game Manager
+        if (num == 9070) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 3 && llList2String(parts, 0) == "PERIL_UPDATE") {
+                perilPlayer = llList2String(parts, 1);
+                integer playerCount = (integer)llList2String(parts, 2);
                 
-                string newPerilPlayerCheck = llList2String(parts, 2);
-                list newNames = llCSV2List(llList2String(parts, 3));
-                
-                // VALIDATION: Reject sync messages with invalid peril players to prevent loops
-                if (newPerilPlayerCheck != "NONE" && newPerilPlayerCheck != "" && newPerilPlayerCheck != perilPlayer) {
-                    // Check if the peril player exists in the new names list
-                    integer perilPlayerExists = llListFindList(newNames, [newPerilPlayerCheck]) != -1;
-                    if (!perilPlayerExists) {
-                        llOwnerSay("⚠️ [Main Controller] REJECTING sync message with invalid peril player: " + newPerilPlayerCheck + " (player doesn't exist)");
-                        return; // Reject the entire sync message
-                    }
-                    
-                    // Check if peril player has 0 lives (eliminated)
-                    integer perilPlayerIdx = llListFindList(newNames, [newPerilPlayerCheck]);
-                    if (perilPlayerIdx != -1 && perilPlayerIdx < llGetListLength(newLives)) {
-                        integer perilPlayerLives = llList2Integer(newLives, perilPlayerIdx);
-                        if (perilPlayerLives <= 0) {
-                            llOwnerSay("⚠️ [Main Controller] REJECTING sync message with eliminated peril player: " + newPerilPlayerCheck + " (0 lives)");
-                            return; // Reject the entire sync message
-                        }
-                    }
-                }
-                
-                if (newPerilPlayerCheck == "NONE" && perilPlayer != "" && perilPlayer != "NONE") {
-                    integer perilStillInGame = llListFindList(names, [perilPlayer]) != -1;
-                    if (perilStillInGame) {
-                        return;
-                    }
-                }
-                
-                integer perilChanged = (perilPlayer != newPerilPlayerCheck);
-                integer livesChanged = (newLivesStr != currentLivesStr);
-                
-                if (livesChanged || perilChanged) {
-                    string encodedPicksDataStr = llList2String(parts, 1);
-                    list newPicksData = [];
-                    if (encodedPicksDataStr != "") {
-                        list encodedEntries = llParseString2List(encodedPicksDataStr, ["^"], []);
-                        integer i;
-                        for (i = 0; i < llGetListLength(encodedEntries); i++) {
-                            string entry = llList2String(encodedEntries, i);
-                            list entryParts = llParseString2List(entry, ["|"], []);
-                            if (llGetListLength(entryParts) >= 2) {
-                                string playerName = llList2String(entryParts, 0);
-                                string picks = llList2String(entryParts, 1);
-                                picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-                                newPicksData += [playerName + "|" + picks];
-                            } else {
-                                newPicksData += [entry];
-                            }
-                        }
-                    }
-                    string newPerilPlayer = llList2String(parts, 2);
-                    list newNames = llCSV2List(llList2String(parts, 3));
-                    
-                    lives = newLives;
-                    picksData = newPicksData;
-                    perilPlayer = newPerilPlayer;
-                    names = newNames;
-                    
-                    // Update scoreboard and other helpers with the new game state
-                    updateHelpers();
-                    
-                    integer allPicksEmpty = TRUE;
-                    integer i;
-                    for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
-                        string entry = llList2String(newPicksData, i);
-                        list parts = llParseString2List(entry, ["|"], []);
-                        if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
-                            allPicksEmpty = FALSE;
-                        }
-                    }
-                    
-                    if (livesChanged && newPerilPlayer != "" && newPerilPlayer != "NONE" && roundStarted && allPicksEmpty) {
-                        llOwnerSay("🎯 Post-roll state update detected - Game Manager will handle round continuation");
-                    }
+                // Update floating text if needed
+                if (roundStarted || gameStarting) {
+                    llSetText("🎮 GAME IN PROGRESS\n" + (string)playerCount + " players", <1.0, 0.2, 0.2>, 1.0);
                 }
             }
             return;
@@ -1117,8 +958,8 @@ default {
                         return;
                     }
                     
-                    // Update all other scripts with the new state
-                    updateHelpers();
+                    // Skip updateHelpers to prevent memory crashes during player removal
+                    // Scoreboard was already updated with MSG_REMOVE_PLAYER above
                     llOwnerSay("✅ [Main Controller] Synchronized removal of " + leavingName);
                 }
             }
@@ -1144,16 +985,23 @@ default {
             return;
         }
         
+        
         // Handle verbose logging toggle - redirect to dedicated Verbose_Logger script
         if (num == MSG_VERBOSE_TOGGLE && str == "TOGGLE_VERBOSE_LOGS") {
-            // Forward to dedicated verbose logger script
-            llMessageLinked(LINK_SET, MSG_VERBOSE_TOGGLE, "TOGGLE_VERBOSE_LOGS", id);
+            // Forward to dedicated verbose logger script, but exclude ourselves from LINK_SET
+            // Send to each script individually to avoid the forwarding loop
+            integer i;
+            integer linkCount = llGetNumberOfPrims();
+            for (i = 2; i <= linkCount; i++) { // Start from 2 to skip ourselves (link 1)
+                llMessageLinked(i, MSG_VERBOSE_TOGGLE, "TOGGLE_VERBOSE_LOGS", id);
+            }
             return;
         }
         
         // Handle memory monitor messages
         if (num == MSG_EMERGENCY_CLEANUP) {
-            emergencyMemoryCleanup();
+            // Removed emergencyMemoryCleanup call to save memory
+            llOwnerSay("Emergency cleanup disabled to prevent crashes");
             return;
         }
         
@@ -1185,12 +1033,12 @@ default {
             if (id == llGetOwner() && roundStarted) {
                 if (msg == "🔄 Recover Pick Dialog") {
                     string ownerName = getPlayerName(id);
-                    llRegionSayTo(id, 0, "🔄 Restoring your number picking dialog...");
+                    llSay(0, "🔄 " + ownerName + " - Restoring your number picking dialog...");
                     llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, ownerName, id);
                     return;
                 }
                 else if (msg == "🔄 Recover Roll Dialog") {
-                    llRegionSayTo(id, 0, "🔄 Restoring your roll dialog...");
+                    llSay(0, "🔄 " + getPlayerName(id) + " - Restoring your roll dialog...");
                     llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, id);
                     return;
                 }
@@ -1228,7 +1076,8 @@ default {
                     return;
                 }
                 if (msg == "Memory Stats") {
-                    reportMemoryStats();
+                    // Removed reportMemoryStats call to save memory
+                    llOwnerSay("Memory stats reporting disabled to prevent crashes");
                     return;
                 }
                 if (msg == "Add Test Player") {
@@ -1241,7 +1090,7 @@ default {
                     integer botNum = llGetListLength(players) + 1;
                     string testName = "Bot" + (string)botNum;
                     key fake = llGenerateKey();
-                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, testName + "|" + (string)fake, NULL_KEY);
+                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, testName + "|" + (string)fake, NULL_KEY);
                     
                     integer ownerIdx = llListFindList(players, [llGetOwner()]);
                     integer ownerIsStarter = TRUE;
@@ -1282,7 +1131,9 @@ default {
             
             // Allow starter to start the game
             if (msg == "Start Game") {
-                if (llGetListLength(players) < 2) {
+                integer playerCount = llGetListLength(players);
+                integer nameCount = llGetListLength(names);
+                if (playerCount < 2) {
                     llOwnerSay("⚠️ Need at least 2 players to start the game.");
                     return;
                 }
@@ -1321,7 +1172,8 @@ default {
                 gameStarting = TRUE;
                 llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
                 
-                llSetText("🎮 GAME IN PROGRESS\nRound " + (string)(llGetListLength(names)) + " players", <1.0, 0.2, 0.2>, 1.0);
+                integer actualPlayerCount = llGetListLength(names);
+                llSetText("🎮 GAME IN PROGRESS\n" + (string)actualPlayerCount + " players", <1.0, 0.2, 0.2>, 1.0);
                 
                 sendStatusMessage("Title");
                 llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND", NULL_KEY);
