@@ -77,6 +77,9 @@ Three possible outcomes based on the dice roll:
 
 ### **6️⃣ Victory**
 - **Last player standing wins!** 🏆
+- **Winner Glow Celebration** (NEW in v2.8.6): Winner gets bright green glow on both scoreboard and floater 💚
+- **Extended Victory Display**: 24-second celebration timer before game reset ⏱️
+- **Victory Text**: Winner's floater displays "✨ ULTIMATE VICTORY! ✨" and "🏆 ULTIMATE SURVIVOR 🏆"
 - Victory celebration with confetti effects! ✨
 - Winner's name recorded on the leaderboard
 
@@ -169,18 +172,23 @@ The game features thematic messaging for maximum immersion:
 - **Kick Player** functionality allows owners to remove disruptive players
 - **Leave Game** system properly cleans up all player data
 
-### **Enhanced Display System (NEW in v2.8.1):**
+### **Enhanced Display System (UPDATED in v2.8.6):**
+- **Winner Glow Celebration** - Winners get bright green glow on both scoreboard and floaters 💚
+- **Visual Priority System** - Winner glow (green) overrides peril glow (yellow) during victory
+- **24-Second Victory Timer** - Extended celebration before game reset for proper recognition
 - **Real-Time Status Updates** - Peril status updates immediately on floating displays
-- **Enhanced Elimination** - Players see 0 hearts ❤️ → 💔💔💔 before removal
+- **Enhanced Elimination** - Players see 0 hearts ❤️ → 💔💔💔 before removal with red X markers ❌
 - **Visual Scoreboard** - Shows all players with profile pictures and heart counts
 - **Floating HUD Displays** - Personal status displays for each player
 - **Professional Status Actions** - Large status prim shows current game events
+- **Color-Coded Glow System** - Green (winner), Yellow (peril), Red X (eliminated)
 
 ### **Technical Rules:**
 - Game supports up to **10 players maximum**
-- **2-minute timeout** on dialog responses (improved for faster gameplay)
+- **Owner kick functionality** for managing disruptive players
 - **Automatic game reset** on startup (preserves leaderboard)
 - **Single linkset architecture** (74 prims total) for reliable operation
+- **Professional winner celebration** with 24-second recognition timer
 
 ---
 

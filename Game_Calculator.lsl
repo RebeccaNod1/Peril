@@ -7,6 +7,19 @@
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
 integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 integer MSG_GET_DICE_TYPE = 1001;
 integer MSG_DICE_TYPE_RESULT = 1005;
 integer MSG_GET_PICKS_REQUIRED = 1002;
@@ -130,6 +143,8 @@ integer showPickManager(string player, key id) {
 
 default {
     state_entry() {
+        reportMemoryUsage("🧮 Game Calculator");
+        
         // Initialize/reset all state variables
         lives = [];
         picksData = [];
@@ -140,6 +155,8 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("🧮 Game Calculator");
+        
         if (VERBOSE_LOGGING) {
             llOwnerSay("🔄 Game Calculator rezzed - reinitializing...");
         }

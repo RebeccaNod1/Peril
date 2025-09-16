@@ -2,18 +2,20 @@ PERIL DICE - Professional Single Linkset Game System for Second Life
 
 Created by Rebecca Nod and Noose the Bunny
 
-CURRENT VERSION: 2.8.2 - Scoreboard Spam & Display Fixes
+CURRENT VERSION: 2.8.6 - Winner Glow Celebration System
 
 Thrilling multiplayer elimination game for 2-10 players! Each participant selects numbers before a die is rolled. If the peril player's number comes up, they lose a life. Last player standing wins!
 
-NEW IN v2.8.2: Fixed critical scoreboard spam bug, re-fixed peril status display on floating HUDs, enhanced elimination sequence to show 0 hearts before player removal.
+NEW IN v2.8.6: Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
 KEY FEATURES:
+- Winner Glow Celebration: Bright green glow effects on scoreboard and floaters with 24-second victory timer
 - Visual Scoreboard: Real-time player grid with profile pictures and hearts
 - Enhanced Status Display: Custom textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
+- Color-Coded Glow System: Green (winner), Yellow (peril), Red X (eliminated)
 - Comprehensive Leaderboard: Persistent win tracking with XyzzyText display
 - Bot Support: AI players for testing and gameplay variety
-- Floating HUD Display: Real-time stats for each player
+- Floating HUD Display: Real-time stats for each player with victory text
 - Intelligent Dice Sizing: d6/d12/d20/d30 based on player count
 - Security Features: Owner lockout system, kick player functionality
 - Single Linkset: Complete 74-prim system for easy deployment
@@ -52,6 +54,10 @@ EXPERIENCE: None required
 Perfect for nightclubs, venues, casinos, private parties, group entertainment, community gatherings.
 
 VERSION HISTORY:
+v2.8.6: Winner Glow Celebration System with 24-second victory recognition
+v2.8.5: Memory optimization and bot profile picture fixes
+v2.8.4: Disconnect recovery system and verbose logging
+v2.8.3: Shield detection fixes and initialization overhaul
 v2.8.2: Scoreboard spam fix, display improvements
 v2.8.1: Peril status and elimination heart fixes
 v2.8.0: Game lockout security, automatic reset
@@ -60,6 +66,6 @@ v2.7.0: Single linkset architecture revolution
 ORIGINAL CONCEPT: Noose the Bunny (djmusica28)
 AUTOMATED SYSTEM: Enhanced for professional gameplay
 
-Transform your space into an exciting gaming destination!
+Transform your space into an exciting gaming destination with professional winner celebration effects!
 
 Keywords: dice game, elimination game, multiplayer, party game, club game, casino, entertainment, social game, LSL script, venue game

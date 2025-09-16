@@ -153,6 +153,9 @@ handlePlayerRegistration(string regData, key requesterId) {
     // Send pre-built sync message
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
     
+    // CRITICAL FIX: Send floater rez message to Floater Manager
+    llMessageLinked(LINK_SET, 106, newName + "|" + (string)newKey, newKey);
+    
     // Send minimal update to Main Controller - just the essential data it needs
     string updateData = (string)ch + "~" + newName;
     llMessageLinked(LINK_SET, MSG_UPDATE_MAIN_LISTS, updateData, newKey);

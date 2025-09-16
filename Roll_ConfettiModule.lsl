@@ -72,6 +72,19 @@ integer diceTypeProcessed = FALSE; // Prevent duplicate dice type processing
 // Verbose logging control - toggled by owner
 integer VERBOSE_LOGGING = FALSE;
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
@@ -129,6 +142,8 @@ confetti() {
 
 default {
     state_entry() {
+        reportMemoryUsage("🎲 Roll Confetti Module");
+        
         // Initialize dynamic channels
         initializeChannels();
         rollDialogChannel = ROLLDIALOG_CHANNEL; // Set legacy variable
@@ -155,6 +170,7 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("🎲 Roll Confetti Module");
         llOwnerSay("🔄 Roll Confetti Module rezzed - reinitializing...");
         
         // Re-initialize dynamic channels
@@ -273,8 +289,8 @@ default {
             if (llSubStringIndex(str, "_NEXT_ROUND") != -1) {
                 string playerName = llGetSubString(str, 0, llSubStringIndex(str, "_NEXT_ROUND") - 1);
                 llOwnerSay("🎯 Prompting " + playerName + " to start next round...");
-                // Send message to main controller to get the player's key and show dialog
-                llMessageLinked(LINK_SET, 997, "START_NEXT_ROUND_DIALOG|" + playerName, NULL_KEY);
+                // Send continuation directly to Game Manager (more efficient than through Main Controller)
+                llMessageLinked(LINK_SET, 998, "", NULL_KEY); // Empty peril player - Game Manager will select one
             } else {
                 // Clear dice display directly (link 83)
                 llMessageLinked(83, 3021, "", NULL_KEY);
@@ -394,6 +410,10 @@ default {
                 
                 // Direct scoreboard status update
                 llMessageLinked(12, 3001, "Plot Twist", NULL_KEY);
+                
+                // IMPORTANT: Send peril player update to scoreboard for glow effect
+                llMessageLinked(12, 3005, newPeril, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
+                
                 // Add delay to let status display before next phase
                 llSleep(2.0);
                 
@@ -450,36 +470,23 @@ default {
                         
                         llSay(0, "🐻 PUNISHMENT TIME! " + perilPlayer + " has been ELIMINATED!");
                         
-                        // IMPORTANT: Update our local state to reflect the elimination
-                        // Remove the eliminated player from our names and lives lists to prevent stale data
+                        // CRITICAL FIX: DO NOT update our local state to remove the eliminated player
+                        // This would corrupt the sync message. Instead, just mark the player as having 0 lives
+                        // but keep them in the lists. Main Controller will handle the actual removal.
                         integer elimIdx = llListFindList(names, [perilPlayer]);
                         if (elimIdx != -1) {
-                            names = llDeleteSubList(names, elimIdx, elimIdx);
-                            lives = llDeleteSubList(lives, elimIdx, elimIdx);
-                            // Also clean up their picks data
-                            integer pickIdx = -1;
-                            integer p;
-                            // LSL doesn't support break, so use a flag instead
-                            integer foundEntry = FALSE;
-                            for (p = 0; p < llGetListLength(picksData) && !foundEntry; p++) {
-                                string entry = llList2String(picksData, p);
-                                if (llSubStringIndex(entry, perilPlayer + "|") == 0) {
-                                    pickIdx = p;
-                                    foundEntry = TRUE;
-                                }
-                            }
-                            if (pickIdx != -1) {
-                                picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
-                            }
-                            llOwnerSay("🔄 [Roll Module] Updated local state - removed " + perilPlayer + " from names/lives/picks");
+                            // Set player's lives to 0 in our local state, but keep them in the lists
+                            lives = llListReplaceList(lives, [0], elimIdx, elimIdx);
+                            llOwnerSay("🔄 [Roll Module] Updated local state - set " + perilPlayer + "'s lives to 0 but kept in lists");
+                            llOwnerSay("🔄 [Roll Module] This ensures proper sync message format before Main Controller handles elimination");
                         }
                         
                         // Send message to main controller to handle elimination
                         llMessageLinked(LINK_SET, 999, "ELIMINATE_PLAYER|" + perilPlayer, NULL_KEY);
                         
                         // CRITICAL: Don't send any sync messages after elimination
-                        // Let Main Controller handle all state sync and peril player reassignment
-                        llOwnerSay("🎯 [Roll Module] Elimination complete - letting Main Controller handle state sync");
+                        // Let Main Controller handle all state sync, peril player reassignment, AND game continuation
+                        llOwnerSay("🎯 [Roll Module] Elimination complete - letting Main Controller handle state sync and continuation");
                         
                         // Clear roll protection after processing is complete
                         rollInProgress = FALSE;
@@ -490,14 +497,14 @@ default {
 
             // Note: Win condition checking is handled by Main Controller after elimination
 
-            // IMPORTANT: After processing a roll, clear picks data for the next round
-            // The round is complete, so we should send empty picks to trigger next round logic
+            // IMPORTANT: After processing a roll, preserve the actual picks data that was used for validation
+            // These picks will be used by Game Manager for building complete avoidance lists
             list encodedPicksData = [];
             integer k;
-            for (k = 0; k < llGetListLength(names); k++) {
-                string playerName = llList2String(names, k);
-                // Send empty picks for all players since round is complete
-                encodedPicksData += [playerName + "|"];
+            for (k = 0; k < llGetListLength(picksData); k++) {
+                string entry = llList2String(picksData, k);
+                // Preserve the actual picks data that was used for validation
+                encodedPicksData += [entry];
             }
             // Validate perilPlayer is not empty before syncing
             string perilForSync = perilPlayer;
@@ -521,12 +528,15 @@ default {
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, fname, NULL_KEY);
             }
             
-            // After roll is processed and sync is sent, start next round automatically
-            llOwnerSay("🎯 Round complete, starting next round with peril player: " + perilPlayer);
+            // After roll is processed and sync is sent, send continuation directly to Game Manager
+            llOwnerSay("🎯 Round complete - sending continuation directly to Game Manager");
             
-            // Brief delay to ensure sync propagates, then start next round
-            llSleep(1.0);
-            llMessageLinked(LINK_SET, 997, "CONTINUE_ROUND|" + perilPlayer, NULL_KEY);
+            // Brief delay to ensure sync propagates
+            llSleep(0.5);
+            
+            // Send continuation directly to Game Manager (more efficient than through Main Controller)
+            // For non-elimination cases, continue with current peril player
+            llMessageLinked(LINK_SET, 998, perilForSync, NULL_KEY);
             
             // Clear roll protection after processing is complete
             rollInProgress = FALSE;

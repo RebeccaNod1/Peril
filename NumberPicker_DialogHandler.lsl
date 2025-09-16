@@ -60,6 +60,19 @@ list globallyPickedNumbers = []; // Numbers already picked by other players
 integer currentPage = 0;
 integer NUMBERS_PER_PAGE = 9; // Leave room for navigation buttons
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 list getNumbersForPage(integer page, integer diceType) {
     // Build list of available numbers (not picked by others OR by current player)
     list availableNumbers = [];
@@ -176,6 +189,8 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
 
 default {
     state_entry() {
+        reportMemoryUsage("🎮 NumberPicker Dialog");
+        
         // Initialize dynamic channels
         initializeChannels();
         numberPickChannel = NUMBERPICK_CHANNEL; // Set legacy variable
@@ -200,6 +215,8 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("🎮 NumberPicker Dialog");
+        
         if (VERBOSE_LOGGING) {
             llOwnerSay("🔄 Number Picker rezzed - reinitializing...");
         }
@@ -290,13 +307,32 @@ default {
             if (llGetListLength(parts) >= 4) {
                 string globalPicksStr = llList2String(parts, 3);
                 if (globalPicksStr != "") {
-                    // Handle both CSV (comma) and semicolon-separated formats
-                    if (llSubStringIndex(globalPicksStr, ";") != -1) {
-                        // Semicolon-separated format from bots
-                        globallyPickedNumbers = llParseString2List(globalPicksStr, [";"], []);
-                    } else {
-                        // CSV format from humans
-                        globallyPickedNumbers = llCSV2List(globalPicksStr);
+                    // IMPROVED: Handle mixed formats properly
+                    globallyPickedNumbers = [];
+                    
+                    // First split by comma to handle CSV format
+                    list csvParts = llParseString2List(globalPicksStr, [","], []);
+                    integer i;
+                    for (i = 0; i < llGetListLength(csvParts); i++) {
+                        string part = llStringTrim(llList2String(csvParts, i), STRING_TRIM);
+                        
+                        // Check if this part contains semicolons (bot format)
+                        if (llSubStringIndex(part, ";") != -1) {
+                            // Split this part by semicolon and add each number
+                            list semiParts = llParseString2List(part, [";"], []);
+                            integer j;
+                            for (j = 0; j < llGetListLength(semiParts); j++) {
+                                string num = llStringTrim(llList2String(semiParts, j), STRING_TRIM);
+                                if (num != "" && llListFindList(globallyPickedNumbers, [num]) == -1) {
+                                    globallyPickedNumbers += [num];
+                                }
+                            }
+                        } else {
+                            // Single number, add it if not already present
+                            if (part != "" && llListFindList(globallyPickedNumbers, [part]) == -1) {
+                                globallyPickedNumbers += [part];
+                            }
+                        }
                     }
                 } else {
                     globallyPickedNumbers = [];

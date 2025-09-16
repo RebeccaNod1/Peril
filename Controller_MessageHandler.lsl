@@ -6,6 +6,19 @@
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
 integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 // Message constants for communication with main controller
 integer MSG_REQUEST_PLAYER_DATA = 8001;
 integer MSG_REQUEST_PICK_DATA = 8002;
@@ -367,6 +380,8 @@ handleDialogRequest(string dialogData) {
 
 default {
     state_entry() {
+        reportMemoryUsage("📨 Message Handler");
+        
         llOwnerSay("📨 [Message Handler] Helper script ready!");
         initializeChannels();
     }

@@ -16,6 +16,8 @@ integer MSG_GAME_STATUS = 3001;
 integer MSG_PLAYER_UPDATE = 3002;
 integer MSG_CLEAR_GAME = 3003;
 integer MSG_REMOVE_PLAYER = 3004;
+integer MSG_UPDATE_PERIL_PLAYER = 3005;
+integer MSG_UPDATE_WINNER = 3006;
 
 // Leaderboard messages (to link 35)  
 integer MSG_GAME_WON = 3010;
@@ -62,6 +64,10 @@ string TEXTURE_ELIMINATED_X = "90524092-03b0-1b3c-bcea-3ea5118c6dba"; // Red X o
 list playerNames = []; // Current game players for display
 list playerLives = []; // Current game player lives
 list playerProfiles = []; // Maps to profile texture UUIDs
+
+// Peril player tracking
+string currentPerilPlayer = ""; // Track current peril player for glow effects
+string currentWinner = ""; // Track current winner for green glow effects
 
 // Leaderboard data (persistent - stored in linkset data)
 list leaderboardNames = []; // Loaded from linkset data at startup
@@ -382,18 +388,20 @@ clearAllPlayers() {
             return; // Don't modify prims outside our range!
         }
         
-        // Reset profile prim to default
+        // Reset profile prim to default and clear any glow
         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
             PRIM_TEXTURE, ALL_SIDES, TEXTURE_DEFAULT_PROFILE, <1,1,0>, <0,0,0>, 0.0,
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
-            PRIM_TEXT, "", <1,1,1>, 0.0
+            PRIM_TEXT, "", <1,1,1>, 0.0,
+            PRIM_GLOW, ALL_SIDES, 0.0  // Explicitly clear glow
         ]);
         
-        // Reset hearts prim to 3 hearts
+        // Reset hearts prim to 3 hearts and clear any glow
         llSetLinkPrimitiveParamsFast(heartsPrimIndex, [
             PRIM_TEXTURE, ALL_SIDES, TEXTURE_3_HEARTS, <1,1,0>, <0,0,0>, 0.0,
             PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
-            PRIM_TEXT, "", <1,1,1>, 0.0
+            PRIM_TEXT, "", <1,1,1>, 0.0,
+            PRIM_GLOW, ALL_SIDES, 0.0  // Explicitly clear glow
         ]);
         
         // Reset overlay prim to transparent
@@ -521,6 +529,9 @@ refreshPlayerDisplay() {
             ]);
         }
     }
+    
+    // Update player glow effects after refreshing all players
+    updatePlayerGlowEffects();
 }
 
 // Check if a player name indicates it's a bot
@@ -595,6 +606,84 @@ string getHeartTexture(integer lives) {
     else if (lives == 1) return TEXTURE_1_HEARTS;
     else if (lives == 2) return TEXTURE_2_HEARTS;
     else return TEXTURE_3_HEARTS; // 3 or more
+}
+
+// Update all glow effects (peril and winner)
+updatePlayerGlowEffects() {
+    // First, remove glow and reset tint from all players
+    integer i;
+    for (i = 0; i < llGetListLength(playerNames); i++) {
+        integer profilePrimIndex = getProfilePrimLink(i);
+        integer heartsPrimIndex = getHeartsPrimLink(i);
+        
+        // SAFETY CHECK
+        if (profilePrimIndex >= FIRST_PROFILE_PRIM && profilePrimIndex <= LAST_PROFILE_PRIM) {
+            llSetLinkPrimitiveParamsFast(profilePrimIndex, [
+                PRIM_GLOW, ALL_SIDES, 0.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
+            ]);
+            llSetLinkPrimitiveParamsFast(heartsPrimIndex, [
+                PRIM_GLOW, ALL_SIDES, 0.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
+            ]);
+        }
+    }
+    
+    // Priority 1: Green glow for winner (overrides peril glow)
+    if (currentWinner != "" && currentWinner != "NONE") {
+        integer winnerIndex = llListFindList(playerNames, [currentWinner]);
+        if (winnerIndex != -1) {
+            integer profilePrimIndex = getProfilePrimLink(winnerIndex);
+            integer heartsPrimIndex = getHeartsPrimLink(winnerIndex);
+            
+            // SAFETY CHECK
+            if (profilePrimIndex >= FIRST_PROFILE_PRIM && profilePrimIndex <= LAST_PROFILE_PRIM) {
+                // Add green glow + green tint to winner
+                llSetLinkPrimitiveParamsFast(profilePrimIndex, [
+                    PRIM_GLOW, ALL_SIDES, 0.3,
+                    PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0
+                ]);
+                llSetLinkPrimitiveParamsFast(heartsPrimIndex, [
+                    PRIM_GLOW, ALL_SIDES, 0.3,
+                    PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0
+                ]);
+                
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🏆 Added green glow to winner: " + currentWinner);
+                }
+            }
+        }
+    }
+    // Priority 2: Yellow glow for peril player (only if not the winner)
+    else if (currentPerilPlayer != "" && currentPerilPlayer != "NONE") {
+        integer perilIndex = llListFindList(playerNames, [currentPerilPlayer]);
+        if (perilIndex != -1) {
+            integer profilePrimIndex = getProfilePrimLink(perilIndex);
+            integer heartsPrimIndex = getHeartsPrimLink(perilIndex);
+            
+            // SAFETY CHECK
+            if (profilePrimIndex >= FIRST_PROFILE_PRIM && profilePrimIndex <= LAST_PROFILE_PRIM) {
+                // Add yellow glow + yellow tint to peril player
+                llSetLinkPrimitiveParamsFast(profilePrimIndex, [
+                    PRIM_GLOW, ALL_SIDES, 0.2,
+                    PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0
+                ]);
+                llSetLinkPrimitiveParamsFast(heartsPrimIndex, [
+                    PRIM_GLOW, ALL_SIDES, 0.2,
+                    PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0
+                ]);
+                
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("✨ Added yellow glow to peril player: " + currentPerilPlayer);
+                }
+            }
+        }
+    }
+}
+
+// Backward compatibility wrapper
+updatePerilPlayerGlow() {
+    updatePlayerGlowEffects();
 }
 
 // Update player display on the grid
@@ -791,6 +880,9 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
             PRIM_TEXT, "", <1,1,1>, 0.0
         ]);
     }
+    
+    // Update player glow effects after display changes
+    updatePlayerGlowEffects();
 }
 
 default {
@@ -816,6 +908,11 @@ default {
         
         // Generate initial leaderboard
         generateLeaderboardText();
+        
+        // Ensure no glow effects remain from previous sessions
+        currentPerilPlayer = "";
+        currentWinner = "";
+        updatePlayerGlowEffects();
         
         if (VERBOSE_LOGGING) {
             llOwnerSay("✅ Linkset communication active - no discovery needed!");
@@ -863,6 +960,11 @@ default {
             clearAllPlayers(); // Clear all current players
             updateActionsPrim("Title"); // Reset to title
             
+            // Clear peril player and winner tracking and remove any remaining glow
+            currentPerilPlayer = "";
+            currentWinner = "";
+            updatePlayerGlowEffects(); // This will remove glow from all players
+            
             generateLeaderboardText(); // Refresh leaderboard display
         }
         else if (num == MSG_GAME_WON) {
@@ -876,6 +978,36 @@ default {
         }
         else if (num == MSG_REMOVE_PLAYER) {
             removePlayer(str);
+        }
+        else if (num == MSG_UPDATE_PERIL_PLAYER) {
+            // Update peril player and refresh glow effects
+            string oldPeril = currentPerilPlayer;
+            currentPerilPlayer = str;
+            if (currentPerilPlayer == "NONE") {
+                currentPerilPlayer = "";
+            }
+            
+            if (VERBOSE_LOGGING && oldPeril != currentPerilPlayer) {
+                llOwnerSay("🎯 Peril player changed from '" + oldPeril + "' to '" + currentPerilPlayer + "'");
+            }
+            
+            // Update glow effects
+            updatePlayerGlowEffects();
+        }
+        else if (num == MSG_UPDATE_WINNER) {
+            // Update winner and refresh glow effects
+            string oldWinner = currentWinner;
+            currentWinner = str;
+            if (currentWinner == "NONE") {
+                currentWinner = "";
+            }
+            
+            if (VERBOSE_LOGGING && oldWinner != currentWinner) {
+                llOwnerSay("🏆 Winner changed from '" + oldWinner + "' to '" + currentWinner + "'");
+            }
+            
+            // Update glow effects - winner glow overrides peril glow
+            updatePlayerGlowEffects();
         }
     }
     

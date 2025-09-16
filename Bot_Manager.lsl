@@ -60,6 +60,19 @@ list sentBotMessages = [];
 // Verbose logging control - toggled by owner
 integer VERBOSE_LOGGING = FALSE;
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 // Helper function to check and report memory usage
 checkMemoryUsage(string context) {
     integer usedMemory = llGetUsedMemory();
@@ -196,6 +209,8 @@ doBotRoll(string botName, integer diceMax) {
 
 default {
     state_entry() {
+        reportMemoryUsage("🤖 Bot Manager");
+        
         initializeChannels();
         LISTEN_CHANNEL = BOT_COMMAND_CHANNEL;
         
@@ -215,6 +230,7 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("🤖 Bot Manager");
         llOwnerSay("🔄 Bot Manager rezzed - reinitializing...");
         
         // Re-initialize dynamic channels

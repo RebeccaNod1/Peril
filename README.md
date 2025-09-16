@@ -1,11 +1,13 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.5 - Memory Optimization & Architecture Cleanup**
+**Current Version: 2.8.6 - Winner Glow Celebration System**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+**🏆 NEW in v2.8.6**: **WINNER GLOW CELEBRATION SYSTEM** - Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
 **🚨 NEW in v2.8.5**: **MEMORY OPTIMIZATION & ARCHITECTURE CLEANUP** - Major system cleanup eliminating dead code, fixing bot profile picture flickering, and optimizing memory usage across all scripts with measurable performance improvements.
 
@@ -18,6 +20,41 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 **NEW in v2.8.0**: Game lockout security system, automatic reset functionality, and enhanced player management with kick/leave fixes for complete ownership control and stability.
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
+
+## Major v2.8.6 Improvements 🏆
+
+### 🏆 **Winner Glow Celebration System**
+- **Revolutionary Victory Recognition**: Comprehensive winner celebration with bright green glow effects
+  - **Scoreboard Glory**: Winner's profile picture and hearts glow bright green with green tint
+  - **Floater Celebration**: Winner's floating display shows green glow with victory text "✨ ULTIMATE VICTORY! ✨"
+  - **Visual Priority System**: Winner glow (green) overrides peril glow (yellow) during victory celebration
+  - **Professional Polish**: Eliminated players show red X while winner gets the spotlight
+- **Extended Victory Moment**: 24-second celebration timer before game reset
+  - **Before**: Winner announced → Instant reset → No recognition
+  - **After**: Winner announced → Green glow celebration → 24 seconds of glory → Reset
+  - **Player Experience**: Proper victory moment makes winning feel rewarding and celebrated
+
+### 🎨 **Enhanced Visual Feedback System**
+- **Improved Glow Colors**: Professional-grade color tinting system
+  - **Winner Recognition**: Bright green glow + green tint for unmistakable victory celebration
+  - **Peril Identification**: Yellow glow + yellow tint for clear peril player status
+  - **Visual Clarity**: Replaced generic white glow with distinct colored feedback
+- **Smart Winner Detection**: Floaters automatically detect victory conditions and display celebration text
+- **Synchronized Effects**: Both scoreboard and floater systems celebrate winner simultaneously
+
+### 🔧 **System Optimization**
+- **Victory Timer System**: Dedicated timer mode for celebration delays without system interference
+- **Memory Efficiency**: Removed unused timeout components to free up memory resources
+- **Enhanced Communication**: Improved message routing for winner glow effects
+- **Clean Architecture**: Streamlined systems focus on essential functionality
+
+### 🎯 **Before vs After v2.8.6**
+|| **Before** | **After** |
+||------------|----------|
+|| ❌ Winner announced but no visual celebration | ✅ Bright green glow celebration on scoreboard and floaters |
+|| ❌ Immediate reset after victory - no recognition | ✅ 24-second victory celebration timer for proper recognition |
+|| ❌ Generic white glow effects | ✅ Professional colored glow system (green/yellow/red) |
+|| ❌ Winners felt unrewarded | ✅ Ultimate Survivors get proper celebration and recognition |
 
 ## Major v2.8.5 Improvements 🚨
 

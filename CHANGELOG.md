@@ -4,6 +4,56 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [2.8.6] - 2025-09-16
+
+### 🏆 **Winner Glow Celebration System**
+- **Victory Visual Enhancement**: Added comprehensive winner celebration with green glow effects
+  - **Scoreboard Glow**: Winner's profile picture and hearts display bright green glow with green tint
+  - **Floater Glow**: Winner's floating display shows green glow with victory text "✨ ULTIMATE VICTORY! ✨" and "🏆 ULTIMATE SURVIVOR 🏆"
+  - **Visual Priority**: Winner glow overrides peril glow - green takes priority over yellow during victory
+  - **Clear Recognition**: Eliminated players show red X markers while winner gets celebration spotlight
+- **Extended Victory Display**: 24-second timer delay before game reset allows players to appreciate the winner
+  - **Before**: Winner declared → Immediate reset → No time to see who won
+  - **After**: Winner declared → Green glow celebration → 24 seconds to admire → Then reset
+  - **User Experience**: Proper victory moment with visual feedback before returning to lobby
+
+### 🎨 **Enhanced Visual Feedback System** 
+- **Improved Glow Colors**: Enhanced scoreboard glow system with proper color tinting
+  - **Winner Glow**: Bright green glow + green color tint for unmistakable victory recognition
+  - **Peril Glow**: Yellow glow + yellow color tint for clear peril player identification
+  - **Visual Clarity**: Replaced generic white glow with distinct colored glows for better gameplay feedback
+- **Floater Victory Detection**: Smart winner detection in floating displays
+  - **Automatic Detection**: Floaters automatically detect when only one player remains alive
+  - **Victory Text**: Winner's floater displays celebration text instead of standard game info
+  - **Consistent Experience**: Both scoreboard and floater systems celebrate the winner simultaneously
+
+### 🔧 **Timer System Optimization**
+- **Victory Delay Timer**: Added dedicated timer mode for victory celebration delays
+  - **Memory Efficiency**: Removed unused timeout system to free up memory resources
+  - **Clean Architecture**: Streamlined timer system focuses on essential functionality
+  - **Reliable Operation**: Victory display timing works consistently without interference from other systems
+- **Message Communication Enhancement**: Improved winner glow message handling
+  - **Scoreboard Integration**: Added proper MSG_UPDATE_WINNER message constant for clean communication
+  - **Floater Integration**: Enhanced floater update system to trigger victory displays
+  - **Synchronized Effects**: Both display systems receive winner updates simultaneously
+
+### 🎮 **User Experience Improvements**
+- **Victory Celebration**: Clear winner recognition with proper visual feedback
+- **Extended Appreciation Time**: 24 seconds to see and congratulate the winner before reset
+- **Visual Hierarchy**: Clean priority system - Winner (green) > Peril (yellow) > Eliminated (red X)
+- **Consistent Display**: Winner celebration works on both scoreboard and personal floater displays
+
+### 📊 **System Performance** 
+- **Memory Optimization**: Removed unused timeout system components saving memory
+- **Efficient Messaging**: Clean message routing for winner glow effects
+- **Timer Efficiency**: Dedicated victory timer prevents conflicts with other timing systems
+
+### 🎯 **Impact Summary**
+- **Before**: Winners were announced but no visual celebration - immediate reset gave no recognition
+- **After**: Winners get bright green glow celebration on both scoreboard and floaters with 24 seconds of recognition
+- **Player Satisfaction**: Proper victory moment makes winning feel rewarding and celebrated
+- **Visual Polish**: Professional-grade visual feedback system enhances the competitive gaming experience
+
 ## [2.8.5] - 2025-09-15
 
 ### 🧠 **Memory Optimization & Dead Code Cleanup**

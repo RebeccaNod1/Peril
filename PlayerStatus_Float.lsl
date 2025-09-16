@@ -23,6 +23,19 @@ list picksData;
 string perilPlayer;
 list names;
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 list getPicksFor(string nameInput) {
     integer i;
     for (i = 0; i < llGetListLength(picksData); i++) {
@@ -47,6 +60,13 @@ list getPicksFor(string nameInput) {
 
 default {
     state_entry() {
+        // Get player name from object description if available
+        string playerName = llGetObjectDesc();
+        if (playerName == "" || playerName == "(No Description)") {
+            playerName = "Unknown";
+        }
+        reportMemoryUsage("📱 Player Float (" + playerName + ")");
+        
         llSetText("⏳ Waiting...", <1,1,1>, 1.0);
         llSetTimerEvent(1.0);
     }
@@ -59,12 +79,11 @@ default {
         
         // Set up managed listener
         listenHandle = llListen(start_param, "", NULL_KEY, "");
-        // Wait a moment for the description to be set
-        llSleep(0.1);
-        myName = llGetObjectDesc();
-        if (myName == "" || myName == "(No Description)") {
-            myName = "UnknownPlayer" + (string)start_param;
-        }
+        
+        // Initialize myName to empty - will be set when SET_NAME message is received
+        myName = "";
+        
+        // Don't report memory immediately - wait for proper name to be set
 // PlayerStatus_Float ready and listening
     }
 
@@ -87,13 +106,53 @@ default {
                     llSetTexture(heartTexture, 2); // Face 2 (back)
                     llSetTexture(heartTexture, 3); // Face 3 (left side)
                     llSetTexture(heartTexture, 4); // Face 4 (front)
-                    // Set white background for all faces to eliminate gaps without tinting
-                    llSetColor(<1.0, 1.0, 1.0>, 1); // White background for right side
-                    llSetColor(<1.0, 1.0, 1.0>, 2); // White background for back
-                    llSetColor(<1.0, 1.0, 1.0>, 3); // White background for left side
-                    llSetColor(<1.0, 1.0, 1.0>, 4); // White background for front
-                    llSetColor(<0.2, 0.2, 0.2>, 0); // Dark gray for top
-                    llSetColor(<0.2, 0.2, 0.2>, 5); // Dark gray for bottom
+                    
+                    // IMPROVED: Special visual treatment for elimination (0 hearts)
+                    if (lifeCount == 0) {
+                        // Make 0 hearts more prominent with red glow
+                        llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                            PRIM_GLOW, ALL_SIDES, 0.3,
+                            PRIM_COLOR, ALL_SIDES, <1.0, 0.0, 0.0>, 1.0
+                        ]);
+                        
+                        // Modify display text to show elimination status
+                        displayText = llDumpList2String(llParseString2List(displayText, ["\n"], []), "\n") + "\n💀 ELIMINATED! 💀";
+                    } else {
+                        // Check for winner status first (highest priority)
+                        integer isWinner = FALSE;
+                        if (llSubStringIndex(displayText, "✨ ULTIMATE VICTORY!") != -1 || 
+                            llSubStringIndex(displayText, "ULTIMATE SURVIVOR") != -1) {
+                            isWinner = TRUE;
+                        }
+                        
+                        // Check if this player is in peril for yellow glow
+                        integer isInPeril = FALSE;
+                        if (llSubStringIndex(displayText, "⚡ YOU ARE IN PERIL! ⚡") != -1) {
+                            isInPeril = TRUE;
+                        }
+                        
+                        if (isWinner) {
+                            // Green glow for winner (overrides peril)
+                            llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                                PRIM_GLOW, ALL_SIDES, 0.3,
+                                PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0  // Green tint
+                            ]);
+                        } else if (isInPeril) {
+                            // Yellow glow for peril player
+                            llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                                PRIM_GLOW, ALL_SIDES, 0.2,
+                                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0  // Yellow tint
+                            ]);
+                        } else {
+                            // Normal colors for living players - remove glow
+                            llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                                PRIM_GLOW, ALL_SIDES, 0.0,
+                                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
+                            ]);
+                            llSetColor(<0.2, 0.2, 0.2>, 0); // Dark gray for top
+                            llSetColor(<0.2, 0.2, 0.2>, 5); // Dark gray for bottom
+                        }
+                    }
                     
                     // Remove "Lives: X" from display text since hearts show it
                     list lines = llParseString2List(displayText, ["\n"], []);
@@ -120,6 +179,9 @@ default {
             // Name successfully received and set
             // Update the object description as well for consistency
             llSetObjectDesc(myName);
+            
+            // Now report memory with the proper player name
+            reportMemoryUsage("📱 " + myName);
         }
     }
 
@@ -165,10 +227,57 @@ default {
 
             string picksDisplay = llList2CSV(picks);
 
-            // Note: Heart texture is set via listen() path to avoid conflicts
+            // IMPROVED: Set heart texture and handle elimination display
+            string heartTexture = (string)lifeCount + "_hearts";
+            llSetTexture(heartTexture, 1); // Face 1 (right side)
+            llSetTexture(heartTexture, 2); // Face 2 (back)
+            llSetTexture(heartTexture, 3); // Face 3 (left side)
+            llSetTexture(heartTexture, 4); // Face 4 (front)
             
-            // Update text display (lives now shown by heart textures)
-            string txt = "🎲 Peril Dice\n👤 " + myName + "\n🢍 Peril: " + perilDisplay + "\n🔢 Picks: " + picksDisplay;
+            string txt;
+            if (lifeCount == 0) {
+                // Special treatment for elimination - red glow and elimination message
+                llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                    PRIM_GLOW, ALL_SIDES, 0.3,
+                    PRIM_COLOR, ALL_SIDES, <1.0, 0.0, 0.0>, 1.0
+                ]);
+                
+                txt = "🎲 Peril Dice\n👤 " + myName + "\n💀 ELIMINATED! 💀\n🔢 Final Picks: " + picksDisplay;
+                // Set text to red color as well for extra visibility
+                llSetText(txt, <1.0, 0.2, 0.2>, 1.0);
+                return; // Skip normal text setting below
+            } else {
+                // Check if this is the winner (highest priority) - happens when only 1 player left
+                integer isWinner = (llGetListLength(names) <= 1 && myName != "" && llListFindList(names, [myName]) != -1);
+                
+                // Check if this player is the peril player for yellow glow
+                integer isInPeril = (myName == perilPlayer && perilPlayer != "" && llSubStringIndex(perilPlayer, ",") == -1);
+                
+                if (isWinner) {
+                    // Green glow for winner (overrides peril)
+                    llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                        PRIM_GLOW, ALL_SIDES, 0.3,
+                        PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0  // Green tint
+                    ]);
+                } else if (isInPeril) {
+                    // Yellow glow for peril player
+                    llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                        PRIM_GLOW, ALL_SIDES, 0.2,
+                        PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0  // Yellow tint
+                    ]);
+                } else {
+                    // Normal colors for living players - remove glow
+                    llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                        PRIM_GLOW, ALL_SIDES, 0.0,
+                        PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
+                    ]);
+                    llSetColor(<0.2, 0.2, 0.2>, 0); // Dark gray for top
+                    llSetColor(<0.2, 0.2, 0.2>, 5); // Dark gray for bottom
+                }
+                
+                txt = "🎲 Peril Dice\n👤 " + myName + "\n🢍 Peril: " + perilDisplay + "\n🔢 Picks: " + picksDisplay;
+            }
+            
             llSetText(txt, <1,1,1>, 1.0);
         }
     }

@@ -38,6 +38,46 @@ string lastHumanPickMessage = "";
 string lastBotPickMessage = "";
 integer lastProcessTime = 0;
 
+// Build complete avoidance list from all current picks
+list buildCompleteAvoidanceList() {
+    list allPicks = [];
+    integer i;
+    
+    // Add all picks from picksData (current round)
+    for (i = 0; i < llGetListLength(picksData); i++) {
+        string entry = llList2String(picksData, i);
+        list entryParts = llParseString2List(entry, ["|"], []);
+        if (llGetListLength(entryParts) >= 2) {
+            string picks = llList2String(entryParts, 1);
+            if (picks != "") {
+                // Split multiple picks (comma or semicolon separated)
+                list playerPicks = llParseString2List(picks, [","], []);
+                if (llGetListLength(playerPicks) == 1) {
+                    // Also try semicolon separator
+                    playerPicks = llParseString2List(picks, [";"], []);
+                }
+                integer j;
+                for (j = 0; j < llGetListLength(playerPicks); j++) {
+                    string pick = llStringTrim(llList2String(playerPicks, j), STRING_TRIM);
+                    if (pick != "" && llListFindList(allPicks, [pick]) == -1) {
+                        allPicks += [pick];
+                    }
+                }
+            }
+        }
+    }
+    
+    // Also add any picks from globalPickedNumbers as backup
+    for (i = 0; i < llGetListLength(globalPickedNumbers); i++) {
+        string pick = llList2String(globalPickedNumbers, i);
+        if (pick != "" && llListFindList(allPicks, [pick]) == -1) {
+            allPicks += [pick];
+        }
+    }
+    
+    return allPicks;
+}
+
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
     integer used = llGetUsedMemory();
@@ -64,6 +104,7 @@ integer MSG_SYNC_PICKQUEUE = 2001;
 integer MSG_PLAYER_WON = 551;
 integer MSG_UPDATE_FLOAT = 2010;
 integer MSG_DIALOG_FORWARD_REQUEST = 9060; // Request dialog forwarding from Player_RegistrationManager
+integer MSG_CONTINUE_ROUND = 998; // Continue round after roll processing
 
 continueCurrentRound() {
     // MEMORY OPTIMIZED: Skip complex validation - trust game state
@@ -147,6 +188,10 @@ startNextRound() {
     if (llGetListLength(names) == 1) {
         string winner = llList2String(names, 0);
         llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
+        
+        // Send winner glow update to scoreboard
+        llMessageLinked(12, 3006, winner, NULL_KEY);  // MSG_UPDATE_WINNER
+        
         llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
         llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
                 // Don't use hardcoded channel here - let Main Controller handle scoreboard updates
@@ -166,6 +211,9 @@ startNextRound() {
         integer randomIdx = (integer)llFrand(llGetListLength(names));
         perilPlayer = llList2String(names, randomIdx);
         llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
+        
+        // Send peril player update to scoreboard for glow effect
+        llMessageLinked(12, 3005, perilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
         
         // Sync state to floater manager first, then update floaters to show new peril player immediately
         llOwnerSay("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
@@ -303,8 +351,10 @@ showNextPickerDialog() {
             integer picksNeeded = 4 - perilLives;
             
             // Send proper avoid list to bots so they don't pick human numbers
-            string globalPicksStr = llList2CSV(globalPickedNumbers);
-            string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + globalPicksStr;
+            list completeAvoidList = buildCompleteAvoidanceList();
+            string avoidListStr = llList2CSV(completeAvoidList);
+            string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + avoidListStr;
+            llOwnerSay("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
             llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
             llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)picksNeeded + " numbers...");
         } else {
@@ -327,9 +377,10 @@ showNextPickerDialog() {
         }
         integer picksNeeded = 4 - perilLives;
         
-        // Send dialog payload with current globally picked numbers
-        string globalPicksStr = llList2CSV(globalPickedNumbers);
-        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + globalPicksStr;
+        // Send dialog payload with complete avoid list for humans too
+        list completeAvoidList = buildCompleteAvoidanceList();
+        string avoidListStr = llList2CSV(completeAvoidList);
+        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + avoidListStr;
         
         llOwnerSay("🎯 Showing pick dialog for " + firstName);
         llSleep(0.5);  // Brief delay to prevent spam
@@ -617,22 +668,7 @@ default {
             return;
         }
         
-        // Handle start round requests
-        if (num == 997) {
-            if (str == "START_NEXT_ROUND") {
-                startNextRound();
-            }
-            else if (llSubStringIndex(str, "CONTINUE_ROUND|") == 0) {
-                string newPeril = llGetSubString(str, 15, -1);
-                perilPlayer = newPeril;
-                llOwnerSay("🎯 Game Manager received CONTINUE_ROUND for " + newPeril);
-                // Reset round state for new round
-                roundStarted = FALSE;
-                currentPickerIdx = 0;
-                continueCurrentRound();
-            }
-            return;
-        }
+        // Legacy 997 message handler removed - now using direct MSG_CONTINUE_ROUND (998) communication
         
         // Handle human picks
         if (num == -9998 && llSubStringIndex(str, "HUMAN_PICKED:") == 0) {
@@ -661,16 +697,19 @@ default {
                     return; // Ignore duplicate human picks
                 }
                 
-                // Validate picks against global picked numbers
+                // Validate picks against complete avoidance list (all current picks from all players)
+                list completeAvoidList = buildCompleteAvoidanceList();
                 list newPicks = llParseString2List(picksStr, [","], []);
                 list validPicks = [];
                 list duplicatePicks = [];
                 integer i;
                 
+                llOwnerSay("🔍 [Game Manager] Validating " + playerName + "'s picks against complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + llList2CSV(completeAvoidList));
+                
                 for (i = 0; i < llGetListLength(newPicks); i++) {
                     string pick = llStringTrim(llList2String(newPicks, i), STRING_TRIM);
                     if (pick != "") {
-                        if (llListFindList(globalPickedNumbers, [pick]) == -1) {
+                        if (llListFindList(completeAvoidList, [pick]) == -1) {
                             validPicks += [pick];
                             globalPickedNumbers += [pick];
                         } else {
@@ -705,7 +744,9 @@ default {
                         }
                         integer picksNeeded = 4 - perilLives;
                         
-                        string dialogPayload = playerName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + llList2CSV(globalPickedNumbers);
+                        // Use complete avoid list for re-shown dialog too
+                        list updatedCompleteAvoidList = buildCompleteAvoidanceList();
+                        string dialogPayload = playerName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + llList2CSV(updatedCompleteAvoidList);
                         string dialogRequest = "SHOW_DIALOG|" + playerName + "|" + dialogPayload;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
                     }
@@ -849,8 +890,11 @@ default {
                     }
                     integer picksNeeded = 4 - perilLives;
                     
-                    // Send new bot command with updated avoid list
-                    string botCommand = "BOT_PICK:" + playerName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + llList2CSV(globalPickedNumbers);
+                    // Send new bot command with complete updated avoid list
+                    list completeAvoidList = buildCompleteAvoidanceList();
+                    string avoidListStr = llList2CSV(completeAvoidList);
+                    string botCommand = "BOT_PICK:" + playerName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + avoidListStr;
+                    llOwnerSay("🎯 [Game Manager] Sending retry bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
                     llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
                     return; // Don't save this pick
                 }
@@ -942,6 +986,39 @@ default {
                         }
                     }
                 }
+            }
+            return;
+        }
+        
+        // Handle continue round requests from Main Controller
+        if (num == MSG_CONTINUE_ROUND) {
+            llOwnerSay("🎯 [Game Manager] Received continue round request with peril player: '" + str + "'");
+            
+            // Update peril player from the continue message if provided
+            if (str != "" && str != "NONE") {
+                perilPlayer = str;
+                llOwnerSay("🎯 [Game Manager] Updated peril player to: " + perilPlayer);
+                
+                // Reset round state and continue with existing peril player
+                roundStarted = FALSE;
+                currentPickerIdx = 0;
+                diceTypeProcessed = FALSE;
+                roundContinueInProgress = FALSE;
+                
+                // Continue current round with assigned peril player
+                continueCurrentRound();
+            } else {
+                // Empty peril player means this is initial game start - use startNextRound()
+                llOwnerSay("🎯 [Game Manager] Empty peril player - starting initial game round");
+                
+                // Reset round state
+                roundStarted = FALSE;
+                currentPickerIdx = 0;
+                diceTypeProcessed = FALSE;
+                roundContinueInProgress = FALSE;
+                
+                // Start initial round (will select random peril player)
+                startNextRound();
             }
             return;
         }

@@ -8,6 +8,7 @@ integer MSG_CLEANUP_FLOAT = 104;
 integer MSG_REZ_FLOAT = 105;
 integer MSG_REGISTER_PLAYER = 106;
 integer MSG_SYNC_GAME_STATE = 107;
+integer MSG_CLEANUP_ALL_FLOATERS = 212;
 
 // Debug control message constants
 integer MSG_DEBUG_PICKS_ON = 7001;
@@ -54,11 +55,76 @@ integer DEBUG_PICKS = FALSE;
 // Verbose logging control - affects general debug messages, toggled by owner
 integer VERBOSE_LOGGING = FALSE;
 
-list players = [];
-list names = [];
-list lives = [];
-list picksData = [];
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
+// ALIVE PLAYERS (shrinks during eliminations)
+list alivePlayers = [];
+list aliveNames = [];
+list aliveLives = [];
+list alivePicksData = [];
+
+// ELIMINATED PLAYERS (grows during eliminations) 
+list eliminatedPlayers = [];
+list eliminatedNames = [];
+list eliminatedChannels = [];
+
+// ALL PLAYERS (never shrinks - for channel mapping)
+list allPlayerNames = [];   // Names in registration order
+list allPlayerChannels = []; // Corresponding channels
+
+// SYNC STATE VARIABLES (received from Main Controller)
+list names = [];        // Current player names from sync
+list players = [];      // Current player keys from sync  
+list lives = [];        // Current lives from sync
+list picksData = [];    // Current picks data from sync
+list playerNames = [];  // Legacy variable for cleanup compatibility
+list playerChannels = []; // Legacy variable for cleanup compatibility
+
 string perilPlayer = "";
+
+// Move a player from alive to eliminated lists
+eliminatePlayer(string playerName) {
+    integer aliveIdx = llListFindList(aliveNames, [playerName]);
+    if (aliveIdx == -1) {
+        llOwnerSay("⚠️ [Floater Manager] Cannot eliminate " + playerName + " - not found in alive list");
+        return;
+    }
+    
+    // Get player data before removing from alive lists
+    key playerKey = llList2Key(alivePlayers, aliveIdx);
+    string picks = llList2String(alivePicksData, aliveIdx);
+    
+    // Find their original channel from permanent mapping
+    integer channelIdx = llListFindList(allPlayerNames, [playerName]);
+    integer playerChannel = -1;
+    if (channelIdx != -1) {
+        playerChannel = llList2Integer(allPlayerChannels, channelIdx);
+    }
+    
+    // Add to eliminated lists
+    eliminatedNames += [playerName];
+    eliminatedPlayers += [playerKey];
+    eliminatedChannels += [playerChannel];
+    
+    // Remove from alive lists
+    alivePlayers = llDeleteSubList(alivePlayers, aliveIdx, aliveIdx);
+    aliveNames = llDeleteSubList(aliveNames, aliveIdx, aliveIdx);
+    aliveLives = llDeleteSubList(aliveLives, aliveIdx, aliveIdx);
+    alivePicksData = llDeleteSubList(alivePicksData, aliveIdx, aliveIdx);
+    
+    llOwnerSay("🧹 [Floater Manager] Moved " + playerName + " from alive to eliminated lists");
+}
 
 // Returns a list of picks for the given player name, filtering out invalid values
 list getPicksFor(string nameInput) {
@@ -127,37 +193,67 @@ list getPicksFor(string nameInput) {
 
 // Converts a player's key into their name (if registered)
 string getNameFromKey(key id) {
-    integer i = llListFindList(players, [id]);
-    if (i != -1) return llList2String(names, i);
+    integer i = llListFindList(alivePlayers, [id]);
+    if (i != -1) return llList2String(aliveNames, i);
     return (string)id;
 }
 
 // Main event handler
 default {
     state_entry() {
+        reportMemoryUsage("💬 Floater Manager");
+        
         initializeChannels();
         
         // Initialize/reset all state variables
-        players = [];
+        alivePlayers = [];
+        aliveNames = [];
+        aliveLives = [];
+        alivePicksData = [];
+        eliminatedPlayers = [];
+        eliminatedNames = [];
+        eliminatedChannels = [];
+        allPlayerNames = [];
+        allPlayerChannels = [];
+        
+        // Initialize sync state variables
         names = [];
+        players = [];
         lives = [];
         picksData = [];
+        playerNames = [];
+        playerChannels = [];
         perilPlayer = "";
         
         llOwnerSay("📦 Floater Manager ready!");
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("💬 Floater Manager");
+        
         llOwnerSay("🔄 Floater Manager rezzed - reinitializing...");
         
         // Re-initialize dynamic channels
         initializeChannels();
         
         // Reset all state variables on rez
-        players = [];
+        alivePlayers = [];
+        aliveNames = [];
+        aliveLives = [];
+        alivePicksData = [];
+        eliminatedPlayers = [];
+        eliminatedNames = [];
+        eliminatedChannels = [];
+        allPlayerNames = [];
+        allPlayerChannels = [];
+        
+        // Initialize sync state variables
         names = [];
+        players = [];
         lives = [];
         picksData = [];
+        playerNames = [];
+        playerChannels = [];
         perilPlayer = "";
         
         llOwnerSay("✅ Floater Manager reset complete after rez!");
@@ -167,10 +263,23 @@ default {
         // Handle full reset from main controller
         if (num == -99999 && str == "FULL_RESET") {
             // Reset all game state
-            players = [];
+            alivePlayers = [];
+            aliveNames = [];
+            aliveLives = [];
+            alivePicksData = [];
+            eliminatedPlayers = [];
+            eliminatedNames = [];
+            eliminatedChannels = [];
+            allPlayerNames = [];
+            allPlayerChannels = [];
+            
+            // Reset sync state variables
             names = [];
+            players = [];
             lives = [];
             picksData = [];
+            playerNames = [];
+            playerChannels = [];
             perilPlayer = "";
             llOwnerSay("📦 Floater Manager reset!");
             return;
@@ -192,7 +301,7 @@ default {
         
         if (num == MSG_REGISTER_PLAYER) {
             // Enforce the maximum number of players
-            if (llGetListLength(players) >= MAX_PLAYERS) {
+            if (llGetListLength(alivePlayers) >= MAX_PLAYERS) {
                 llOwnerSay("⚠️ Cannot register new player; the game is full (max " + (string)MAX_PLAYERS + ").");
                 return;
             }
@@ -202,15 +311,22 @@ default {
             key avKey = llList2Key(info, 1);
             
             // Check if this player is already registered to prevent duplicate floaters
-            if (llListFindList(players, [avKey]) != -1) {
+            if (llListFindList(alivePlayers, [avKey]) != -1) {
                 llOwnerSay("⚠️ Player " + name + " is already registered, ignoring duplicate registration");
                 return;
             }
             
-            names += [name];
-            players += [avKey];
-            lives += [3]; // Initialize with 3 lives for new players
-            picksData += [name + "|"];  // Initialize with empty picks
+            // Add to ALIVE lists
+            aliveNames += [name];
+            alivePlayers += [avKey];
+            aliveLives += [3]; // Initialize with 3 lives for new players
+            alivePicksData += [name + "|"];  // Initialize with empty picks
+            
+            // Add to PERMANENT mapping (never changes after registration)
+            integer playerIdx = llGetListLength(allPlayerNames);
+            integer ch = FLOATER_BASE_CHANNEL + playerIdx;
+            allPlayerNames += [name];
+            allPlayerChannels += [ch];
             llSay(0, "💀 " + name + " has entered the deadly game! Welcome to your potential doom! 💀");
 
             // Immediately rez the float after registration.  This ensures the
@@ -225,9 +341,9 @@ default {
         }
         else if (num == MSG_REZ_FLOAT) {
             string name = str;
-            integer idx = llListFindList(names, [name]);
+            integer idx = llListFindList(aliveNames, [name]);
             if (idx == -1) return;
-            key avKey = llList2Key(players, idx);
+            key avKey = llList2Key(alivePlayers, idx);
             // Determine the rez position.  For real avatars, use their current
             // location plus an offset.  For test players (fake keys) or when
             // OBJECT_POS cannot be obtained, fall back to rezzing relative to
@@ -249,7 +365,16 @@ default {
                 // This prevents them from spawning directly on the leaderboard.
                 pos = basePos + <-4.0 - (float)idx * 1.0, 2.0 + (float)idx * 0.8, 1>;
             }
-            integer ch = FLOATER_BASE_CHANNEL + idx;
+            // Use permanent channel mapping instead of alive list index
+            integer channelIdx = llListFindList(allPlayerNames, [name]);
+            integer ch;
+            if (channelIdx != -1) {
+                ch = llList2Integer(allPlayerChannels, channelIdx);
+            } else {
+                // Fallback - this shouldn't happen but use idx as backup
+                llOwnerSay("⚠️ [Floater Manager] WARNING: " + name + " not in permanent mapping during rez, using fallback");
+                ch = FLOATER_BASE_CHANNEL + idx;
+            }
             llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
             // Wait a moment then set the description
             llSleep(0.2);
@@ -268,14 +393,39 @@ default {
         }
         else if (num == MSG_UPDATE_FLOAT) {
             string name = str;
-            integer idx = llListFindList(names, [name]);
-            if (idx == -1) {
-                llOwnerSay("⚠️ [Floater Manager] MSG_UPDATE_FLOAT: Player '" + name + "' not found in names list");
+            
+            // FIXED: Use permanent channel mapping that doesn't change during eliminations
+            integer channelIdx = llListFindList(allPlayerNames, [name]);
+            integer ch;
+            if (channelIdx != -1) {
+                ch = llList2Integer(allPlayerChannels, channelIdx);
+            } else {
+                // Fallback - this shouldn't happen if permanent mapping is working
+                llOwnerSay("⚠️ [Floater Manager] WARNING: Player " + name + " not in permanent mapping");
                 return;
             }
-            key avKey = llList2Key(players, idx);
-            integer ch = FLOATER_BASE_CHANNEL + idx;
-            integer lifeCount = llList2Integer(lives, idx);
+            
+            // Try to find player in current sync data (names/lives from Main Controller)
+            // This works for both alive and eliminated players during the elimination sync
+            integer syncIdx = llListFindList(names, [name]);
+            key avKey = NULL_KEY;
+            integer lifeCount = 0;
+            
+            if (syncIdx != -1) {
+                // Player found in current sync data
+                if (syncIdx < llGetListLength(players)) {
+                    avKey = llList2Key(players, syncIdx);
+                }
+                if (syncIdx < llGetListLength(lives)) {
+                    lifeCount = llList2Integer(lives, syncIdx);
+                }
+            } else {
+                // Player not in sync data - they might be eliminated
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔍 [Floater Manager] Player " + name + " not in current sync - might be eliminated");
+                }
+                // Continue with lifeCount = 0 to show eliminated status
+            }
 
             if (VERBOSE_LOGGING) llOwnerSay("🔄 [Floater Manager] Updating floater for " + name + " (lives: " + (string)lifeCount + ")");
             list picks = getPicksFor(name);
@@ -303,50 +453,95 @@ default {
             }
 
             string picksDisplay = llList2CSV(picks);
-            string txt = "🎲 Peril Dice\n👤 " + name + "\nLives: " + (string)lifeCount + "\n" + perilName + "\n🔢 Picks: " + picksDisplay;
+            
+            // Check if this player is the winner (only one player with lives > 0)
+            integer livingPlayers = 0;
+            integer isWinner = FALSE;
+            for (i = 0; i < llGetListLength(lives); i++) {
+                if (llList2Integer(lives, i) > 0) {
+                    livingPlayers++;
+                }
+            }
+            
+            // If only one player has lives > 0 and this player has lives > 0, they're the winner
+            if (livingPlayers == 1 && lifeCount > 0) {
+                isWinner = TRUE;
+            }
+            
+            string txt;
+            if (isWinner) {
+                // Winner display with victory text (triggers green glow in PlayerStatus_Float.lsl)
+                txt = "🎲 Peril Dice\n👤 " + name + "\n✨ ULTIMATE VICTORY! ✨\n🏆 ULTIMATE SURVIVOR 🏆\nLives: " + (string)lifeCount + "\n🔢 Final Picks: " + picksDisplay;
+            } else {
+                // Normal display
+                txt = "🎲 Peril Dice\n👤 " + name + "\nLives: " + (string)lifeCount + "\n" + perilName + "\n🔢 Picks: " + picksDisplay;
+            }
+            
             llRegionSay(ch, "FLOAT:" + (string)avKey + "|" + txt);
         }
         else if (num == MSG_CLEANUP_FLOAT) {
             integer ch = (integer)str;
-            integer idx = ch - FLOATER_BASE_CHANNEL;
             
             // Always send cleanup message to the channel (even for orphaned floaters)
             llRegionSay(ch, "CLEANUP");
             
-            // IMPROVED: Clean up internal lists more carefully to handle race conditions
-            // Instead of relying on index calculation, find by channel and remove consistently
-            if (idx >= 0 && idx < llGetListLength(players)) {
-                // Store player info before removal for debugging
-                string removedPlayer = "";
-                if (idx < llGetListLength(names)) {
-                    removedPlayer = llList2String(names, idx);
+            // FIXED: Find player by searching the permanent channel mapping
+            string removedPlayer = "";
+            integer foundIdx = -1;
+            
+            // Search for the channel in our permanent mapping
+            foundIdx = llListFindList(allPlayerChannels, [ch]);
+            if (foundIdx != -1) {
+                removedPlayer = llList2String(allPlayerNames, foundIdx);
+            }
+            
+            if (foundIdx != -1 && removedPlayer != "") {
+                // Find the current index of this player in the active names list
+                integer currentIdx = llListFindList(names, [removedPlayer]);
+                llOwnerSay("🧹 [Floater Manager] Cleaning up floater for: " + removedPlayer + " (channel: " + (string)ch + ")");
+                
+                // Remove from current game lists using the current index
+                if (currentIdx != -1) {
+                    if (currentIdx < llGetListLength(players)) players = llDeleteSubList(players, currentIdx, currentIdx);
+                    if (currentIdx < llGetListLength(names)) names = llDeleteSubList(names, currentIdx, currentIdx);
+                    if (currentIdx < llGetListLength(lives)) lives = llDeleteSubList(lives, currentIdx, currentIdx);
+                } else {
+                    llOwnerSay("⚠️ [Floater Manager] WARNING: " + removedPlayer + " not found in current names list for removal");
                 }
                 
-                // Remove from all lists at the same index to maintain synchronization
-                if (idx < llGetListLength(players)) players = llDeleteSubList(players, idx, idx);
-                if (idx < llGetListLength(names)) names = llDeleteSubList(names, idx, idx);
-                if (idx < llGetListLength(lives)) lives = llDeleteSubList(lives, idx, idx);
-                if (idx < llGetListLength(picksData)) picksData = llDeleteSubList(picksData, idx, idx);
+                // IMPORTANT: Keep permanent mapping intact - never remove from playerNames/playerChannels
+                // This preserves the original channel assignments
                 
-                if (removedPlayer != "") {
-                    llOwnerSay("🧹 [Floater Manager] Cleaned up floater for: " + removedPlayer + " (channel: " + (string)ch + ")");
-                    
-                    // CRITICAL: Update all remaining floaters to refresh peril status after player removal
-                    // This prevents stale peril player information from persisting in floaters
-                    llSleep(0.2); // Brief delay to ensure cleanup completes
-                    integer i;
-                    for (i = 0; i < llGetListLength(names); i++) {
-                        string remainingPlayerName = llList2String(names, i);
-                        key remainingPlayerKey = NULL_KEY;
-                        if (i < llGetListLength(players)) {
-                            remainingPlayerKey = llList2Key(players, i);
-                        }
-                        llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, remainingPlayerName, remainingPlayerKey);
+                // Remove from picksData by searching for the player name
+                integer pickIdx = -1;
+                integer p;
+                for (p = 0; p < llGetListLength(picksData); p++) {
+                    string entry = llList2String(picksData, p);
+                    if (llSubStringIndex(entry, removedPlayer + "|") == 0) {
+                        pickIdx = p;
+                        jump found_pick;
                     }
                 }
+                @found_pick;
+                if (pickIdx != -1) {
+                    picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
+                }
+                
+                // CRITICAL: Update all remaining floaters to refresh peril status after player removal
+                // This prevents stale peril player information from persisting in floaters
+                llSleep(0.2); // Brief delay to ensure cleanup completes
+                integer i;
+                for (i = 0; i < llGetListLength(names); i++) {
+                    string remainingPlayerName = llList2String(names, i);
+                    key remainingPlayerKey = NULL_KEY;
+                    if (i < llGetListLength(players)) {
+                        remainingPlayerKey = llList2Key(players, i);
+                    }
+                    llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, remainingPlayerName, remainingPlayerKey);
+                }
             } else {
-                // Orphaned floater cleanup
-                llOwnerSay("🧹 [Floater Manager] Cleaned up orphaned floater (channel: " + (string)ch + ")");
+                // Orphaned floater cleanup - channel not found in our tracking
+                llOwnerSay("🧹 [Floater Manager] Cleaned up orphaned floater (channel: " + (string)ch + ") - not in tracking list");
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
@@ -393,7 +588,24 @@ default {
             }
             // IMPORTANT: Also sync the names list to prevent desynchronization
             string namesStr = llList2String(parts, 3);
-            names = llCSV2List(namesStr);
+            list newNames = llCSV2List(namesStr);
+            
+            // CRITICAL: If names list changed size, rebuild permanent mapping if needed
+            if (llGetListLength(allPlayerNames) == 0 && llGetListLength(newNames) > 0) {
+                // Initial population of permanent mapping from sync
+                allPlayerNames = newNames;
+                allPlayerChannels = [];
+                integer i;
+                for (i = 0; i < llGetListLength(newNames); i++) {
+                    integer ch = FLOATER_BASE_CHANNEL + i;
+                    allPlayerChannels += [ch];
+                }
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("🔄 [Floater Manager] Built permanent mapping: " + llList2CSV(allPlayerNames) + " -> " + llList2CSV(allPlayerChannels));
+                }
+            }
+            
+            names = newNames;
             
             // Sync players list if available (5th part)
             if (llGetListLength(parts) >= 5) {
@@ -406,18 +618,16 @@ default {
                 llOwnerSay("🎯 Floater Manager: Peril player updated from '" + oldPeril + "' to '" + perilPlayer + "'");
             }
 
-            // CRITICAL: After synchronizing the game state, ALWAYS update all existing floats
-            // This ensures they reflect the current peril status and prevents desynchronization
-            // Force update even if peril player didn't change - other state may have changed
+            // CRITICAL: After synchronizing the game state, ALWAYS update ALL registered floaters
+            // This includes both alive and eliminated players so eliminated floaters show proper status
             integer idx;
-            for (idx = 0; idx < llGetListLength(names); idx++) {
-                string n = llList2String(names, idx);
-                // Use the player's key if it exists; fallback to NULL_KEY for test bots
-                key k;
-                if (idx < llGetListLength(players)) {
-                    k = llList2Key(players, idx);
-                } else {
-                    k = NULL_KEY;
+            for (idx = 0; idx < llGetListLength(allPlayerNames); idx++) {
+                string n = llList2String(allPlayerNames, idx);
+                // Find player key if they're still alive, otherwise use NULL_KEY
+                key k = NULL_KEY;
+                integer aliveIdx = llListFindList(names, [n]);
+                if (aliveIdx != -1 && aliveIdx < llGetListLength(players)) {
+                    k = llList2Key(players, aliveIdx);
                 }
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, n, k);
             }
@@ -427,19 +637,55 @@ default {
             if (oldPeril != perilPlayer && perilPlayer != "" && perilPlayer != "NONE") {
                 llOwnerSay("🔄 [Floater Manager] Peril player changed - scheduling secondary update for stability");
                 llSleep(0.3); // Brief delay to let initial updates complete
-                for (idx = 0; idx < llGetListLength(names); idx++) {
-                    string n = llList2String(names, idx);
-                    key k;
-                    if (idx < llGetListLength(players)) {
-                        k = llList2Key(players, idx);
-                    } else {
-                        k = NULL_KEY;
+                for (idx = 0; idx < llGetListLength(allPlayerNames); idx++) {
+                    string n = llList2String(allPlayerNames, idx);
+                    // Find player key if they're still alive, otherwise use NULL_KEY
+                    key k = NULL_KEY;
+                    integer aliveIdx = llListFindList(names, [n]);
+                    if (aliveIdx != -1 && aliveIdx < llGetListLength(players)) {
+                        k = llList2Key(players, aliveIdx);
                     }
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, n, k);
                 }
             }
         }
         
+        // Handle aggressive floater cleanup requests
+        else if (num == MSG_CLEANUP_ALL_FLOATERS) {
+            string context = str; // "RESET" for conservative, empty for aggressive
+            
+            if (context == "RESET") {
+                // Conservative cleanup during reset - only clean known floaters using permanent mapping
+                if (llGetListLength(allPlayerChannels) > 0) {
+                    llOwnerSay("🧹 [Floater Manager] Cleaning up floaters for " + (string)llGetListLength(allPlayerChannels) + " registered channels...");
+                    integer i;
+                    for (i = 0; i < llGetListLength(allPlayerChannels); i++) {
+                        integer ch = llList2Integer(allPlayerChannels, i);
+                        llRegionSay(ch, "CLEANUP");
+                    }
+                }
+            } else {
+                // Aggressive cleanup for troubleshooting - scan all possible channels
+                llOwnerSay("🧽 [Floater Manager] Performing aggressive floater cleanup...");
+                integer i;
+                for (i = 0; i < MAX_PLAYERS; i++) {
+                    integer ch = FLOATER_BASE_CHANNEL + i;
+                    llRegionSay(ch, "CLEANUP");
+                    llRegionSay(ch + 100, "CLEANUP");
+                    llRegionSay(ch + 1000, "CLEANUP");
+                }
+                llOwnerSay("✅ [Floater Manager] Aggressive cleanup complete");
+            }
+            
+            // Clear our internal tracking
+            players = [];
+            names = [];
+            lives = [];
+            picksData = [];
+            perilPlayer = "";
+            playerNames = [];
+            playerChannels = [];
+        }
         // Handle debug control messages
         else if (num == MSG_DEBUG_PICKS_ON) {
             DEBUG_PICKS = TRUE;

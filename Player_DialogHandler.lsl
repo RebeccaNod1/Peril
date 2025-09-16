@@ -111,6 +111,19 @@ float MENU_REQUEST_TIMEOUT = 5.0;       // 5 second timeout for menu requests
 integer isLocked = FALSE;
 key gameOwner;
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 // Display the main categorized owner menu with lock/unlock controls
 showOwnerMenu(key id) {
     // Only show full menu to owner
@@ -288,8 +301,32 @@ showKickPlayerMenu(key id, list playerNames) {
     llDialog(id, "👢 Select player to kick from game:", options, DIALOG_CHANNEL);
 }
 
+// Show menu for unregistered owner
+showUnregisteredOwnerMenu(key id, integer canStartGame) {
+    list options = [];
+    string menuText = "👑 Owner Options:\n\n";
+    
+    // Always allow owner to join
+    options += ["Join Game"];
+    menuText += "🎮 Join Game - Register as a player\n";
+    
+    // Allow starting game if there are enough players (even if all bots)
+    if (canStartGame) {
+        options += ["Start Game"];
+        menuText += "⚡ Start Game - Begin with current players\n";
+    }
+    
+    // Always allow owner menu access
+    options += ["Owner Menu"];
+    menuText += "🔧 Owner Menu - Admin functions";
+    
+    llDialog(id, menuText, options, DIALOG_CHANNEL);
+}
+
 default {
     state_entry() {
+        reportMemoryUsage("🎭 Player Dialog");
+        
         // Initialize dynamic channels
         initializeChannels();
         DIALOG_CHANNEL = MAIN_DIALOG_CHANNEL; // Set legacy variable
@@ -331,6 +368,8 @@ default {
     }
     
     on_rez(integer start_param) {
+        reportMemoryUsage("🎭 Player Dialog");
+        
         llOwnerSay("🔄 Player Dialog Handler rezzed - reinitializing...");
         
         // Re-initialize dynamic channels
@@ -408,6 +447,12 @@ default {
             } else if (targetType == "admin") {
                 // Show admin category menu directly
                 showOwnerMenu(id);
+            } else if (targetType == "unregistered_owner") {
+                // Unregistered owner - basic menu (join, owner menu)
+                showUnregisteredOwnerMenu(id, FALSE);
+            } else if (targetType == "unregistered_owner_starter") {
+                // Unregistered owner with enough players to start game
+                showUnregisteredOwnerMenu(id, TRUE);
             }
         }
         else if (num == MSG_READY_STATE_RESULT) {
