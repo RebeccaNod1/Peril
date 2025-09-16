@@ -49,12 +49,12 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **Clean Architecture**: Streamlined systems focus on essential functionality
 
 ### 🎯 **Before vs After v2.8.6**
-|| **Before** | **After** |
-||------------|----------|
-|| ❌ Winner announced but no visual celebration | ✅ Bright green glow celebration on scoreboard and floaters |
-|| ❌ Immediate reset after victory - no recognition | ✅ 24-second victory celebration timer for proper recognition |
-|| ❌ Generic white glow effects | ✅ Professional colored glow system (green/yellow/red) |
-|| ❌ Winners felt unrewarded | ✅ Ultimate Survivors get proper celebration and recognition |
+| **Before** | **After** |
+|------------|----------|
+| ❌ Winner announced but no visual celebration | ✅ Bright green glow celebration on scoreboard and floaters |
+| ❌ Immediate reset after victory - no recognition | ✅ 24-second victory celebration timer for proper recognition |
+| ❌ Generic white glow effects | ✅ Professional colored glow system (green/yellow/red) |
+| ❌ Winners felt unrewarded | ✅ Ultimate Survivors get proper celebration and recognition |
 
 ## Major v2.8.5 Improvements 🚨
 
