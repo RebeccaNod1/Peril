@@ -241,26 +241,31 @@ list getSortedLeaderboard() {
     list sortedData = [];
     integer i;
     
-    // Create combined data for sorting: "Name:Wins:Losses"
+    // Create combined data for sorting with padded wins for proper numerical sorting
     for (i = 0; i < llGetListLength(leaderboardNames); i++) {
         string name = llList2String(leaderboardNames, i);
         integer wins = llList2Integer(leaderboardWins, i);
         integer losses = llList2Integer(leaderboardLosses, i);
         
-        // Format: "Name:Wins:Losses" - wins as leading digits for sorting
-        string entry = (string)wins + ":" + name + ":" + (string)wins + ":" + (string)losses;
+        // Pad wins to 4 digits for proper string sorting (0000-9999)
+        string paddedWins = (string)(10000 + wins);  // Add 10000 then remove first digit
+        paddedWins = llGetSubString(paddedWins, 1, -1);  // Remove the "1" prefix
+        
+        // Format: "PaddedWins:Name:ActualWins:Losses" for sorting
+        string entry = paddedWins + ":" + name + ":" + (string)wins + ":" + (string)losses;
         sortedData += [entry];
     }
     
-    // Sort by wins (descending) - the leading wins digits will sort it
+    // Sort by padded wins (descending) - numerical order preserved in string sort
     sortedData = llListSort(sortedData, 1, FALSE); // FALSE = descending order
     
-    // Clean up the format back to "Name:Wins:Losses"
+    // Clean up the format back to "Name:Wins:Losses" (skip padded wins in position 0)
     list cleanedData = [];
     for (i = 0; i < llGetListLength(sortedData); i++) {
         string entry = llList2String(sortedData, i);
         list parts = llParseString2List(entry, [":"], []);
         if (llGetListLength(parts) >= 4) {
+            // parts[0] = paddedWins (skip), parts[1] = name, parts[2] = actualWins, parts[3] = losses
             string name = llList2String(parts, 1);
             string wins = llList2String(parts, 2);
             string losses = llList2String(parts, 3);
