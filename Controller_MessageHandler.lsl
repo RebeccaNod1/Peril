@@ -84,12 +84,12 @@ handlePlayerListRequest(key requester) {
 
 // Handle pick data requests
 handlePickDataRequest(string targetName, key requester) {
-    integer i;
-    for (i = 0; i < llGetListLength(picksData); i++) {
-        string rawEntry = llList2String(picksData, i);
-        list parts = llParseString2List(rawEntry, ["|"], []);
-        if (llList2String(parts, 0) == targetName) {
-            llMessageLinked(LINK_SET, 205, targetName + "|" + llList2String(parts, 1), requester);
+    integer j;
+    for (j = 0; j < llGetListLength(picksData); j++) {
+        string rawEntry = llList2String(picksData, j);
+        list pickParts = llParseString2List(rawEntry, ["|"], []);
+        if (llList2String(pickParts, 0) == targetName) {
+            llMessageLinked(LINK_SET, 205, targetName + "|" + llList2String(pickParts, 1), requester);
             return;
         }
     }
@@ -98,24 +98,24 @@ handlePickDataRequest(string targetName, key requester) {
 
 // Handle life data requests
 handleLifeDataRequest(string playerName, key requester) {
-    integer idx = llListFindList(names, [playerName]);
-    if (idx != -1) {
-        string lifeVal = llList2String(lives, idx);
+    integer lifeIdx = llListFindList(names, [playerName]);
+    if (lifeIdx != -1) {
+        string lifeVal = llList2String(lives, lifeIdx);
         llMessageLinked(LINK_SET, 208, playerName + "|" + lifeVal, requester);
     }
 }
 
 // Handle pick actions (ADD_PICK/REMOVE_PICK)
 handlePickAction(string actionData) {
-    list parts = llParseString2List(actionData, ["~"], []);
-    string action = llList2String(parts, 0);
-    list args = llParseString2List(llList2String(parts, 1), ["|"], []);
+    list actionParts = llParseString2List(actionData, ["~"], []);
+    string pickAction = llList2String(actionParts, 0);
+    list args = llParseString2List(llList2String(actionParts, 1), ["|"], []);
     string name = llList2String(args, 0);
     string pick = llList2String(args, 1);
     
-    integer i;
-    for (i = 0; i < llGetListLength(picksData); i++) {
-        string entry = llList2String(picksData, i);
+    integer k;
+    for (k = 0; k < llGetListLength(picksData); k++) {
+        string entry = llList2String(picksData, k);
         list pdParts = llParseString2List(entry, ["|"], []);
         if (llList2String(pdParts, 0) == name) {
             list pickList = [];
@@ -124,17 +124,17 @@ handlePickAction(string actionData) {
                 pickList = llParseString2List(rawPicks, [","], []);
             }
             
-            if (action == "ADD_PICK") {
+            if (pickAction == "ADD_PICK") {
                 if (llListFindList(pickList, [pick]) == -1) {
                     pickList += [pick];
                     if (VERBOSE_LOGGING) {
                         llOwnerSay("➕ [Message Handler] Added " + pick + " to " + name);
                     }
                 }
-            } else if (action == "REMOVE_PICK") {
-                integer idx = llListFindList(pickList, [pick]);
-                if (idx != -1) {
-                    pickList = llDeleteSubList(pickList, idx, idx);
+            } else if (pickAction == "REMOVE_PICK") {
+                integer removeIdx = llListFindList(pickList, [pick]);
+                if (removeIdx != -1) {
+                    pickList = llDeleteSubList(pickList, removeIdx, removeIdx);
                     if (VERBOSE_LOGGING) {
                         llOwnerSay("➖ [Message Handler] Removed " + pick + " from " + name);
                     }
@@ -142,7 +142,7 @@ handlePickAction(string actionData) {
             }
             
             // Update local picks data
-            picksData = llListReplaceList(picksData, [name + "|" + llList2CSV(pickList)], i, i);
+            picksData = llListReplaceList(picksData, [name + "|" + llList2CSV(pickList)], k, k);
             
             // Notify Main Controller of the change
             llMessageLinked(LINK_SET, 204, actionData, NULL_KEY);
@@ -161,19 +161,19 @@ handleDiceTypeRequest(key requester) {
 
 // Handle leave game and kick player requests
 handleLeaveGameRequest(string requestData) {
-    list parts = llParseString2List(requestData, ["|"], []);
-    string action = llList2String(parts, 0);
-    if (action == "LEAVE_GAME" || action == "KICK_PLAYER") {
-        string leavingName = llList2String(parts, 1);
-        key requestKey = (key)llList2String(parts, 2); // This is the requester's key, not the player's key
-        integer idx = llListFindList(names, [leavingName]); // Find by name instead of key
+    list leaveParts = llParseString2List(requestData, ["|"], []);
+    string leaveAction = llList2String(leaveParts, 0);
+    if (leaveAction == "LEAVE_GAME" || leaveAction == "KICK_PLAYER") {
+        string leavingName = llList2String(leaveParts, 1);
+        key requestKey = (key)llList2String(leaveParts, 2); // This is the requester's key, not the player's key
+        integer leaveIdx = llListFindList(names, [leavingName]); // Find by name instead of key
         
-        if (idx != -1) {
+        if (leaveIdx != -1) {
             // Update local lists FIRST to prevent race conditions
-            players = llDeleteSubList(players, idx, idx);
-            names = llDeleteSubList(names, idx, idx);
-            lives = llDeleteSubList(lives, idx, idx);
-            picksData = llDeleteSubList(picksData, idx, idx);
+            players = llDeleteSubList(players, leaveIdx, leaveIdx);
+            names = llDeleteSubList(names, leaveIdx, leaveIdx);
+            lives = llDeleteSubList(lives, leaveIdx, leaveIdx);
+            picksData = llDeleteSubList(picksData, leaveIdx, leaveIdx);
             
             // THEN send floater cleanup using the previously calculated channel
             // Note: We DON'T send MSG_CLEANUP_FLOAT here anymore to avoid double-cleanup
@@ -189,10 +189,10 @@ handleLeaveGameRequest(string requestData) {
             }
             
             // Different messages for voluntary leave vs kick
-            if (action == "LEAVE_GAME") {
+            if (leaveAction == "LEAVE_GAME") {
                 llOwnerSay("👋 [Message Handler] " + leavingName + " left the game");
                 llSay(0, "👋 " + leavingName + " has left the deadly game! 👋");
-            } else if (action == "KICK_PLAYER") {
+            } else if (leaveAction == "KICK_PLAYER") {
                 llOwnerSay("👢 [Message Handler] " + leavingName + " was kicked from the game");
                 llSay(0, "👢 " + leavingName + " has been kicked from the deadly game by the owner! 👢");
             }
@@ -225,10 +225,10 @@ handleLeaveGameRequest(string requestData) {
 
 // Synchronize game state from Main Controller
 syncGameState(string stateData) {
-    list parts = llParseString2List(stateData, ["~"], []);
+    list syncParts = llParseString2List(stateData, ["~"], []);
     
     // Handle special RESET sync message
-    if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
+    if (llGetListLength(syncParts) >= 5 && llList2String(syncParts, 0) == "RESET") {
         if (VERBOSE_LOGGING) {
             llOwnerSay("🔄 [Message Handler] Received reset sync - clearing all state");
         }
@@ -243,32 +243,32 @@ syncGameState(string stateData) {
         return;
     }
     
-    if (llGetListLength(parts) >= 4) {
-        lives = llCSV2List(llList2String(parts, 0));
+    if (llGetListLength(syncParts) >= 4) {
+        lives = llCSV2List(llList2String(syncParts, 0));
         
         // Decode picks data
-        string encodedPicksDataStr = llList2String(parts, 1);
+        string encodedPicksDataStr = llList2String(syncParts, 1);
         picksData = [];
         if (encodedPicksDataStr != "" && encodedPicksDataStr != "EMPTY") {
             list encodedEntries = llParseString2List(encodedPicksDataStr, ["^"], []);
-            integer i;
-            for (i = 0; i < llGetListLength(encodedEntries); i++) {
-                string entry = llList2String(encodedEntries, i);
-                list entryParts = llParseString2List(entry, ["|"], []);
+            integer m;
+            for (m = 0; m < llGetListLength(encodedEntries); m++) {
+                string syncEntry = llList2String(encodedEntries, m);
+                list entryParts = llParseString2List(syncEntry, ["|"], []);
                 if (llGetListLength(entryParts) >= 2) {
-                    string playerName = llList2String(entryParts, 0);
+                    string syncPlayerName = llList2String(entryParts, 0);
                     string picks = llList2String(entryParts, 1);
                     // Convert semicolons back to commas
                     picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-                    picksData += [playerName + "|" + picks];
+                    picksData += [syncPlayerName + "|" + picks];
                 } else {
-                    picksData += [entry];
+                    picksData += [syncEntry];
                 }
             }
         }
         
         // Track peril player and round state for victory detection
-        string receivedPeril = llList2String(parts, 2);
+        string receivedPeril = llList2String(syncParts, 2);
         if (receivedPeril == "NONE" || receivedPeril == "") {
             perilPlayer = "";
             roundStarted = FALSE;
@@ -277,7 +277,7 @@ syncGameState(string stateData) {
             roundStarted = TRUE;  // Game is active if there's a peril player
         }
         
-        names = llCSV2List(llList2String(parts, 3));
+        names = llCSV2List(llList2String(syncParts, 3));
         
         // SAFETY: Validate peril player exists in current names list AFTER updating names
         if (perilPlayer != "" && perilPlayer != "NONE") {
@@ -299,29 +299,29 @@ syncGameState(string stateData) {
 // Handle owner messages
 handleOwnerMessage(string messageData) {
     // Format: "simple_message" or "type|param1|param2"
-    list parts = llParseString2List(messageData, ["|"], []);
-    if (llGetListLength(parts) == 1) {
+    list ownerParts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(ownerParts) == 1) {
         // Simple message
         llOwnerSay(messageData);
     } else {
         // Formatted message
-        string msgType = llList2String(parts, 0);
-        if (msgType == "JOIN") {
-            string playerName = llList2String(parts, 1);
-            llOwnerSay("👋 " + playerName + " joined the game!");
-            llSay(0, "🔔 Added player: " + playerName);
-        } else if (msgType == "LEAVE") {
-            string playerName = llList2String(parts, 1);
-            llOwnerSay("👋 " + playerName + " left the game.");
-        } else if (msgType == "ERROR") {
-            string error = llList2String(parts, 1);
+        string ownerMsgType = llList2String(ownerParts, 0);
+        if (ownerMsgType == "JOIN") {
+            string ownerPlayerName = llList2String(ownerParts, 1);
+            llOwnerSay("👋 " + ownerPlayerName + " joined the game!");
+            llSay(0, "🔔 Added player: " + ownerPlayerName);
+        } else if (ownerMsgType == "LEAVE") {
+            string leavePlayerName = llList2String(ownerParts, 1);
+            llOwnerSay("👋 " + leavePlayerName + " left the game.");
+        } else if (ownerMsgType == "ERROR") {
+            string error = llList2String(ownerParts, 1);
             llOwnerSay("⚠️ " + error);
-        } else if (msgType == "SUCCESS") {
-            string msg = llList2String(parts, 1);
+        } else if (ownerMsgType == "SUCCESS") {
+            string msg = llList2String(ownerParts, 1);
             llOwnerSay("✅ " + msg);
-        } else if (msgType == "DEBUG") {
-            string component = llList2String(parts, 1);
-            string msg = llList2String(parts, 2);
+        } else if (ownerMsgType == "DEBUG") {
+            string component = llList2String(ownerParts, 1);
+            string msg = llList2String(ownerParts, 2);
             llOwnerSay("🔧 [" + component + "] " + msg);
         }
     }
@@ -329,13 +329,13 @@ handleOwnerMessage(string messageData) {
 
 // Handle public messages
 handlePublicMessage(string messageData) {
-    list parts = llParseString2List(messageData, ["|"], []);
-    if (llGetListLength(parts) == 1) {
+    list publicParts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(publicParts) == 1) {
         llSay(0, messageData);
     } else {
-        string msgType = llList2String(parts, 0);
-        if (msgType == "GAME") {
-            string stateVal = llList2String(parts, 1);
+        string publicMsgType = llList2String(publicParts, 0);
+        if (publicMsgType == "GAME") {
+            string stateVal = llList2String(publicParts, 1);
             llSay(0, "🎮 " + stateVal);
         }
     }
@@ -344,20 +344,20 @@ handlePublicMessage(string messageData) {
 // Handle region messages to specific players
 handleRegionMessage(string messageData) {
     // Format: "player_key|message" or "player_key|type|param1|param2"
-    list parts = llParseString2List(messageData, ["|"], []);
-    if (llGetListLength(parts) >= 2) {
-        key playerKey = llList2Key(parts, 0);
-        string message = llList2String(parts, 1);
+    list regionParts = llParseString2List(messageData, ["|"], []);
+    if (llGetListLength(regionParts) >= 2) {
+        key regionPlayerKey = llList2Key(regionParts, 0);
+        string message = llList2String(regionParts, 1);
         
-        if (llGetListLength(parts) == 2) {
+        if (llGetListLength(regionParts) == 2) {
             // Simple message - use llSay since we can't use llRegionSayTo on channel 0
-            llSay(0, "[To " + llKey2Name(playerKey) + "] " + message);
+            llSay(0, "[To " + llKey2Name(regionPlayerKey) + "] " + message);
         } else {
             // Formatted message
-            string msgType = llList2String(parts, 1);
-            if (msgType == "WELCOME") {
-                string msg = llList2String(parts, 2);
-                llSay(0, "[To " + llKey2Name(playerKey) + "] 🔄 " + msg);
+            string regionMsgType = llList2String(regionParts, 1);
+            if (regionMsgType == "WELCOME") {
+                string msg = llList2String(regionParts, 2);
+                llSay(0, "[To " + llKey2Name(regionPlayerKey) + "] 🔄 " + msg);
             }
         }
     }
@@ -366,15 +366,15 @@ handleRegionMessage(string messageData) {
 // Handle dialog requests
 handleDialogRequest(string dialogData) {
     // Format: "player_key|dialog_text|option1,option2,option3|channel"
-    list parts = llParseString2List(dialogData, ["|"], []);
-    if (llGetListLength(parts) >= 4) {
-        key playerKey = llList2Key(parts, 0);
-        string dialogText = llList2String(parts, 1);
-        string optionsStr = llList2String(parts, 2);
-        integer channel = llList2Integer(parts, 3);
+    list dialogParts = llParseString2List(dialogData, ["|"], []);
+    if (llGetListLength(dialogParts) >= 4) {
+        key dialogPlayerKey = llList2Key(dialogParts, 0);
+        string dialogText = llList2String(dialogParts, 1);
+        string optionsStr = llList2String(dialogParts, 2);
+        integer channel = llList2Integer(dialogParts, 3);
         
         list options = llParseString2List(optionsStr, [","], []);
-        llDialog(playerKey, dialogText, options, channel);
+        llDialog(dialogPlayerKey, dialogText, options, channel);
     }
 }
 
