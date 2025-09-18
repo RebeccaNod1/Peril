@@ -34,8 +34,25 @@ pipeline {
         stage('LSL Validation') {
             steps {
                 echo "🔧 Validating LSL syntax..."
+                echo "Debug: Checking LSL tools path..."
                 sh '''
-                    python3 ${LSL_TOOLS_PATH}/lsl_validator.py .
+                    echo "LSL_TOOLS_PATH = ${LSL_TOOLS_PATH}"
+                    ls -la ${LSL_TOOLS_PATH}/ 2>/dev/null || echo "Directory ${LSL_TOOLS_PATH} does not exist"
+                    
+                    # Check if local validator exists
+                    ls -la lsl_validator.py 2>/dev/null || echo "Local lsl_validator.py not found"
+                    
+                    # Try to use the appropriate validator
+                    if [ -f "${LSL_TOOLS_PATH}/lsl_validator.py" ]; then
+                        echo "Using LSL tools validator at ${LSL_TOOLS_PATH}"
+                        python3 ${LSL_TOOLS_PATH}/lsl_validator.py .
+                    elif [ -f "lsl_validator.py" ]; then
+                        echo "Using local lsl_validator.py"
+                        python3 lsl_validator.py .
+                    else
+                        echo "No LSL validator found!"
+                        exit 1
+                    fi
                 '''
             }
             post {
@@ -64,7 +81,13 @@ pipeline {
                     for file in *.lsl; do
                         if [ -f "$file" ] && [ "${file#processed_}" = "$file" ]; then
                             echo "Processing $file..."
-                            python3 ${LSL_TOOLS_PATH}/lsl_preprocessor.py "$file" "processed_$file"
+                            if [ -f "${LSL_TOOLS_PATH}/lsl_preprocessor.py" ]; then
+                                python3 ${LSL_TOOLS_PATH}/lsl_preprocessor.py "$file" "processed_$file"
+                            elif [ -f "lsl_preprocessor.py" ]; then
+                                python3 lsl_preprocessor.py "$file" "processed_$file"
+                            else
+                                echo "Warning: No LSL preprocessor found, skipping $file"
+                            fi
                         fi
                     done
                 '''
