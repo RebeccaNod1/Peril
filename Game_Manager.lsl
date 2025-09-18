@@ -69,9 +69,9 @@ list buildCompleteAvoidanceList() {
     
     // Also add any picks from globalPickedNumbers as backup
     for (i = 0; i < llGetListLength(globalPickedNumbers); i++) {
-        string pick = llList2String(globalPickedNumbers, i);
-        if (pick != "" && llListFindList(allPicks, [pick]) == -1) {
-            allPicks += [pick];
+        string globalPick = llList2String(globalPickedNumbers, i);
+        if (globalPick != "" && llListFindList(allPicks, [globalPick]) == -1) {
+            allPicks += [globalPick];
         }
     }
     
@@ -111,14 +111,14 @@ continueCurrentRound() {
     // Main Controller handles all game ending validation
     
     // Check for eliminated players (0 lives) - don't continue if any exist
-    integer i;
-    for (i = 0; i < llGetListLength(names); i++) {
-        string playerName = llList2String(names, i);
-        integer playerIdx = llListFindList(names, [playerName]);
-        if (playerIdx != -1 && playerIdx < llGetListLength(lives)) {
-            integer playerLives = llList2Integer(lives, playerIdx);
-            if (playerLives <= 0) {
-                llOwnerSay("🛑 [Game Manager] continueCurrentRound: Found eliminated player " + playerName + " with " + (string)playerLives + " lives - aborting round start");
+    integer continueIdx;
+    for (continueIdx = 0; continueIdx < llGetListLength(names); continueIdx++) {
+        string continueName = llList2String(names, continueIdx);
+        integer continuePlayerIdx = llListFindList(names, [continueName]);
+        if (continuePlayerIdx != -1 && continuePlayerIdx < llGetListLength(lives)) {
+            integer continuePlayerLives = llList2Integer(lives, continuePlayerIdx);
+            if (continuePlayerLives <= 0) {
+                llOwnerSay("🛑 [Game Manager] continueCurrentRound: Found eliminated player " + continueName + " with " + (string)continuePlayerLives + " lives - aborting round start");
                 return;
             }
         }
@@ -157,10 +157,10 @@ continueCurrentRound() {
     
     // Create new pick queue with peril player first
     pickQueue = [perilPlayer];
-    for (i = 0; i < llGetListLength(names); i++) {
-        string playerName = llList2String(names, i);
-        if (playerName != perilPlayer) {
-            pickQueue += [playerName];
+    for (continueIdx = 0; continueIdx < llGetListLength(names); continueIdx++) {
+        string continuePlayerName = llList2String(names, continueIdx);
+        if (continuePlayerName != perilPlayer) {
+            pickQueue += [continuePlayerName];
         }
     }
     currentPickerIdx = 0;
@@ -219,10 +219,10 @@ startNextRound() {
         llOwnerSay("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
         syncStateToMain(); // Sync the peril player to all modules first
         llSleep(0.1); // Brief delay to ensure sync propagates
-        integer j;
-        for (j = 0; j < llGetListLength(names); j++) {
-            string playerName = llList2String(names, j);
-            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, NULL_KEY);
+        integer startJ;
+        for (startJ = 0; startJ < llGetListLength(names); startJ++) {
+            string startPlayerName = llList2String(names, startJ);
+            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, startPlayerName, NULL_KEY);
         }
     }
     
@@ -234,9 +234,9 @@ startNextRound() {
     pickQueue = [perilPlayer];
     integer k;
     for (k = 0; k < llGetListLength(names); k++) {
-        string playerName = llList2String(names, k);
-        if (playerName != perilPlayer) {
-            pickQueue += [playerName];
+        string startName = llList2String(names, k);
+        if (startName != perilPlayer) {
+            pickQueue += [startName];
         }
     }
     currentPickerIdx = 0;
@@ -274,29 +274,29 @@ showNextPickerDialog() {
     }
     
     // CRITICAL: Verify this player is still alive and in the game
-    integer playerIdx = llListFindList(names, [firstName]);
-    if (playerIdx == -1) {
+    integer showPlayerIdx = llListFindList(names, [firstName]);
+    if (showPlayerIdx == -1) {
         llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " not found in current game");
         return;
     }
     
-    if (playerIdx >= llGetListLength(lives)) {
+    if (showPlayerIdx >= llGetListLength(lives)) {
         llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " index out of bounds for lives list");
         return;
     }
     
-    integer playerLives = llList2Integer(lives, playerIdx);
-    if (playerLives <= 0) {
-        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " has been eliminated (" + (string)playerLives + " lives)");
+    integer showPlayerLives = llList2Integer(lives, showPlayerIdx);
+    if (showPlayerLives <= 0) {
+        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " has been eliminated (" + (string)showPlayerLives + " lives)");
         return;
     }
     
     // CHECK: Don't show dialog if this player already has picks to prevent loops
     integer alreadyHasPicks = FALSE;
-    integer i;
-    for (i = 0; i < llGetListLength(picksData) && !alreadyHasPicks; i++) {
-        if (llSubStringIndex(llList2String(picksData, i), firstName + "|") == 0) {
-            string existingPicks = llGetSubString(llList2String(picksData, i), llStringLength(firstName) + 1, -1);
+    integer showIdx;
+    for (showIdx = 0; showIdx < llGetListLength(picksData) && !alreadyHasPicks; showIdx++) {
+        if (llSubStringIndex(llList2String(picksData, showIdx), firstName + "|") == 0) {
+            string existingPicks = llGetSubString(llList2String(picksData, showIdx), llStringLength(firstName) + 1, -1);
             if (existingPicks != "") {
                 alreadyHasPicks = TRUE;
                 llOwnerSay("🎯 Game Manager: " + firstName + " already has picks (" + existingPicks + "), advancing to next player");
@@ -310,9 +310,9 @@ showNextPickerDialog() {
         if (currentPickerIdx < llGetListLength(pickQueue)) {
             showNextPickerDialog();
         } else {
-            // All picked, show roll dialog through Player_RegistrationManager
-            string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
-            llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
+        // All picked, show roll dialog through Player_RegistrationManager
+        string firstRollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, firstRollRequest, NULL_KEY);
         }
         return;
     }
@@ -331,10 +331,10 @@ showNextPickerDialog() {
         if (llSubStringIndex(firstName, "Bot") == 0) {
         // Bot picking - but first double-check this bot doesn't already have picks
         integer botAlreadyHasPicks = FALSE;
-        integer j;
-        for (j = 0; j < llGetListLength(picksData) && !botAlreadyHasPicks; j++) {
-            if (llSubStringIndex(llList2String(picksData, j), firstName + "|") == 0) {
-                string existingBotPicks = llGetSubString(llList2String(picksData, j), llStringLength(firstName) + 1, -1);
+        integer showJ;
+        for (showJ = 0; showJ < llGetListLength(picksData) && !botAlreadyHasPicks; showJ++) {
+            if (llSubStringIndex(llList2String(picksData, showJ), firstName + "|") == 0) {
+                string existingBotPicks = llGetSubString(llList2String(picksData, showJ), llStringLength(firstName) + 1, -1);
                 if (existingBotPicks != "") {
                     botAlreadyHasPicks = TRUE;
                     llOwnerSay("⚠️ [Game Manager] Bot " + firstName + " already has picks, skipping bot command: " + existingBotPicks);
@@ -343,20 +343,20 @@ showNextPickerDialog() {
         }
         
         if (!botAlreadyHasPicks) {
-            integer perilIdx = llListFindList(names, [perilPlayer]);
-            integer perilLives = 3;
-            if (perilIdx != -1) {
-                perilLives = llList2Integer(lives, perilIdx);
+            integer showPerilIdx = llListFindList(names, [perilPlayer]);
+            integer showPerilLives = 3;
+            if (showPerilIdx != -1) {
+                showPerilLives = llList2Integer(lives, showPerilIdx);
             }
-            integer picksNeeded = 4 - perilLives;
+            integer showPicksNeeded = 4 - showPerilLives;
             
             // Send proper avoid list to bots so they don't pick human numbers
-            list completeAvoidList = buildCompleteAvoidanceList();
-            string avoidListStr = llList2CSV(completeAvoidList);
-            string botCommand = "BOT_PICK:" + firstName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + avoidListStr;
-            llOwnerSay("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
+            list showCompleteAvoidList = buildCompleteAvoidanceList();
+            string showAvoidListStr = llList2CSV(showCompleteAvoidList);
+            string botCommand = "BOT_PICK:" + firstName + ":" + (string)showPicksNeeded + ":" + (string)diceType + ":" + showAvoidListStr;
+            llOwnerSay("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(showCompleteAvoidList) + " numbers): " + showAvoidListStr);
             llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
-            llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)picksNeeded + " numbers...");
+            llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)showPicksNeeded + " numbers...");
         } else {
             // Bot already has picks, advance to next player immediately
             currentPickerIdx++;
@@ -364,23 +364,23 @@ showNextPickerDialog() {
                 showNextPickerDialog();
             } else {
                 // All picked, show roll dialog through Player_RegistrationManager
-                string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
-                llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
+                string humanRollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, humanRollRequest, NULL_KEY);
             }
         }
     } else {
         // Human picking
-        integer perilIdx = llListFindList(names, [perilPlayer]);
-        integer perilLives = 3;
-        if (perilIdx != -1) {
-            perilLives = llList2Integer(lives, perilIdx);
+        integer humanPerilIdx = llListFindList(names, [perilPlayer]);
+        integer humanPerilLives = 3;
+        if (humanPerilIdx != -1) {
+            humanPerilLives = llList2Integer(lives, humanPerilIdx);
         }
-        integer picksNeeded = 4 - perilLives;
+        integer humanPicksNeeded = 4 - humanPerilLives;
         
         // Send dialog payload with complete avoid list for humans too
-        list completeAvoidList = buildCompleteAvoidanceList();
-        string avoidListStr = llList2CSV(completeAvoidList);
-        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + avoidListStr;
+        list humanCompleteAvoidList = buildCompleteAvoidanceList();
+        string humanAvoidListStr = llList2CSV(humanCompleteAvoidList);
+        string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)humanPicksNeeded + "|" + humanAvoidListStr;
         
         llOwnerSay("🎯 Showing pick dialog for " + firstName);
         llSleep(0.5);  // Brief delay to prevent spam
@@ -487,17 +487,17 @@ default {
                     list newPicksData = [];
                     if (encodedPicksDataStr != "") {
                         list encodedEntries = llParseString2List(encodedPicksDataStr, ["^"], []);
-                        integer i;
-                        for (i = 0; i < llGetListLength(encodedEntries); i++) {
-                            string entry = llList2String(encodedEntries, i);
-                            list entryParts = llParseString2List(entry, ["|"], []);
+                        integer syncI;
+                        for (syncI = 0; syncI < llGetListLength(encodedEntries); syncI++) {
+                            string syncEntry = llList2String(encodedEntries, syncI);
+                            list entryParts = llParseString2List(syncEntry, ["|"], []);
                             if (llGetListLength(entryParts) >= 2) {
-                                string playerName = llList2String(entryParts, 0);
+                                string syncPlayerName = llList2String(entryParts, 0);
                                 string picks = llList2String(entryParts, 1);
                                 picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-                                newPicksData += [playerName + "|" + picks];
+                                newPicksData += [syncPlayerName + "|" + picks];
                             } else {
-                                newPicksData += [entry];
+                                newPicksData += [syncEntry];
                             }
                         }
                     }
@@ -518,11 +518,11 @@ default {
                     }
                     
                     integer allPicksEmpty = TRUE;
-                    integer i;
-                    for (i = 0; i < llGetListLength(newPicksData) && allPicksEmpty; i++) {
-                        string entry = llList2String(newPicksData, i);
-                        list parts = llParseString2List(entry, ["|"], []);
-                        if (llGetListLength(parts) >= 2 && llList2String(parts, 1) != "") {
+                    integer checkI;
+                    for (checkI = 0; checkI < llGetListLength(newPicksData) && allPicksEmpty; checkI++) {
+                        string checkEntry = llList2String(newPicksData, checkI);
+                        list checkParts = llParseString2List(checkEntry, ["|"], []);
+                        if (llGetListLength(checkParts) >= 2 && llList2String(checkParts, 1) != "") {
                             allPicksEmpty = FALSE;
                         }
                     }
@@ -570,9 +570,9 @@ default {
                         
                         names = [firstName, secondName];
                         // Parse lives from sync message instead of hardcoding
-                        string livesStr = llList2String(parts, 0);
-                        if (llSubStringIndex(livesStr, ",") != -1) {
-                            lives = llCSV2List(livesStr);
+                        string multiLivesStr = llList2String(parts, 0);
+                        if (llSubStringIndex(multiLivesStr, ",") != -1) {
+                            lives = llCSV2List(multiLivesStr);
                         } else {
                             lives = [3, 3]; // Fallback for single player
                         }
