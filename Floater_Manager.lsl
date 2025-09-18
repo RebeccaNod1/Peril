@@ -193,8 +193,8 @@ list getPicksFor(string nameInput) {
 
 // Converts a player's key into their name (if registered)
 string getNameFromKey(key id) {
-    integer i = llListFindList(alivePlayers, [id]);
-    if (i != -1) return llList2String(aliveNames, i);
+    integer idx = llListFindList(alivePlayers, [id]);
+    if (idx != -1) return llList2String(aliveNames, idx);
     return (string)id;
 }
 

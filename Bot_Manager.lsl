@@ -126,8 +126,8 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
         } else {
             llOwnerSay("[Bot Manager] ❌ " + botName + " cannot pick any numbers - all " + (string)diceMax + " numbers are taken!");
             // Still send empty response to prevent game hanging
-            string response = "BOT_PICKED:" + botName + ":";
-            llMessageLinked(LINK_SET, -9997, response, NULL_KEY);
+            string emptyResponse = "BOT_PICKED:" + botName + ":";
+            llMessageLinked(LINK_SET, -9997, emptyResponse, NULL_KEY);
             return;
         }
     }
@@ -183,15 +183,15 @@ doBotPick(string botName, integer count, integer diceMax, list avoidNumbers) {
 // Helper to respond to peril roll commands
 doBotRoll(string botName, integer diceMax) {
     // Validate bot exists and is still alive
-    integer botIdx = llListFindList(names, [botName]);
-    if (botIdx == -1) {
+    integer rollBotIdx = llListFindList(names, [botName]);
+    if (rollBotIdx == -1) {
         llOwnerSay("[Bot Manager] ❌ Bot '" + botName + "' not found in game - ignoring roll command");
         return;
     }
     
-    integer botLives = llList2Integer(lives, botIdx);
-    if (botLives <= 0) {
-        llOwnerSay("[Bot Manager] ❌ Bot '" + botName + "' is eliminated (lives=" + (string)botLives + ") - ignoring roll command");
+    integer rollBotLives = llList2Integer(lives, rollBotIdx);
+    if (rollBotLives <= 0) {
+        llOwnerSay("[Bot Manager] ❌ Bot '" + botName + "' is eliminated (lives=" + (string)rollBotLives + ") - ignoring roll command");
         return;
     }
     

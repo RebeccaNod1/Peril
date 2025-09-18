@@ -142,9 +142,9 @@ handlePlayerRegistration(string regData, key requesterId) {
     } else {
         // Build lives string dynamically
         string livesStr = "";
-        integer i;
-        for (i = 0; i < llGetListLength(names); i++) {
-            if (i > 0) livesStr += ",";
+        integer j;
+        for (j = 0; j < llGetListLength(names); j++) {
+            if (j > 0) livesStr += ",";
             livesStr += "3"; // Everyone starts with 3 lives
         }
         syncMessage = livesStr + "~EMPTY~NONE~" + llList2CSV(names);

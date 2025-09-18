@@ -68,16 +68,16 @@ emergencyMemoryCleanup() {
 }
 
 reportMemoryStats() {
-    integer usedMemory = llGetUsedMemory();
-    float memoryPercentage = (float)usedMemory / 65536.0;
+    integer statsUsedMemory = llGetUsedMemory();
+    float statsMemoryPercentage = (float)statsUsedMemory / 65536.0;
     
     llOwnerSay("📊 [Memory Monitor] Memory Monitor Stats:");
-    llOwnerSay("  Helper Memory Used: " + (string)usedMemory + " bytes (" + 
-               (string)llRound(memoryPercentage * 100.0) + "% of 64KB)");
+    llOwnerSay("  Helper Memory Used: " + (string)statsUsedMemory + " bytes (" + 
+               (string)llRound(statsMemoryPercentage * 100.0) + "% of 64KB)");
     string memoryStatus;
-    if (memoryPercentage > MEMORY_CRITICAL_THRESHOLD) {
+    if (statsMemoryPercentage > MEMORY_CRITICAL_THRESHOLD) {
         memoryStatus = "CRITICAL";
-    } else if (memoryPercentage > MEMORY_WARNING_THRESHOLD) {
+    } else if (statsMemoryPercentage > MEMORY_WARNING_THRESHOLD) {
         memoryStatus = "WARNING";
     } else {
         memoryStatus = "NORMAL";
