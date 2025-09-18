@@ -168,11 +168,11 @@ string GetGridTexture(vector grid_pos)
 vector GetGridOffset(vector grid_pos)
 {
     // Zoom in on the texture showing our character pair.
-    integer Col = llRound(grid_pos.x) % 20;
-    integer Row = llRound(grid_pos.y) % 10;
+    integer offsetCol = llRound(grid_pos.x) % 20;
+    integer offsetRow = llRound(grid_pos.y) % 10;
  
     // Return the offset in the texture.
-    return <-0.45 + 0.05 * Col, 0.45 - 0.1 * Row, 0.0>;
+    return <-0.45 + 0.05 * offsetCol, 0.45 - 0.1 * offsetRow, 0.0>;
 }
  
 ShowChars(vector grid_pos1, vector grid_pos2, vector grid_pos3, vector grid_pos4, vector grid_pos5)
@@ -209,22 +209,22 @@ RenderString(string str)
 RenderWithEffects(string str)
 {
     // Get the grid positions for each pair of characters.
-    vector GridPos1 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 0, 0)),
-                                  llSubStringIndex(gCharIndex, llGetSubString(str, 1, 1)) );
-    vector GridPos2 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 2, 2)),
-                                  llSubStringIndex(gCharIndex, llGetSubString(str, 3, 3)) );
-    vector GridPos3 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 4, 4)),
-                                  llSubStringIndex(gCharIndex, llGetSubString(str, 5, 5)) );
-    vector GridPos4 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 6, 6)),
-                                  llSubStringIndex(gCharIndex, llGetSubString(str, 7, 7)) );
-    vector GridPos5 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 8, 8)),
-                                  llSubStringIndex(gCharIndex, llGetSubString(str, 9, 9)) );                                   
+    vector EffectsPos1 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 0, 0)),
+                                     llSubStringIndex(gCharIndex, llGetSubString(str, 1, 1)) );
+    vector EffectsPos2 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 2, 2)),
+                                     llSubStringIndex(gCharIndex, llGetSubString(str, 3, 3)) );
+    vector EffectsPos3 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 4, 4)),
+                                     llSubStringIndex(gCharIndex, llGetSubString(str, 5, 5)) );
+    vector EffectsPos4 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 6, 6)),
+                                     llSubStringIndex(gCharIndex, llGetSubString(str, 7, 7)) );
+    vector EffectsPos5 = GetGridPos( llSubStringIndex(gCharIndex, llGetSubString(str, 8, 8)),
+                                     llSubStringIndex(gCharIndex, llGetSubString(str, 9, 9)) );
  
       // First set the alpha to the lowest possible.
     llSetAlpha(0.05, ALL_SIDES);
  
     // Use these grid positions to display the correct textures/offsets.
-    ShowChars(GridPos1, GridPos2, GridPos3, GridPos4, GridPos5);
+    ShowChars(EffectsPos1, EffectsPos2, EffectsPos3, EffectsPos4, EffectsPos5);
  
     float Alpha;
     for (Alpha = 0.10; Alpha <= 1.0; Alpha += 0.05)
@@ -303,9 +303,9 @@ RenderExtended(string str)
             else
             {
                 // Just add the characters normally.
-                integer j;
-                for (j = 0; j < TokenLength; j++)
-                    Indices += [llSubStringIndex(gCharIndex, llGetSubString(Token, j, j))];
+                integer k;
+                for (k = 0; k < TokenLength; k++)
+                    Indices += [llSubStringIndex(gCharIndex, llGetSubString(Token, k, k))];
             }
  
             // Unset this flag, since this was not an escape sequence.
@@ -314,14 +314,14 @@ RenderExtended(string str)
     }
  
     // Use the indices to create grid positions.
-    vector GridPos1 = GetGridPos( llList2Integer(Indices, 0), llList2Integer(Indices, 1) );
-    vector GridPos2 = GetGridPos( llList2Integer(Indices, 2), llList2Integer(Indices, 3) );
-    vector GridPos3 = GetGridPos( llList2Integer(Indices, 4), llList2Integer(Indices, 5) );
-    vector GridPos4 = GetGridPos( llList2Integer(Indices, 6), llList2Integer(Indices, 7) );
-    vector GridPos5 = GetGridPos( llList2Integer(Indices, 8), llList2Integer(Indices, 9) );     
+    vector ExtendedPos1 = GetGridPos( llList2Integer(Indices, 0), llList2Integer(Indices, 1) );
+    vector ExtendedPos2 = GetGridPos( llList2Integer(Indices, 2), llList2Integer(Indices, 3) );
+    vector ExtendedPos3 = GetGridPos( llList2Integer(Indices, 4), llList2Integer(Indices, 5) );
+    vector ExtendedPos4 = GetGridPos( llList2Integer(Indices, 6), llList2Integer(Indices, 7) );
+    vector ExtendedPos5 = GetGridPos( llList2Integer(Indices, 8), llList2Integer(Indices, 9) );
  
     // Use these grid positions to display the correct textures/offsets.
-    ShowChars(GridPos1, GridPos2, GridPos3, GridPos4, GridPos5);
+    ShowChars(ExtendedPos1, ExtendedPos2, ExtendedPos3, ExtendedPos4, ExtendedPos5);
 }
  
 integer ConvertIndex(integer index)
@@ -377,13 +377,13 @@ default
         if (channel == REMAP_INDICES)
         {
             // Parse the message, splitting it up into index values.
-            list Parsed = llCSV2List(data);
-            integer i;
+            list RemapParsed = llCSV2List(data);
+            integer m;
             // Go through the list and swap each pair of indices.
-            for (i = 0; i < llGetListLength(Parsed); i += 2)
+            for (m = 0; m < llGetListLength(RemapParsed); m += 2)
             {
-                integer Index1 = ConvertIndex( llList2Integer(Parsed, i) );
-                integer Index2 = ConvertIndex( llList2Integer(Parsed, i + 1) );
+                integer Index1 = ConvertIndex( llList2Integer(RemapParsed, m) );
+                integer Index2 = ConvertIndex( llList2Integer(RemapParsed, m + 1) );
  
                 // Swap these index values.
                 string Value1 = llGetSubString(gCharIndex, Index1, Index1);
@@ -407,11 +407,11 @@ default
         {
             // Change the channel we listen to for cell commands, and the
             // starting character position to extract from.
-            list Parsed = llCSV2List(data);
-            gCellChannel        = (integer) llList2String(Parsed, 0);
-            gCellCharPosition   = (integer) llList2String(Parsed, 1);
-            gCellUseFading      = (integer) llList2String(Parsed, 2);
-            gCellHoldDelay      = (float)   llList2String(Parsed, 3);             
+            list CellParsed = llCSV2List(data);
+            gCellChannel        = (integer) llList2String(CellParsed, 0);
+            gCellCharPosition   = (integer) llList2String(CellParsed, 1);
+            gCellUseFading      = (integer) llList2String(CellParsed, 2);
+            gCellHoldDelay      = (float)   llList2String(CellParsed, 3);
             return;
         }
         if (channel == SET_THICKNESS)
