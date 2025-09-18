@@ -78,26 +78,26 @@ distributeFullText(string text) {
 
 // Legacy function for single bank distribution
 distributeToBank(string text, list linkNumbers) {
-    list lines;
+    list bankLines;
     
     // If text is empty, create a list of empty strings to clear all prims
     if (text == "") {
         integer numPrims = llGetListLength(linkNumbers);
-        integer i;
-        for (i = 0; i < numPrims; i++) {
-            lines += ["          "]; // 10 spaces to clear each line
+        integer j;
+        for (j = 0; j < numPrims; j++) {
+            bankLines += ["          "]; // 10 spaces to clear each line
         }
     } else {
-        lines = llParseString2List(text, ["\n"], []);
+        bankLines = llParseString2List(text, ["\n"], []);
     }
     
     // Send text to each prim in the bank
-    integer i;
-    for (i = 0; i < llGetListLength(linkNumbers); i++) {
+    integer k;
+    for (k = 0; k < llGetListLength(linkNumbers); k++) {
         string line;
         
-        if (i < llGetListLength(lines)) {
-            line = llList2String(lines, i);
+        if (k < llGetListLength(bankLines)) {
+            line = llList2String(bankLines, k);
         } else {
             line = "          "; // 10 spaces for empty lines
         }
@@ -109,8 +109,8 @@ distributeToBank(string text, list linkNumbers) {
             line = line + llGetSubString("          ", 0, 9 - llStringLength(line));
         }
         
-        integer linkNum = llList2Integer(linkNumbers, i);
-        llMessageLinked(linkNum, DISPLAY_STRING, line, "");
+        integer primLink = llList2Integer(linkNumbers, k);
+        llMessageLinked(primLink, DISPLAY_STRING, line, "");
     }
 }
 

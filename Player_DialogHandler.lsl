@@ -239,27 +239,27 @@ list kickDisplayNames = [];  // What the user sees in the dialog
 list kickOriginalNames = []; // The actual player names
 
 showPickManageMenu(key id, list playerNames) {
-    list options = [];
-    integer i;
-    for (i = 0; i < llGetListLength(playerNames); i++) {
-        string pname = llList2String(playerNames, i);
-        options += ["🛠 " + pname];
+    list pickOptions = [];
+    integer j;
+    for (j = 0; j < llGetListLength(playerNames); j++) {
+        string pname = llList2String(playerNames, j);
+        pickOptions += ["🛠 " + pname];
     }
-    options += ["⬅️ Back"];
-    llDialog(id, "📋 Manage Picks for: ", options, DIALOG_CHANNEL);
+    pickOptions += ["⬅️ Back"];
+    llDialog(id, "📋 Manage Picks for: ", pickOptions, DIALOG_CHANNEL);
 }
 
 showPickListMenu(key id) {
-    list options = [];
-    integer i;
-    for (i = 0; i < llGetListLength(currentPickList); i++) {
-        string pick = llList2String(currentPickList, i);
+    list listOptions = [];
+    integer k;
+    for (k = 0; k < llGetListLength(currentPickList); k++) {
+        string pick = llList2String(currentPickList, k);
         if (llStringLength(pick) > 0) {
-            options += ["REMOVE: " + pick];
+            listOptions += ["REMOVE: " + pick];
         }
     }
-    options += ["Add Pick", "⬅️ Back"];
-    llDialog(id, "🛠 Picks for: " + currentPickTarget, options, DIALOG_CHANNEL);
+    listOptions += ["Add Pick", "⬅️ Back"];
+    llDialog(id, "🛠 Picks for: " + currentPickTarget, listOptions, DIALOG_CHANNEL);
 }
 
 askForNewPick(key id) {
@@ -274,53 +274,53 @@ showKickPlayerMenu(key id, list playerNames) {
         return;
     }
     
-    list options = [];
+    list kickOptions = [];
     kickDisplayNames = [];  // Reset mapping
     kickOriginalNames = [];
     
-    integer i;
-    for (i = 0; i < llGetListLength(playerNames); i++) {
-        string originalName = llList2String(playerNames, i);
-        string displayName = originalName;
+    integer m;
+    for (m = 0; m < llGetListLength(playerNames); m++) {
+        string originalName = llList2String(playerNames, m);
+        string kickDisplayName = originalName;
         
         // Truncate long names to fit within 24 character button limit ("👢 " = 3 chars)
-        if (llStringLength(displayName) > 21) {
-            displayName = llGetSubString(displayName, 0, 18) + "...";
+        if (llStringLength(kickDisplayName) > 21) {
+            kickDisplayName = llGetSubString(kickDisplayName, 0, 18) + "...";
         }
         
-        string buttonLabel = "👢 " + displayName;
+        string buttonLabel = "👢 " + kickDisplayName;
         
         // Debug: Check button length
         llOwnerSay("🔍 Debug kick button: '" + buttonLabel + "' = " + (string)llStringLength(buttonLabel) + " chars");
         
-        options += [buttonLabel];
+        kickOptions += [buttonLabel];
         kickDisplayNames += [buttonLabel];  // Store the full button label
         kickOriginalNames += [originalName];  // Store the original name
     }
-    options += ["⬅️ Back"];
-    llDialog(id, "👢 Select player to kick from game:", options, DIALOG_CHANNEL);
+    kickOptions += ["⬅️ Back"];
+    llDialog(id, "👢 Select player to kick from game:", kickOptions, DIALOG_CHANNEL);
 }
 
 // Show menu for unregistered owner
 showUnregisteredOwnerMenu(key id, integer canStartGame) {
-    list options = [];
-    string menuText = "👑 Owner Options:\n\n";
+    list ownerOptions = [];
+    string ownerMenuText = "👑 Owner Options:\n\n";
     
     // Always allow owner to join
-    options += ["Join Game"];
-    menuText += "🎮 Join Game - Register as a player\n";
+    ownerOptions += ["Join Game"];
+    ownerMenuText += "🎮 Join Game - Register as a player\n";
     
     // Allow starting game if there are enough players (even if all bots)
     if (canStartGame) {
-        options += ["Start Game"];
-        menuText += "⚡ Start Game - Begin with current players\n";
+        ownerOptions += ["Start Game"];
+        ownerMenuText += "⚡ Start Game - Begin with current players\n";
     }
     
     // Always allow owner menu access
-    options += ["Owner Menu"];
-    menuText += "🔧 Owner Menu - Admin functions";
+    ownerOptions += ["Owner Menu"];
+    ownerMenuText += "🔧 Owner Menu - Admin functions";
     
-    llDialog(id, menuText, options, DIALOG_CHANNEL);
+    llDialog(id, ownerMenuText, ownerOptions, DIALOG_CHANNEL);
 }
 
 default {

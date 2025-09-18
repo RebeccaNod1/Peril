@@ -54,19 +54,19 @@ integer getDiceType(integer playerCount) {
 
 // Determine how many picks a player should make based on the peril player's lives
 integer getPicksRequiredFromName(string name) {
-    integer idx = llListFindList(names, [name]);
-    if (idx == -1) {
-        integer i;
-        for (i = 0; i < llGetListLength(names); i++) {
-            string testName = llList2String(names, i);
-            if (llSubStringIndex(testName, name) != -1) {
-                idx = i;
-                i = llGetListLength(names);
+    integer nameIdx = llListFindList(names, [name]);
+    if (nameIdx == -1) {
+        integer j;
+        for (j = 0; j < llGetListLength(names); j++) {
+            string checkName = llList2String(names, j);
+            if (llSubStringIndex(checkName, name) != -1) {
+                nameIdx = j;
+                j = llGetListLength(names);
             }
         }
     }
-    if (idx == -1) return 0;
-    integer lifeCount = (integer)llList2String(lives, idx);
+    if (nameIdx == -1) return 0;
+    integer lifeCount = (integer)llList2String(lives, nameIdx);
     // Pick count = 4 - peril player's lives (3 lives=1 pick, 2 lives=2 picks, 1 life=3 picks)
     return 4 - lifeCount;
 }
@@ -90,20 +90,20 @@ integer showPickManager(string player, key id) {
         searchName = llList2String(parts, 1);
     }
 
-    integer idx = llListFindList(names, [searchName]);
-    if (idx == -1) {
-        integer i;
-        for (i = 0; i < llGetListLength(names); i++) {
-            string testName = llList2String(names, i);
-            if (llSubStringIndex(testName, searchName) != -1) {
-                idx = i;
+    integer searchIdx = llListFindList(names, [searchName]);
+    if (searchIdx == -1) {
+        integer k;
+        for (k = 0; k < llGetListLength(names); k++) {
+            string matchName = llList2String(names, k);
+            if (llSubStringIndex(matchName, searchName) != -1) {
+                searchIdx = k;
                 if (VERBOSE_LOGGING) {
-                    llOwnerSay("✅ Matched pick list for: " + testName);
+                    llOwnerSay("✅ Matched pick list for: " + matchName);
                 }
-                i = llGetListLength(names);
+                k = llGetListLength(names);
             }
         }
-        if (idx == -1) {
+        if (searchIdx == -1) {
             if (VERBOSE_LOGGING) {
                 llOwnerSay("⚠️ Could not find player: " + player);
             }
@@ -111,19 +111,19 @@ integer showPickManager(string player, key id) {
         }
     }
 
-    integer maxPicks = getPicksRequiredFromName(llList2String(names, idx));
+    integer maxPicks = getPicksRequiredFromName(llList2String(names, searchIdx));
 
-    string currentData = llList2String(picksData, idx);
-    list parts = llParseString2List(currentData, ["|"], []);
+    string currentData = llList2String(picksData, searchIdx);
+    list dataParts = llParseString2List(currentData, ["|"], []);
     list currentPicks = [];
-    if (llGetListLength(parts) > 1) {
-        currentPicks = llParseString2List(llList2String(parts, 1), [","], []);
+    if (llGetListLength(dataParts) > 1) {
+        currentPicks = llParseString2List(llList2String(dataParts, 1), [","], []);
     }
 
     list buttons = [];
-    integer i;
-    for (i = 1; i <= 6; i++) {
-        string numStr = (string)i;
+    integer buttonIdx;
+    for (buttonIdx = 1; buttonIdx <= 6; buttonIdx++) {
+        string numStr = (string)buttonIdx;
         if (llListFindList(currentPicks, [numStr]) != -1) {
             buttons += ["❌ " + numStr];
         } else if (llGetListLength(currentPicks) < maxPicks) {
