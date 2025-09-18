@@ -510,8 +510,10 @@ default {
                     names = newNames;
                     
                     // Send lightweight update to Main Controller for floating text (only if substantial change)
+                    // Use the NEW names list count (after elimination has been processed)
                     if (perilChanged && perilPlayer != "" && perilPlayer != "NONE") {
-                        string lightUpdate = "PERIL_UPDATE|" + perilPlayer + "|" + (string)llGetListLength(names);
+                        integer currentPlayerCount = llGetListLength(newNames);  // Use the updated count
+                        string lightUpdate = "PERIL_UPDATE|" + perilPlayer + "|" + (string)currentPlayerCount;
                         llMessageLinked(LINK_SET, 9070, lightUpdate, NULL_KEY);
                     }
                     

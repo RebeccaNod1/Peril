@@ -39,7 +39,7 @@ integer LAST_OVERLAY_PRIM = 11;   // Overlay prims end at 11
 // Heart texture UUIDs - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
 string TEXTURE_0_HEARTS = "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b"; // 0 hearts (dead)
 string TEXTURE_1_HEARTS = "6605d25f-8e2d-2870-eb87-77c58cd47fa9"; // 1 heart
-string TEXTURE_2_HEARTS = "7ba6cb1e-f384-25a5-8e88-a90bbd7cc041"; // 2 hearts  
+string TEXTURE_2_HEARTS = "7ba6cb1e-f384-25a5-8e88-a90bbd7cc041"; // 2 hearts
 string TEXTURE_3_HEARTS = "a5d16715-4648-6526-5582-e8068293f792"; // 3 hearts
 
 // Default textures - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
@@ -240,36 +240,56 @@ handleGameLost(string loserName) {
 list getSortedLeaderboard() {
     list sortedData = [];
     integer i;
+    string name;
+    integer wins;
+    integer losses;
+    string paddedWins;
+    string paddedLosses;
+    integer invertedLosses;
+    string sortKey;
+    string entry;
+    list parts;
+    list cleanedData = [];
+    string winsStr;
+    string lossesStr;
     
-    // Create combined data for sorting with padded wins for proper numerical sorting
+    // Create combined data for sorting with padded wins and losses for proper multi-level sorting
     for (i = 0; i < llGetListLength(leaderboardNames); i++) {
-        string name = llList2String(leaderboardNames, i);
-        integer wins = llList2Integer(leaderboardWins, i);
-        integer losses = llList2Integer(leaderboardLosses, i);
+        name = llList2String(leaderboardNames, i);
+        wins = llList2Integer(leaderboardWins, i);
+        losses = llList2Integer(leaderboardLosses, i);
         
-        // Pad wins to 4 digits for proper string sorting (0000-9999)
-        string paddedWins = (string)(10000 + wins);  // Add 10000 then remove first digit
+        // Pad wins to 4 digits (higher wins = better rank)
+        paddedWins = (string)(10000 + wins);
         paddedWins = llGetSubString(paddedWins, 1, -1);  // Remove the "1" prefix
         
-        // Format: "PaddedWins:Name:ActualWins:Losses" for sorting
-        string entry = paddedWins + ":" + name + ":" + (string)wins + ":" + (string)losses;
+        // Pad losses to 4 digits, but INVERTED for tiebreaker (lower losses = better rank)
+        // Use 9999 - losses so lower losses get higher sort value
+        invertedLosses = 9999 - losses;
+        paddedLosses = (string)(10000 + invertedLosses);
+        paddedLosses = llGetSubString(paddedLosses, 1, -1);  // Remove the "1" prefix
+        
+        // Format: "PaddedWins-PaddedInvertedLosses:Name:ActualWins:ActualLosses"
+        // This sorts first by wins (descending), then by losses (ascending) for tiebreaker
+        sortKey = paddedWins + "-" + paddedLosses;
+        entry = sortKey + ":" + name + ":" + (string)wins + ":" + (string)losses;
         sortedData += [entry];
     }
     
-    // Sort by padded wins (descending) - numerical order preserved in string sort
-    sortedData = llListSort(sortedData, 1, FALSE); // FALSE = descending order
+    // Sort by combined key (wins descending, losses ascending) - FALSE = descending order
+    sortedData = llListSort(sortedData, 1, FALSE);
     
     // Clean up the format back to "Name:Wins:Losses" (skip padded wins in position 0)
-    list cleanedData = [];
+    cleanedData = [];
     for (i = 0; i < llGetListLength(sortedData); i++) {
-        string entry = llList2String(sortedData, i);
-        list parts = llParseString2List(entry, [":"], []);
+        entry = llList2String(sortedData, i);
+        parts = llParseString2List(entry, [":"], []);
         if (llGetListLength(parts) >= 4) {
             // parts[0] = paddedWins (skip), parts[1] = name, parts[2] = actualWins, parts[3] = losses
-            string name = llList2String(parts, 1);
-            string wins = llList2String(parts, 2);
-            string losses = llList2String(parts, 3);
-            cleanedData += [name + ":" + wins + ":" + losses];
+            name = llList2String(parts, 1);
+            winsStr = llList2String(parts, 2);
+            lossesStr = llList2String(parts, 3);
+            cleanedData += [name + ":" + winsStr + ":" + lossesStr];
         }
     }
     
@@ -284,15 +304,30 @@ generateLeaderboardText() {
     string leaderboardText = "        TOP BATTLE RECORDS        \n";
     
     integer i;
+    string playerData;
+    list playerParts;
+    string playerName;
+    string wins;
+    string losses;
+    integer rankNumber;
+    string rank;
+    string leftPart;
+    string rightPart;
+    integer spaceNeeded;
+    string spacer;
+    integer s;
+    string line;
+    integer actualPlayers;
+    
     // Add actual player data (up to 11 players)
     for (i = 0; i < llGetListLength(sortedData) && i < 11; i++) {
-        string playerData = llList2String(sortedData, i);
-        list playerParts = llParseString2List(playerData, [":"], []);
+        playerData = llList2String(sortedData, i);
+        playerParts = llParseString2List(playerData, [":"], []);
         
         if (llGetListLength(playerParts) >= 3) {
-            string playerName = llList2String(playerParts, 0);
-            string wins = llList2String(playerParts, 1);
-            string losses = llList2String(playerParts, 2);
+            playerName = llList2String(playerParts, 0);
+            wins = llList2String(playerParts, 1);
+            losses = llList2String(playerParts, 2);
             
             // Truncate long names to fit better spacing
             if (llStringLength(playerName) > 12) {
@@ -300,51 +335,49 @@ generateLeaderboardText() {
             }
             
             // Format rank
-            integer rankNumber = i + 1;
-            string rank = (string)rankNumber;
+            rankNumber = i + 1;
+            rank = (string)rankNumber;
             if (rankNumber < 10) rank = " " + rank; // Pad single digits
             
             // Create well-spaced line to fill full 40-character width
-            string leftPart = rank + ". " + playerName;
-            string rightPart = "W:" + wins + "/L:" + losses;
+            leftPart = rank + ". " + playerName;
+            rightPart = "W:" + wins + "/L:" + losses;
             
             // Calculate spaces needed to fill exactly 40 characters
-            integer spaceNeeded = 40 - llStringLength(leftPart) - llStringLength(rightPart);
+            spaceNeeded = 40 - llStringLength(leftPart) - llStringLength(rightPart);
             if (spaceNeeded < 1) spaceNeeded = 1; // At least 1 space
             
-            string spacer = "";
-            integer s;
+            spacer = "";
             for (s = 0; s < spaceNeeded; s++) {
                 spacer += " ";
             }
             
-            string line = leftPart + spacer + rightPart;
+            line = leftPart + spacer + rightPart;
             leaderboardText += line + "\n";
         }
     }
     
     // Fill remaining positions with placeholders to always show 11 positions
-    integer actualPlayers = llGetListLength(sortedData);
+    actualPlayers = llGetListLength(sortedData);
     for (i = actualPlayers; i < 11; i++) {
-        integer rankNumber = i + 1;
-        string rank = (string)rankNumber;
+        rankNumber = i + 1;
+        rank = (string)rankNumber;
         if (rankNumber < 10) rank = " " + rank; // Pad single digits
         
         // Create placeholder line to fill full 40-character width
-        string leftPart = rank + ". --------";
-        string rightPart = "W:0/L:0";
+        leftPart = rank + ". --------";
+        rightPart = "W:0/L:0";
         
         // Calculate spaces needed to fill exactly 40 characters
-        integer spaceNeeded = 40 - llStringLength(leftPart) - llStringLength(rightPart);
+        spaceNeeded = 40 - llStringLength(leftPart) - llStringLength(rightPart);
         if (spaceNeeded < 1) spaceNeeded = 1; // At least 1 space
         
-        string spacer = "";
-        integer s;
+        spacer = "";
         for (s = 0; s < spaceNeeded; s++) {
             spacer += " ";
         }
         
-        string line = leftPart + spacer + rightPart;
+        line = leftPart + spacer + rightPart;
         leaderboardText += line + "\n";
     }
     

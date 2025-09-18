@@ -33,7 +33,8 @@ KEY FEATURES
 🎯 COMPREHENSIVE LEADERBOARD
 - Persistent Win Tracking: Player victories saved across sessions
 - XyzzyText Display: Professional 3-prim text system for leaderboard
-- Automatic Sorting: Top players by win count
+- Smart Multi-Level Sorting: Primary by wins (descending), secondary by losses (ascending)
+- Fair Tie-Breaking: Players with same wins ranked by fewer losses for accurate competitive standings
 
 🎮 CORE GAME FEATURES
 - 🎯 Dynamic Player Management: Players can join at runtime (owner and other avatars)
@@ -100,6 +101,14 @@ Player Count | Dice Type
 
 RECENT IMPROVEMENTS (V2.8.6)
 ============================
+
+🏆 LEADERBOARD SORTING ENHANCEMENT
+- Enhanced Tie-Breaking System: Fixed leaderboard rankings to properly handle players with identical win counts
+  * Smart Multi-Level Sorting: Primary by wins (descending), then by losses (ascending) for fair tiebreaker
+  * Example: Player A (5W/2L) now correctly ranks higher than Player B (5W/3L)
+  * Consistent Rankings: No more random ordering of tied players - losses now serve as logical tiebreaker
+- Technical Implementation: Compound sorting key ensures reliable multi-level sorting in LSL environment
+- LSL Compliance: Fixed variable declaration issues for proper script compilation
 
 🏆 WINNER GLOW CELEBRATION SYSTEM
 - Revolutionary Victory Recognition: Comprehensive winner celebration with bright green glow effects

@@ -6,6 +6,20 @@ All notable changes to Peril Dice are documented in this file.
 [2.8.6] - 2025-09-16
 ====================
 
+🏆 LEADERBOARD SORTING ENHANCEMENT
+- Enhanced Tie-Breaking: Fixed leaderboard sorting to properly handle players with identical win counts
+  * Before: Players with same wins (e.g., 5 wins each) appeared in random/inconsistent order
+  * After: Players with same wins are sorted by losses ascending (fewer losses = better rank)
+  * Example: Player A (5W/2L) now ranks higher than Player B (5W/3L) with same wins but more losses
+  * Fair Ranking: Ensures consistent, logical player rankings that reflect overall performance
+- Multi-Level Sorting: Implemented compound sorting key with wins primary, losses secondary
+  * Primary Sort: Wins descending (higher wins = better rank)
+  * Tiebreaker Sort: Losses ascending (lower losses = better rank among tied players)
+  * Technical: Uses padded numeric strings for reliable multi-level sorting in LSL
+- LSL Compliance: Fixed variable declaration issues to ensure proper script compilation
+  * Resolved: Multiple variable redeclaration errors in sorting functions
+  * Enhanced: Proper LSL variable scoping throughout leaderboard management code
+
 🏆 WINNER GLOW CELEBRATION SYSTEM
 - Victory Visual Enhancement: Added comprehensive winner celebration with green glow effects
   * Scoreboard Glow: Winner's profile picture and hearts display bright green glow with green tint

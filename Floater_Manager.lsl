@@ -360,10 +360,13 @@ default {
                 // Real avatars: rez next to the avatar with the standard offset
                 pos = basePos + <1, 0, 1>;
             } else {
-                // Test players: space floats apart and away from the scoreboard/leaderboard area.
-                // Move them further away (3-5 meters) and spread them out more.
-                // This prevents them from spawning directly on the leaderboard.
-                pos = basePos + <-4.0 - (float)idx * 1.0, 2.0 + (float)idx * 0.8, 1>;
+                // Test players: arrange in a compact 2x5 grid to stay within parcel boundaries
+                // Grid layout: 2 rows of 5 floaters each, spaced 1.5m apart
+                integer row = idx / 5;  // Row 0 or 1
+                integer col = idx % 5;  // Column 0-4
+                float xOffset = -3.0 - (float)col * 1.5;  // -3.0 to -9.0
+                float yOffset = 2.0 + (float)row * 2.0;   // 2.0 or 4.0
+                pos = basePos + <xOffset, yOffset, 1>;
             }
             // Use permanent channel mapping instead of alive list index
             integer channelIdx = llListFindList(allPlayerNames, [name]);
@@ -454,7 +457,7 @@ default {
 
             string picksDisplay = llList2CSV(picks);
             
-            // Check if this player is the winner (only one player with lives > 0)
+            // Check if this player is the winner (only one player with lives > 0 AND game is active)
             integer livingPlayers = 0;
             integer isWinner = FALSE;
             for (i = 0; i < llGetListLength(lives); i++) {
@@ -463,8 +466,9 @@ default {
                 }
             }
             
-            // If only one player has lives > 0 and this player has lives > 0, they're the winner
-            if (livingPlayers == 1 && lifeCount > 0) {
+            // Winner detection: only trigger if game is active, has multiple total players, and only 1 survivor
+            // This prevents false winner detection during initial player registration
+            if (gameActive && livingPlayers == 1 && lifeCount > 0 && llGetListLength(names) >= 2) {
                 isWinner = TRUE;
             }
             
