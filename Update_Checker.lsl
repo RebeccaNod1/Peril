@@ -287,18 +287,32 @@ default {
             updateCheckInProgress = FALSE;
             
             if (status == 200) {
-                // Parse GitHub release JSON - with robust error handling
-                string latestVersion = llJsonGetValue(body, ["tag_name"]);
-                string htmlUrl = llJsonGetValue(body, ["html_url"]);
-                string publishedAt = llJsonGetValue(body, ["published_at"]);
+                // Debug: Show response info first
+                llOwnerSay("📊 Response received: " + (string)llStringLength(body) + " characters");
                 
-                if (latestVersion == JSON_INVALID) {
-                    llOwnerSay("❌ Could not parse GitHub API response");
-                    if (VERBOSE_LOGGING) {
-                        llOwnerSay("🔍 Response preview: " + llGetSubString(body, 0, 200) + "...");
-                    }
+                // Try to find tag_name manually first as a test
+                integer tagPos = llSubStringIndex(body, "\"tag_name\":");
+                if (tagPos == -1) {
+                    llOwnerSay("❌ GitHub response doesn't contain tag_name field");
+                    llOwnerSay("🔍 First 200 chars: " + llGetSubString(body, 0, 199));
                     return;
                 }
+                
+                // Try simple JSON parsing
+                string latestVersion = llJsonGetValue(body, ["tag_name"]);
+                
+                if (latestVersion == JSON_INVALID) {
+                    llOwnerSay("❌ LSL JSON parser failed on GitHub response");
+                    llOwnerSay("🔍 Manual search found tag_name at position: " + (string)tagPos);
+                    // Try to extract version manually
+                    string searchStr = llGetSubString(body, tagPos + 12, tagPos + 50);
+                    llOwnerSay("🔍 Around tag_name: " + searchStr);
+                    return;
+                }
+                
+                // If we get here, JSON parsing worked
+                string htmlUrl = llJsonGetValue(body, ["html_url"]);
+                string publishedAt = llJsonGetValue(body, ["published_at"]);
                 
                 // Parse release notes with error handling
                 string releaseNotes = llJsonGetValue(body, ["body"]);
