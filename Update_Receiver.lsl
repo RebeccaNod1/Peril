@@ -299,16 +299,6 @@ default {
             else if (command == "UPDATE_BUSY") {
                 llOwnerSay("⏳ Updater is busy with another installation");
             }
-            else if (command == "REMOVE_SCRIPT") {
-                string scriptToRemove = llList2String(parts, 1);
-                llOwnerSay("🗑️ Removing old script: " + scriptToRemove);
-                llRemoveInventory(scriptToRemove);
-            }
-            else if (command == "RENAME_SCRIPT") {
-                string targetName = llList2String(parts, 1);
-                llOwnerSay("🏷️ Looking for new script to rename to: " + targetName);
-                // Note: LSL doesn't have direct script renaming, this is for future enhancement
-            }
         }
     }
     
