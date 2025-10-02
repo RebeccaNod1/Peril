@@ -287,18 +287,26 @@ default {
             updateCheckInProgress = FALSE;
             
             if (status == 200) {
-                // Parse GitHub release JSON
+                // Parse GitHub release JSON - with robust error handling
                 string latestVersion = llJsonGetValue(body, ["tag_name"]);
-                string releaseNotes = llJsonGetValue(body, ["body"]);
                 string htmlUrl = llJsonGetValue(body, ["html_url"]);
                 string publishedAt = llJsonGetValue(body, ["published_at"]);
                 
                 if (latestVersion == JSON_INVALID) {
                     llOwnerSay("❌ Could not parse GitHub API response");
                     if (VERBOSE_LOGGING) {
-                        llOwnerSay("🔍 Response: " + llGetSubString(body, 0, 100) + "...");
+                        llOwnerSay("🔍 Response preview: " + llGetSubString(body, 0, 200) + "...");
                     }
                     return;
+                }
+                
+                // Parse release notes with error handling
+                string releaseNotes = llJsonGetValue(body, ["body"]);
+                if (releaseNotes == JSON_INVALID) {
+                    releaseNotes = "Release notes unavailable";
+                    if (VERBOSE_LOGGING) {
+                        llOwnerSay("⚠️ Could not parse release notes - may contain special characters");
+                    }
                 }
                 
                 llOwnerSay("=== 🔍 UPDATE CHECK RESULTS ===");
