@@ -1,11 +1,13 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.6 - Winner Glow Celebration System**
+**Current Version: 2.8.7 - GitHub Update System & Linkset Analysis Tools**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+**🔄 NEW in v2.8.7**: **GITHUB UPDATE SYSTEM** - Revolutionary in-world update checker that connects directly to GitHub releases, with smart file filtering and precise linkset deployment instructions. Includes Enhanced LinkScanner for complete 84-prim structure analysis.
 
 **🏆 NEW in v2.8.6**: **WINNER GLOW CELEBRATION SYSTEM** - Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
@@ -20,6 +22,68 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 **NEW in v2.8.0**: Game lockout security system, automatic reset functionality, and enhanced player management with kick/leave fixes for complete ownership control and stability.
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
+
+## Major v2.8.7 Improvements 🔄
+
+### 🔄 **GitHub Update System**
+- **In-World Update Checker**: Revolutionary `Update_Checker.lsl` script provides direct GitHub integration
+  - **GitHub API Integration**: Connects to `https://github.com/RebeccaNod1/Peril/releases` for automatic update detection
+  - **Smart File Filtering**: Only downloads essential game files, excludes development/test files
+  - **Precise Deployment Instructions**: Tells you exactly which link each script belongs on
+  - **Owner Menu Integration**: Access via Owner Menu → Troubleshooting → Check for Updates
+  - **Chat Commands**: `/1 check`, `/1 download ScriptName.lsl`, `/1 list` for direct access
+- **Memory Optimized**: Fits perfectly in the slot freed by eliminated UpdateHelper.lsl (v2.8.5)
+- **Professional Error Handling**: Clear feedback for network issues, missing releases, file validation
+
+### 🔍 **Enhanced LinkScanner System**
+- **Complete 84-Prim Analysis**: `Enhanced_LinkScanner.lsl` provides detailed linkset structure mapping
+  - **VERIFIED Structure**: Based on actual linkset scan showing exact prim names and positions
+  - **Script Placement Guide**: Shows which scripts belong on which links with verification
+  - **XyzzyText Mapping**: Detailed analysis of all 48 leaderboard prims (Links 35-82)
+  - **Update Deployment Guide**: Generates precise instructions for Update_Checker placement
+- **Real-Time Validation**: Touch to scan and verify current linkset matches expected architecture
+- **Professional Output**: Categorized analysis with deployment recommendations
+
+### 🎯 **Smart File Classification**
+- **Essential Game Files Only**: Update system intelligently filters files for end users
+  - **✅ Included**: All LSL scripts, documentation (README, CHANGELOG, notecards)
+  - **🚫 Excluded**: lsl_validator.py, debug_mcp.py, test_*.py, MCP files, templates
+- **Link-Specific Instructions**: Downloads include verified deployment locations
+  - **Link 1**: 13 root prim scripts + Update_Checker.lsl
+  - **Link 12**: "scoreboard manager cube" - Game_Scoreboard_Manager_Linkset.lsl
+  - **Link 35**: "leaderboard row 1 col 1" - Leaderboard_Communication_Linkset.lsl
+  - **Links 35-82**: All 48 XyzzyText prims need xyzzy_Master_script.lsl
+  - **Link 83**: "dice col 1" - XyzzyText_Dice_Bridge_Linkset.lsl
+
+### 🚀 **Zero-Infrastructure Updates**
+- **No Update Server Required**: Leverages existing GitHub + Jenkins CI/CD pipeline perfectly
+- **Automatic Release Detection**: Finds new versions as soon as they're tagged and released
+- **Individual File Updates**: Download specific scripts without full release packages
+- **GitHub Raw Integration**: Direct access to latest files from main branch
+- **Multi-Instance Safe**: Multiple game tables can check for updates independently
+
+### 🎨 **Professional User Experience**
+- **Clear Version Information**: Shows current vs latest versions with release dates
+- **Release Notes Preview**: Displays first 200 characters of GitHub release notes
+- **Download Progress**: File size reporting and content preview for verification
+- **Deployment Verification**: Confirms updates are designed for verified 84-prim structure
+- **Graceful Error Handling**: Helpful messages for GitHub rate limits, missing files, etc.
+
+### 📊 **System Integration Benefits**
+- **Replaces Eliminated UpdateHelper**: Perfect use of memory freed in v2.8.5 optimization
+- **Existing Admin Menu**: Integrates seamlessly with current troubleshooting interface
+- **Message Protocol Compatibility**: Uses established link message patterns and constants
+- **Verbose Logging Support**: Follows existing debug toggle system
+- **Memory Reporting**: Includes standard memory usage reporting like other scripts
+
+### 💱 **Before vs After v2.8.7**
+| **Before** | **After** |
+|------------|----------|
+| ❌ Manual update distribution via inventory | ✅ Automatic GitHub integration with update detection |
+| ❌ No way to check for new versions | ✅ One-click update checking via `/1 check` or admin menu |
+| ❌ Guessing which scripts go where | ✅ Precise deployment instructions verified by linkset scan |
+| ❌ Development files mixed with game files | ✅ Smart filtering shows only essential files |
+| ❌ No linkset structure validation | ✅ Complete 84-prim analysis and verification tools |
 
 ## Major v2.8.6 Improvements 🏆
 
