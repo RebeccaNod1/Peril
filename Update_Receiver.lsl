@@ -197,6 +197,7 @@ showUpdateCommands() {
     llOwnerSay("💬 Manual commands still available:");
     llOwnerSay("  /1 check     - Check GitHub for updates");
     llOwnerSay("  /1 scan      - Scan for nearby updater boxes");
+    llOwnerSay("  /1 test      - Test llRemoteLoadScriptPin with tiny script");
     llOwnerSay("  /1 help      - Show these commands");
 }
 
@@ -235,6 +236,22 @@ default {
             }
             else if (msg == "scan") {
                 scanForUpdaters();
+            }
+            else if (msg == "test") {
+                // Test llRemoteLoadScriptPin with tiny script
+                llOwnerSay("🧪 DEBUG: Testing llRemoteLoadScriptPin...");
+                
+                // Generate test PIN
+                integer testPin = (integer)(llFrand(1000000)) + 100000;
+                llSetRemoteScriptAccessPin(testPin);
+                
+                llOwnerSay("🔑 Test PIN set: " + (string)testPin);
+                llOwnerSay("📡 Broadcasting test request on channel " + (string)UPDATER_CHANNEL);
+                
+                // Broadcast test request to any test updaters
+                llRegionSay(UPDATER_CHANNEL, "TEST_REQUEST|" + CURRENT_VERSION + "|" + (string)testPin);
+                
+                llOwnerSay("🏷️ If you have a Test_Updater nearby, it should respond now");
             }
             else {
                 llOwnerSay("❓ Unknown command. Say '/1 help' for available commands");
