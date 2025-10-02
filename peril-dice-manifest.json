@@ -1,0 +1,161 @@
+{
+  "name": "Peril Dice",
+  "current_version": "2.8.8",
+  "repository": "https://github.com/RebeccaNod1/Peril",
+  "api_url": "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest",
+  "scripts": [
+    {
+      "name": "Main_Controller_Linkset.lsl",
+      "link": 1,
+      "description": "Master game coordination",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Main_Controller_Linkset.lsl",
+      "required": true,
+      "priority": 1
+    },
+    {
+      "name": "Game_Manager.lsl",
+      "link": 1,
+      "description": "Round management and game flow",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Manager.lsl",
+      "required": true,
+      "priority": 2
+    },
+    {
+      "name": "Controller_Memory.lsl",
+      "link": 1,
+      "description": "Memory monitoring and optimization",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_Memory.lsl",
+      "required": true,
+      "priority": 3
+    },
+    {
+      "name": "Controller_MessageHandler.lsl",
+      "link": 1,
+      "description": "Message routing and communication",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_MessageHandler.lsl",
+      "required": true,
+      "priority": 4
+    },
+    {
+      "name": "Player_RegistrationManager.lsl",
+      "link": 1,
+      "description": "Player registry and dialog forwarding",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_RegistrationManager.lsl",
+      "required": true,
+      "priority": 5
+    },
+    {
+      "name": "Player_DialogHandler.lsl",
+      "link": 1,
+      "description": "Admin menus and UI",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_DialogHandler.lsl",
+      "required": true,
+      "priority": 6
+    },
+    {
+      "name": "NumberPicker_DialogHandler.lsl",
+      "link": 1,
+      "description": "Number picking interface",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/NumberPicker_DialogHandler.lsl",
+      "required": true,
+      "priority": 7
+    },
+    {
+      "name": "Floater_Manager.lsl",
+      "link": 1,
+      "description": "Floating HUD displays",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Floater_Manager.lsl",
+      "required": true,
+      "priority": 8
+    },
+    {
+      "name": "Roll_ConfettiModule.lsl",
+      "link": 1,
+      "description": "Dice rolling and effects",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Roll_ConfettiModule.lsl",
+      "required": true,
+      "priority": 9
+    },
+    {
+      "name": "Bot_Manager.lsl",
+      "link": 1,
+      "description": "AI player behavior",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Bot_Manager.lsl",
+      "required": true,
+      "priority": 10
+    },
+    {
+      "name": "Game_Calculator.lsl",
+      "link": 1,
+      "description": "Dice type calculations",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Calculator.lsl",
+      "required": true,
+      "priority": 11
+    },
+    {
+      "name": "Verbose_Logger.lsl",
+      "link": 1,
+      "description": "Logging system",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Verbose_Logger.lsl",
+      "required": true,
+      "priority": 12
+    },
+    {
+      "name": "System_Debugger.lsl",
+      "link": 1,
+      "description": "Debug tools",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/System_Debugger.lsl",
+      "required": true,
+      "priority": 13
+    },
+    {
+      "name": "Update_Receiver.lsl",
+      "link": 1,
+      "description": "GitHub update system (replaces Update_Checker)",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Update_Receiver.lsl",
+      "required": true,
+      "priority": 14
+    },
+    {
+      "name": "Game_Scoreboard_Manager_Linkset.lsl",
+      "link": 12,
+      "description": "Visual scoreboard (scoreboard manager cube)",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Scoreboard_Manager_Linkset.lsl",
+      "required": true,
+      "priority": 15
+    },
+    {
+      "name": "Leaderboard_Communication_Linkset.lsl",
+      "link": 35,
+      "description": "XyzzyText bridge (leaderboard row 1 col 1)",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Leaderboard_Communication_Linkset.lsl",
+      "required": true,
+      "priority": 16
+    },
+    {
+      "name": "XyzzyText_Dice_Bridge_Linkset.lsl",
+      "link": 83,
+      "description": "Dice display bridge (dice col 1)",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/XyzzyText_Dice_Bridge_Linkset.lsl",
+      "required": true,
+      "priority": 17
+    },
+    {
+      "name": "xyzzy_Master_script.lsl",
+      "link": "35-82",
+      "description": "XyzzyText display system (48 leaderboard prims)",
+      "url": "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/xyzzy_Master_script.lsl",
+      "required": true,
+      "priority": 18,
+      "special": "multi_link"
+    }
+  ],
+  "installation_notes": {
+    "link_1": "Root prim (Peril Dice Controller V2) - 14 scripts total",
+    "link_12": "Scoreboard manager cube - 1 script",
+    "link_35": "Leaderboard bridge + first XyzzyText prim - 2 scripts", 
+    "links_36_82": "XyzzyText display prims - xyzzy_Master_script.lsl each (47 prims)",
+    "link_83": "Dice display bridge - 1 script",
+    "total_scripts": "65 script installations across 84-prim linkset"
+  }
+}

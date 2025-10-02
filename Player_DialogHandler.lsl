@@ -96,7 +96,7 @@ list mainOwnerOptionsUnlocked = ["👥 Player Management", "🔄 Reset Options",
 // Sub-menu options for each category
 list playerManagementOptions = ["Add Test Player", "Kick Player", "⬅️ Back to Main"];
 list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
-list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "🔍 Toggle Verbose Logs", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "🔍 Toggle Verbose Logs", "🔄 Check for Updates", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
@@ -690,6 +690,13 @@ default {
             llOwnerSay("🔍 Toggling verbose logging system-wide...");
             llMessageLinked(LINK_SET, 9010, "TOGGLE_VERBOSE_LOGS", id);
             // Return to troubleshooting menu after toggling
+            showTroubleshootingMenu(id);
+        }
+        else if (msg == "🔄 Check for Updates") {
+            // Trigger update check via Update_Receiver script
+            llOwnerSay("🔄 Checking GitHub for Peril Dice updates...");
+            llMessageLinked(LINK_SET, 2100, "CHECK_UPDATES_REQUEST", id);
+            // Return to troubleshooting menu
             showTroubleshootingMenu(id);
         }
         else if (msg == "Manage Picks") {
