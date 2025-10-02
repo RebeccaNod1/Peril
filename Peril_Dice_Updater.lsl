@@ -130,18 +130,20 @@ downloadNextScript() {
     currentHttpRequest = llHTTPRequest(url, [HTTP_METHOD, "GET"], "");
 }
 
-// Install downloaded script
+// Install downloaded script using llRemoteLoadScriptPin
 installScript(string scriptContent, string scriptName, integer linkNumber) {
-    // Use llRemoteLoadScriptPin to install script in target game
-    llRemoteLoadScriptPin(targetGameKey, scriptName, updatePin, TRUE, linkNumber);
+    llOwnerSay("📥 Installing " + scriptName + " (" + (string)llStringLength(scriptContent) + " chars)");
+    llOwnerSay("🎯 Target: " + (string)targetGameKey + " | PIN: " + (string)updatePin);
     
-    // Note: In practice, you'd want to wait for confirmation of successful installation
-    // For now, we'll proceed optimistically
-    llOwnerSay("✅ Installed " + scriptName + " in link " + (string)linkNumber);
+    // Use llRemoteLoadScriptPin to install the script
+    // This creates a new script in the target object with the downloaded content
+    llRemoteLoadScriptPin(targetGameKey, scriptContent, updatePin, TRUE, 0);
+    
+    llOwnerSay("✅ Sent " + scriptName + " to target game");
     
     // Move to next script
     currentScriptIndex++;
-    llSetTimerEvent(1.0); // Brief pause between installations
+    llSetTimerEvent(2.0); // Brief pause between installations
 }
 
 // Complete the update process
