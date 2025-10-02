@@ -63,29 +63,29 @@ list parseScriptList(string manifest) {
     // This is a simplified parser - in production might need more robust parsing
     // For now, we'll use the script URLs directly
     
-    // Add all essential scripts in priority order
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Main_Controller_Linkset.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Manager.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_Memory.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_MessageHandler.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_RegistrationManager.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_DialogHandler.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/NumberPicker_DialogHandler.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Floater_Manager.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Roll_ConfettiModule.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Bot_Manager.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Calculator.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Verbose_Logger.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/System_Debugger.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Update_Receiver.lsl|1"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Scoreboard_Manager_Linkset.lsl|12"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Leaderboard_Communication_Linkset.lsl|35"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/XyzzyText_Dice_Bridge_Linkset.lsl|83"];
+    // Add all essential scripts in priority order (URLs keep .lsl, but script names don't)
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Main_Controller_Linkset.lsl|1|Main_Controller_Linkset"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Manager.lsl|1|Game_Manager"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_Memory.lsl|1|Controller_Memory"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_MessageHandler.lsl|1|Controller_MessageHandler"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_RegistrationManager.lsl|1|Player_RegistrationManager"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_DialogHandler.lsl|1|Player_DialogHandler"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/NumberPicker_DialogHandler.lsl|1|NumberPicker_DialogHandler"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Floater_Manager.lsl|1|Floater_Manager"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Roll_ConfettiModule.lsl|1|Roll_ConfettiModule"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Bot_Manager.lsl|1|Bot_Manager"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Calculator.lsl|1|Game_Calculator"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Verbose_Logger.lsl|1|Verbose_Logger"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/System_Debugger.lsl|1|System_Debugger"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Update_Receiver.lsl|1|Update_Receiver"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Scoreboard_Manager_Linkset.lsl|12|Game_Scoreboard_Manager_Linkset"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Leaderboard_Communication_Linkset.lsl|35|Leaderboard_Communication_Linkset"];
+    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/XyzzyText_Dice_Bridge_Linkset.lsl|83|XyzzyText_Dice_Bridge_Linkset"];
     
     // Add XyzzyText script for links 35-82 (48 prims)
     integer i;
     for (i = 35; i <= 82; i++) {
-        scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/xyzzy_Master_script.lsl|" + (string)i];
+        scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/xyzzy_Master_script.lsl|" + (string)i + "|xyzzy_Master_script"];
     }
     
     return scripts;
@@ -120,12 +120,11 @@ downloadNextScript() {
     list parts = llParseString2List(scriptEntry, ["|"], []);
     string url = llList2String(parts, 0);
     string linkNum = llList2String(parts, 1);
+    string scriptName = llList2String(parts, 2);  // Now using explicit script name
     
-    // Extract script name from URL
-    list urlParts = llParseString2List(url, ["/"], []);
-    downloadingScript = llList2String(urlParts, llGetListLength(urlParts) - 1);
+    downloadingScript = scriptName;
     
-    llOwnerSay("📥 Downloading " + downloadingScript + " for link " + linkNum + 
+    llOwnerSay("📥 Downloading " + scriptName + " for link " + linkNum + 
                " (" + (string)(currentScriptIndex + 1) + "/" + (string)llGetListLength(scriptQueue) + ")");
     
     currentHttpRequest = llHTTPRequest(url, [HTTP_METHOD, "GET"], "");
