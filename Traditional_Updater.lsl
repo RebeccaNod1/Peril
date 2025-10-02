@@ -47,6 +47,7 @@ list SCRIPT_LINK_MAP = [
 ];
 
 // Extract unique script names for inventory checking
+// NOTE: Update_Receiver is listed LAST to avoid interrupting the update process
 list REQUIRED_SCRIPTS = [
     "Main_Controller_Linkset",
     "Game_Manager", 
@@ -61,11 +62,11 @@ list REQUIRED_SCRIPTS = [
     "Game_Calculator",
     "Verbose_Logger",
     "System_Debugger",
-    "Update_Receiver",
     "Game_Scoreboard_Manager_Linkset",
     "Leaderboard_Communication_Linkset",
     "XyzzyText_Dice_Bridge_Linkset",
-    "xyzzy_Master_script"
+    "xyzzy_Master_script",
+    "Update_Receiver"  // ALWAYS LAST - don't interrupt update process!
 ];
 
 // Required objects that should be in updater inventory
