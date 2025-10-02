@@ -68,6 +68,11 @@ list REQUIRED_SCRIPTS = [
     "xyzzy_Master_script"
 ];
 
+// Required objects that should be in updater inventory
+list REQUIRED_OBJECTS = [
+    "StatFloat"  // Player status floater object
+];
+
 // Memory reporting
 reportMemoryUsage(string scriptName) {
     integer memory = llGetUsedMemory();
@@ -109,35 +114,66 @@ installScriptToLink(string scriptName, string targetLink) {
     }
 }
 
-// Check which scripts are available in inventory
+// Check which scripts and objects are available in inventory
 checkInventory() {
-    integer totalScripts = 0;
-    integer availableScripts = 0;
+    integer totalItems = 0;
+    integer availableItems = 0;
     
     llOwnerSay("📋 Checking updater inventory with link mapping...");
     
+    // Check scripts
     integer i;
     for (i = 0; i < llGetListLength(REQUIRED_SCRIPTS); i++) {
         string scriptName = llList2String(REQUIRED_SCRIPTS, i);
         string targetLink = getTargetLink(scriptName);
-        totalScripts++;
+        totalItems++;
         
         if (llGetInventoryType(scriptName) == INVENTORY_SCRIPT) {
-            availableScripts++;
-            llOwnerSay("✅ " + scriptName + " → Link " + targetLink + " - Ready");
+            availableItems++;
+            llOwnerSay("✅ [SCRIPT] " + scriptName + " → Link " + targetLink + " - Ready");
         } else {
-            llOwnerSay("❌ " + scriptName + " → Link " + targetLink + " - MISSING");
+            llOwnerSay("❌ [SCRIPT] " + scriptName + " → Link " + targetLink + " - MISSING");
         }
     }
     
-    llOwnerSay("📊 Inventory Status: " + (string)availableScripts + "/" + (string)totalScripts + " scripts available");
-    
-    if (availableScripts == totalScripts) {
-        llOwnerSay("✅ All required scripts present - updater ready!");
-        llOwnerSay("🔗 Scripts will be installed to their correct links automatically");
-    } else {
-        llOwnerSay("⚠️ Missing scripts - please add them to updater inventory");
+    // Check objects
+    for (i = 0; i < llGetListLength(REQUIRED_OBJECTS); i++) {
+        string objectName = llList2String(REQUIRED_OBJECTS, i);
+        totalItems++;
+        
+        if (llGetInventoryType(objectName) == INVENTORY_OBJECT) {
+            availableItems++;
+            llOwnerSay("✅ [OBJECT] " + objectName + " - Ready");
+        } else {
+            llOwnerSay("❌ [OBJECT] " + objectName + " - MISSING");
+        }
     }
+    
+    llOwnerSay("📊 Inventory Status: " + (string)availableItems + "/" + (string)totalItems + " items available");
+    
+    if (availableItems == totalItems) {
+        llOwnerSay("✅ All required scripts and objects present - updater ready!");
+        llOwnerSay("🔗 Scripts will be installed to their correct links automatically");
+        llOwnerSay("📦 Objects will be given to target game inventory");
+    } else {
+        llOwnerSay("⚠️ Missing items - please add them to updater inventory");
+    }
+}
+
+// Transfer all objects to target game first
+transferObjects() {
+    llOwnerSay("📦 Transferring objects to target game...");
+    
+    integer i;
+    for (i = 0; i < llGetListLength(REQUIRED_OBJECTS); i++) {
+        string objectName = llList2String(REQUIRED_OBJECTS, i);
+        if (llGetInventoryType(objectName) == INVENTORY_OBJECT) {
+            llGiveInventory(targetGameKey, objectName);
+            llOwnerSay("✅ Transferred " + objectName + " to target game");
+        }
+    }
+    
+    llOwnerSay("📦 Object transfer complete - starting script installation...");
 }
 
 // Start the update process
@@ -162,8 +198,9 @@ startUpdate(key gameKey, integer pin) {
     llOwnerSay("🔄 Starting update process...");
     llOwnerSay("📊 Installing " + (string)llGetListLength(scriptList) + " scripts");
     
-    // Start with first script
-    installNextScript();
+    // Transfer objects first, then install scripts
+    transferObjects();
+    llSetTimerEvent(2.0); // Brief pause before starting script installation
 }
 
 // Install next script in the queue
