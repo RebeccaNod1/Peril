@@ -287,41 +287,54 @@ default {
             updateCheckInProgress = FALSE;
             
             if (status == 200) {
-                // Debug: Show response info first
-                llOwnerSay("📊 Response received: " + (string)llStringLength(body) + " characters");
-                
-                // Try to find tag_name manually first as a test
-                integer tagPos = llSubStringIndex(body, "\"tag_name\":");
-                if (tagPos == -1) {
-                    llOwnerSay("❌ GitHub response doesn't contain tag_name field");
-                    llOwnerSay("🔍 First 200 chars: " + llGetSubString(body, 0, 199));
-                    return;
+                if (VERBOSE_LOGGING) {
+                    llOwnerSay("📊 GitHub response: " + (string)llStringLength(body) + " chars (LSL limit: 2048)");
                 }
                 
-                // Try simple JSON parsing
-                string latestVersion = llJsonGetValue(body, ["tag_name"]);
+                // LSL truncates HTTP responses at 2048 chars, breaking JSON parser
+                // Use manual parsing instead
+                string latestVersion = "";
+                string htmlUrl = "";
+                string publishedAt = "";
                 
-                if (latestVersion == JSON_INVALID) {
-                    llOwnerSay("❌ LSL JSON parser failed on GitHub response");
-                    llOwnerSay("🔍 Manual search found tag_name at position: " + (string)tagPos);
-                    // Try to extract version manually
-                    string searchStr = llGetSubString(body, tagPos + 12, tagPos + 50);
-                    llOwnerSay("🔍 Around tag_name: " + searchStr);
-                    return;
-                }
-                
-                // If we get here, JSON parsing worked
-                string htmlUrl = llJsonGetValue(body, ["html_url"]);
-                string publishedAt = llJsonGetValue(body, ["published_at"]);
-                
-                // Parse release notes with error handling
-                string releaseNotes = llJsonGetValue(body, ["body"]);
-                if (releaseNotes == JSON_INVALID) {
-                    releaseNotes = "Release notes unavailable";
-                    if (VERBOSE_LOGGING) {
-                        llOwnerSay("⚠️ Could not parse release notes - may contain special characters");
+                // Extract tag_name manually
+                integer tagStart = llSubStringIndex(body, "\"tag_name\":\"");
+                if (tagStart != -1) {
+                    integer versionStart = tagStart + 12; // Skip '"tag_name":"'
+                    integer versionEnd = llSubStringIndex(llGetSubString(body, versionStart, -1), "\"");
+                    if (versionEnd != -1) {
+                        latestVersion = llGetSubString(body, versionStart, versionStart + versionEnd - 1);
                     }
                 }
+                
+                // Extract html_url manually
+                integer urlStart = llSubStringIndex(body, "\"html_url\":\"");
+                if (urlStart != -1) {
+                    integer urlValueStart = urlStart + 12; // Skip '"html_url":"'
+                    integer urlEnd = llSubStringIndex(llGetSubString(body, urlValueStart, -1), "\"");
+                    if (urlEnd != -1) {
+                        htmlUrl = llGetSubString(body, urlValueStart, urlValueStart + urlEnd - 1);
+                    }
+                }
+                
+                // Extract published_at manually
+                integer pubStart = llSubStringIndex(body, "\"published_at\":\"");
+                if (pubStart != -1) {
+                    integer pubValueStart = pubStart + 15; // Skip '"published_at":"'
+                    integer pubEnd = llSubStringIndex(llGetSubString(body, pubValueStart, -1), "\"");
+                    if (pubEnd != -1) {
+                        publishedAt = llGetSubString(body, pubValueStart, pubValueStart + pubEnd - 1);
+                    }
+                }
+                
+                if (latestVersion == "") {
+                    llOwnerSay("❌ Could not extract version from truncated GitHub response");
+                    llOwnerSay("🔍 Response was cut off at 2048 characters");
+                    return;
+                }
+                
+                // Skip release notes parsing - response is truncated at 2048 chars
+                string releaseNotes = "Release notes available on GitHub (response truncated)";
                 
                 llOwnerSay("=== 🔍 UPDATE CHECK RESULTS ===");
                 llOwnerSay("📊 Current Version: v" + CURRENT_VERSION);
