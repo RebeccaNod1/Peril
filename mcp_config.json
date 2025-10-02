@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lsl-dev": {
+      "command": "python3",
+      "args": ["/home/richard/peril/lsl_mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "/home/richard/peril"
+      }
+    }
+  }
+}
