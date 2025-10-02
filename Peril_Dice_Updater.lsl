@@ -130,20 +130,26 @@ downloadNextScript() {
     currentHttpRequest = llHTTPRequest(url, [HTTP_METHOD, "GET"], "");
 }
 
-// Install downloaded script using llRemoteLoadScriptPin
+// Install downloaded script - commercial updater approach
 installScript(string scriptContent, string scriptName, integer linkNumber) {
     llOwnerSay("📥 Installing " + scriptName + " (" + (string)llStringLength(scriptContent) + " chars)");
     llOwnerSay("🎯 Target: " + (string)targetGameKey + " | PIN: " + (string)updatePin);
     
-    // Use llRemoteLoadScriptPin to install the script
-    // This creates a new script in the target object with the downloaded content
+    // Step 1: Tell target to remove old script (if it exists)
+    llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "REMOVE_SCRIPT|" + scriptName);
+    
+    // Step 2: Install new script content with llRemoteLoadScriptPin
+    // The script will be created with an auto-generated name like "New Script"
     llRemoteLoadScriptPin(targetGameKey, scriptContent, updatePin, TRUE, 0);
+    
+    // Step 3: Tell target to rename the new script to correct name
+    llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "RENAME_SCRIPT|" + scriptName);
     
     llOwnerSay("✅ Sent " + scriptName + " to target game");
     
     // Move to next script
     currentScriptIndex++;
-    llSetTimerEvent(2.0); // Brief pause between installations
+    llSetTimerEvent(3.0); // Longer pause for script processing
 }
 
 // Complete the update process
