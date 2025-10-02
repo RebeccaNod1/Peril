@@ -11,7 +11,7 @@
 // 4. Provides professional one-click update experience
 // ====================================================================
 
-string CURRENT_VERSION = "2.8.7";
+string CURRENT_VERSION = "2.8.8";
 string GITHUB_API_URL = "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest";
 
 // External updater communication
