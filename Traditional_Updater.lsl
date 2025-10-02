@@ -22,9 +22,32 @@ list scriptList = [];
 integer currentScriptIndex = 0;
 string currentOperation = "";
 
-// Script names that should be in this updater's inventory
-list REQUIRED_SCRIPTS = [
+// Script to link mapping - each script knows where it belongs
+list SCRIPT_LINK_MAP = [
     // Root prim scripts (Link 1)
+    "Main_Controller_Linkset", "1",
+    "Game_Manager", "1",
+    "Controller_Memory", "1",
+    "Controller_MessageHandler", "1",
+    "Player_RegistrationManager", "1",
+    "Player_DialogHandler", "1",
+    "NumberPicker_DialogHandler", "1",
+    "Floater_Manager", "1",
+    "Roll_ConfettiModule", "1",
+    "Bot_Manager", "1",
+    "Game_Calculator", "1",
+    "Verbose_Logger", "1",
+    "System_Debugger", "1",
+    "Update_Receiver", "1",
+    // Other link scripts
+    "Game_Scoreboard_Manager_Linkset", "12",
+    "Leaderboard_Communication_Linkset", "35",
+    "XyzzyText_Dice_Bridge_Linkset", "83",
+    "xyzzy_Master_script", "35-82"  // Special case - multiple links
+];
+
+// Extract unique script names for inventory checking
+list REQUIRED_SCRIPTS = [
     "Main_Controller_Linkset",
     "Game_Manager", 
     "Controller_Memory",
@@ -39,11 +62,10 @@ list REQUIRED_SCRIPTS = [
     "Verbose_Logger",
     "System_Debugger",
     "Update_Receiver",
-    // Other link scripts
-    "Game_Scoreboard_Manager_Linkset",    // Link 12
-    "Leaderboard_Communication_Linkset",  // Link 35
-    "XyzzyText_Dice_Bridge_Linkset",      // Link 83
-    "xyzzy_Master_script"                 // Links 35-82 (we'll copy this multiple times)
+    "Game_Scoreboard_Manager_Linkset",
+    "Leaderboard_Communication_Linkset",
+    "XyzzyText_Dice_Bridge_Linkset",
+    "xyzzy_Master_script"
 ];
 
 // Memory reporting
@@ -55,23 +77,56 @@ reportMemoryUsage(string scriptName) {
                llGetSubString((string)memoryPercent, 0, 4) + "% memory)");
 }
 
+// Get target link number for a script
+string getTargetLink(string scriptName) {
+    integer i;
+    for (i = 0; i < llGetListLength(SCRIPT_LINK_MAP); i += 2) {
+        if (llList2String(SCRIPT_LINK_MAP, i) == scriptName) {
+            return llList2String(SCRIPT_LINK_MAP, i + 1);
+        }
+    }
+    return "1"; // Default to root prim if not found
+}
+
+// Install script to specific link using llRemoteLoadScriptPin
+installScriptToLink(string scriptName, string targetLink) {
+    if (targetLink == "35-82") {
+        // Special case: install xyzzy_Master_script to multiple links
+        llOwnerSay("🔄 Installing " + scriptName + " to links 35-82 (48 copies)...");
+        integer i;
+        for (i = 35; i <= 82; i++) {
+            // Use link number as start_param to target specific link
+            llRemoteLoadScriptPin(targetGameKey, scriptName, updatePin, TRUE, i);
+            llOwnerSay("✅ Installed " + scriptName + " to link " + (string)i);
+            llSleep(0.1); // Brief pause between installations
+        }
+    } else {
+        // Regular installation to single link
+        integer linkNum = (integer)targetLink;
+        llOwnerSay("📝 Installing " + scriptName + " to link " + targetLink);
+        llRemoteLoadScriptPin(targetGameKey, scriptName, updatePin, TRUE, linkNum);
+        llOwnerSay("✅ Installed " + scriptName + " to link " + targetLink);
+    }
+}
+
 // Check which scripts are available in inventory
 checkInventory() {
     integer totalScripts = 0;
     integer availableScripts = 0;
     
-    llOwnerSay("📋 Checking updater inventory...");
+    llOwnerSay("📋 Checking updater inventory with link mapping...");
     
     integer i;
     for (i = 0; i < llGetListLength(REQUIRED_SCRIPTS); i++) {
         string scriptName = llList2String(REQUIRED_SCRIPTS, i);
+        string targetLink = getTargetLink(scriptName);
         totalScripts++;
         
         if (llGetInventoryType(scriptName) == INVENTORY_SCRIPT) {
             availableScripts++;
-            llOwnerSay("✅ " + scriptName + " - Ready");
+            llOwnerSay("✅ " + scriptName + " → Link " + targetLink + " - Ready");
         } else {
-            llOwnerSay("❌ " + scriptName + " - MISSING");
+            llOwnerSay("❌ " + scriptName + " → Link " + targetLink + " - MISSING");
         }
     }
     
@@ -79,6 +134,7 @@ checkInventory() {
     
     if (availableScripts == totalScripts) {
         llOwnerSay("✅ All required scripts present - updater ready!");
+        llOwnerSay("🔗 Scripts will be installed to their correct links automatically");
     } else {
         llOwnerSay("⚠️ Missing scripts - please add them to updater inventory");
     }
@@ -119,18 +175,22 @@ installNextScript() {
     }
     
     string scriptName = llList2String(scriptList, currentScriptIndex);
+    string targetLink = getTargetLink(scriptName);
     
-    llOwnerSay("📝 Installing " + scriptName + " (" + (string)(currentScriptIndex + 1) + 
-               "/" + (string)llGetListLength(scriptList) + ")");
+    llOwnerSay("🚀 Progress: " + (string)(currentScriptIndex + 1) + "/" + (string)llGetListLength(scriptList));
     
-    // Use llRemoteLoadScriptPin to copy script from our inventory to target
-    llRemoteLoadScriptPin(targetGameKey, scriptName, updatePin, TRUE, 0);
-    
-    llOwnerSay("✅ Copied " + scriptName + " to target game");
+    // Install script to correct link(s)
+    installScriptToLink(scriptName, targetLink);
     
     // Move to next script
     currentScriptIndex++;
-    llSetTimerEvent(2.0); // Brief pause between installations
+    
+    // Longer pause for xyzzy_Master_script (48 installations)
+    if (targetLink == "35-82") {
+        llSetTimerEvent(10.0); // Extra time for multiple installations
+    } else {
+        llSetTimerEvent(2.0); // Normal pause
+    }
 }
 
 // Complete the update process
