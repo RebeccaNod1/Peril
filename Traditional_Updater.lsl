@@ -241,12 +241,13 @@ completeUpdate() {
         llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "UPDATE_COMPLETE|" + UPDATER_VERSION);
     }
     
-    // Reset state
+    // Reset state and stop timer
     currentOperation = "";
     targetGameKey = NULL_KEY;
     updatePin = 0;
     scriptList = [];
     currentScriptIndex = 0;
+    llSetTimerEvent(0.0); // Stop the timer
     
     llOwnerSay("💡 Update complete! You can now delete this updater box.");
     llSetText("🎉 Update Complete!\nYou can delete this updater box\nThank you for updating!", 
@@ -262,12 +263,13 @@ handleUpdateError(string error) {
         llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "UPDATE_FAILED|" + error);
     }
     
-    // Reset state
+    // Reset state and stop timer
     currentOperation = "";
     targetGameKey = NULL_KEY;
     updatePin = 0;
     scriptList = [];
     currentScriptIndex = 0;
+    llSetTimerEvent(0.0); // Stop the timer
 }
 
 default {
@@ -324,8 +326,11 @@ default {
         // Continue with next script installation
         if (currentOperation == "updating") {
             installNextScript();
+            // Don't turn off timer - installNextScript() will manage timing
+        } else {
+            // Only turn off timer if we're not updating
+            llSetTimerEvent(0.0);
         }
-        llSetTimerEvent(0.0);
     }
     
     touch_start(integer total_number) {
