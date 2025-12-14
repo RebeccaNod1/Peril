@@ -1,49 +1,66 @@
 // ====================================================================
-// Peril Dice GitHub Updater - External Updater Box
+// Peril Dice Updater - External Update Box
 // ====================================================================
-// This script goes in a separate updater box object that users rez temporarily.
-// Downloads scripts directly from GitHub and installs them automatically
-// in target Peril Dice games via llRemoteLoadScriptPin().
-//
-// USAGE:
-// 1. User rezzes this updater box near their Peril Dice game
-// 2. User touches their game -> "Check for Updates" -> "Install Update"
-// 3. Game communicates with this updater box for automatic installation
-// 4. User deletes updater box when finished
+// This script goes in a standalone object (the "Updater Box")
+// It downloads scripts from GitHub and installs them into the game
 // ====================================================================
 
-string GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/peril-dice-manifest.json";
-string UPDATER_VERSION = "2.8.8";
+string CURRENT_VERSION = "2.8.8";
+string GITHUB_API_URL = "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest";
+string GITHUB_RAW_URL = "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/";
 
 // Communication channels
-integer UPDATER_CHANNEL = -7723847; // Unique channel for updater communication
-integer RESPONSE_TIMEOUT = 30; // seconds
+integer UPDATER_CHANNEL = -7723847; // Must match Update_Receiver.lsl
 
-// Current operation state
-string currentOperation = "";
-key targetGameKey = NULL_KEY;
-integer updatePin = 0;
-list scriptQueue = [];
-integer currentScriptIndex = 0;
-string manifestData = "";
+// State tracking
+key targetGame = NULL_KEY;
+integer targetPin = 0;
+list downloadQueue = [];
+string currentFile = "";
+integer installIndex = 0;
+integer isBusy = FALSE;
 
 // HTTP tracking
 key currentHttpRequest = NULL_KEY;
-string downloadingScript = "";
+string currentOperation = "";
 
-// UI and status
-integer isListening = FALSE;
+// Script manifest - List of all scripts to update
+// Format: "ScriptName.lsl|LinkNumber"
+// Note: Link numbers will be verified via UUID request
+list SCRIPT_MANIFEST = [
+    "Main_Controller_Linkset.lsl|1",
+    "Game_Manager.lsl|1",
+    "Controller_Memory.lsl|1",
+    "Controller_MessageHandler.lsl|1",
+    "Player_RegistrationManager.lsl|1",
+    "Player_DialogHandler.lsl|1",
+    "NumberPicker_DialogHandler.lsl|1",
+    "Floater_Manager.lsl|1",
+    "Roll_ConfettiModule.lsl|1",
+    "Bot_Manager.lsl|1",
+    "Game_Calculator.lsl|1",
+    "Verbose_Logger.lsl|1",
+    "System_Debugger.lsl|1",
+    "Update_Receiver.lsl|1", // Updates the receiver itself!
+    "Game_Scoreboard_Manager_Linkset.lsl|12",
+    "Leaderboard_Communication_Linkset.lsl|35",
+    "XyzzyText_Dice_Bridge_Linkset.lsl|83",
+    "xyzzy_Master_script.lsl|XYZZY" // Special handling for xyzzy
+];
 
-// Memory usage reporting
-reportMemoryUsage(string scriptName) {
-    integer memory = llGetUsedMemory();
-    integer freeMemory = llGetFreeMemory();
-    float memoryPercent = (float)memory / (memory + freeMemory) * 100.0;
-    llOwnerSay("📊 " + scriptName + ": " + (string)memory + " bytes used (" + 
-               llGetSubString((string)memoryPercent, 0, 4) + "% memory)");
+// Map of Link Number -> UUID (populated by game response)
+list linkUUIDs = []; // Format: [LinkNum, UUID, LinkNum, UUID...]
+
+// Helper to get UUID for a link number
+key getLinkUUID(integer linkNum) {
+    integer idx = llListFindList(linkUUIDs, [linkNum]);
+    if (idx != -1) {
+        return llList2Key(linkUUIDs, idx + 1);
+    }
+    return NULL_KEY;
 }
 
-// Extract JSON value manually (works around LSL 2048-char limit)
+// Manual JSON parsing (same as receiver)
 string extractJsonValue(string json, string keyName) {
     string quote = "\"";
     string searchPattern = quote + keyName + quote + ":" + quote;
@@ -57,221 +74,208 @@ string extractJsonValue(string json, string keyName) {
     return llGetSubString(json, valueStart, valueStart + valueEnd - 1);
 }
 
-// Parse script list from manifest (simplified for LSL limitations)
-list parseScriptList(string manifest) {
-    list scripts = [];
-    // This is a simplified parser - in production might need more robust parsing
-    // For now, we'll use the script URLs directly
-    
-    // Add all essential scripts in priority order (URLs keep .lsl, but script names don't)
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Main_Controller_Linkset.lsl|1|Main_Controller_Linkset"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Manager.lsl|1|Game_Manager"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_Memory.lsl|1|Controller_Memory"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Controller_MessageHandler.lsl|1|Controller_MessageHandler"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_RegistrationManager.lsl|1|Player_RegistrationManager"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Player_DialogHandler.lsl|1|Player_DialogHandler"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/NumberPicker_DialogHandler.lsl|1|NumberPicker_DialogHandler"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Floater_Manager.lsl|1|Floater_Manager"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Roll_ConfettiModule.lsl|1|Roll_ConfettiModule"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Bot_Manager.lsl|1|Bot_Manager"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Calculator.lsl|1|Game_Calculator"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Verbose_Logger.lsl|1|Verbose_Logger"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/System_Debugger.lsl|1|System_Debugger"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Update_Receiver.lsl|1|Update_Receiver"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Game_Scoreboard_Manager_Linkset.lsl|12|Game_Scoreboard_Manager_Linkset"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/Leaderboard_Communication_Linkset.lsl|35|Leaderboard_Communication_Linkset"];
-    scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/XyzzyText_Dice_Bridge_Linkset.lsl|83|XyzzyText_Dice_Bridge_Linkset"];
-    
-    // Add XyzzyText script for links 35-82 (48 prims)
-    integer i;
-    for (i = 35; i <= 82; i++) {
-        scripts += ["https://raw.githubusercontent.com/RebeccaNod1/Peril/main/xyzzy_Master_script.lsl|" + (string)i + "|xyzzy_Master_script"];
-    }
-    
-    return scripts;
-}
-
-// Start update process
-startUpdate(key gameKey, integer pin) {
-    targetGameKey = gameKey;
-    updatePin = pin;
-    currentOperation = "updating";
-    currentScriptIndex = 0;
-    
-    // Get script list (simplified - using hardcoded list for now)
-    scriptQueue = parseScriptList("");
-    
-    llOwnerSay("🔄 Starting update process...");
-    llOwnerSay("📊 Installing " + (string)llGetListLength(scriptQueue) + " scripts");
-    
-    // Start with first script
-    downloadNextScript();
-}
-
-// Download next script in queue
-downloadNextScript() {
-    if (currentScriptIndex >= llGetListLength(scriptQueue)) {
-        // Update complete!
-        completeUpdate();
+// Start the update process for a specific game
+startUpdate(key gameId, string version, integer pin) {
+    if (isBusy) {
+        llRegionSayTo(gameId, UPDATER_CHANNEL, "UPDATE_BUSY");
         return;
     }
     
-    string scriptEntry = llList2String(scriptQueue, currentScriptIndex);
-    list parts = llParseString2List(scriptEntry, ["|"], []);
-    string url = llList2String(parts, 0);
-    string linkNum = llList2String(parts, 1);
-    string scriptName = llList2String(parts, 2);  // Now using explicit script name
+    isBusy = TRUE;
+    targetGame = gameId;
+    targetPin = pin;
     
-    downloadingScript = scriptName;
+    llOwnerSay("🚀 Starting update for game " + (string)gameId);
+    llRegionSayTo(targetGame, UPDATER_CHANNEL, "UPDATE_STARTING|" + version);
     
-    llOwnerSay("📥 Downloading " + scriptName + " for link " + linkNum + 
-               " (" + (string)(currentScriptIndex + 1) + "/" + (string)llGetListLength(scriptQueue) + ")");
+    // Step 1: Request Link UUIDs from the game
+    // We need these to install scripts to specific links
+    llRegionSayTo(targetGame, UPDATER_CHANNEL, "REQUEST_LINK_UUIDS");
     
+    // Set timeout for UUID response
+    llSetTimerEvent(10.0);
+}
+
+// Continue update after getting UUIDs
+startDownloadSequence() {
+    installIndex = 0;
+    downloadNextScript();
+}
+
+downloadNextScript() {
+    if (installIndex >= llGetListLength(SCRIPT_MANIFEST)) {
+        // All done!
+        finishUpdate();
+        return;
+    }
+    
+    string entry = llList2String(SCRIPT_MANIFEST, installIndex);
+    list parts = llParseString2List(entry, ["|"], []);
+    currentFile = llList2String(parts, 0);
+    string linkTarget = llList2String(parts, 1);
+    
+    llOwnerSay("📥 Downloading " + currentFile + "...");
+    
+    string url = GITHUB_RAW_URL + currentFile;
+    currentOperation = "download_script";
     currentHttpRequest = llHTTPRequest(url, [HTTP_METHOD, "GET"], "");
 }
 
-// EMERGENCY SAFE MODE - Only add new scripts, don't delete anything
-installScript(string scriptContent, string scriptName, integer linkNumber) {
-    llOwnerSay("🆘 SAFE MODE: Adding " + scriptName + " as new script");
-    llOwnerSay("📊 Size: " + (string)llStringLength(scriptContent) + " characters");
+installScript(string content) {
+    string scriptEntry = llList2String(SCRIPT_MANIFEST, installIndex);
+    list scriptParts = llParseString2List(scriptEntry, ["|"], []);
+    string filename = llList2String(scriptParts, 0);
+    string linkTargetStr = llList2String(scriptParts, 1);
     
-    // Only create new script - DO NOT DELETE ANYTHING
-    // This creates a script with auto-generated name containing the new content
-    llRemoteLoadScriptPin(targetGameKey, scriptContent, updatePin, TRUE, 0);
+    llOwnerSay("💾 Installing " + filename + "...");
     
-    llOwnerSay("✅ Added new script with updated content");
-    llOwnerSay("📝 You can now copy content from the new script to replace your old " + scriptName);
+    // Determine target UUIDs
+    list targets = [];
+    key targetUUID;
     
-    // Move to next script
-    currentScriptIndex++;
-    llSetTimerEvent(2.0);
-}
-
-// Complete the update process
-completeUpdate() {
-    llOwnerSay("🎉 Update installation complete!");
-    llOwnerSay("📊 Installed " + (string)llGetListLength(scriptQueue) + " scripts successfully");
-    
-    // Notify target game
-    if (targetGameKey != NULL_KEY) {
-        llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "UPDATE_COMPLETE|" + UPDATER_VERSION);
+    if (linkTargetStr == "XYZZY") {
+        // Install to all xyzzy prims (links 35-82)
+        integer i;
+        for (i = 35; i <= 82; i++) {
+            targetUUID = getLinkUUID(i);
+            if (targetUUID != NULL_KEY) targets += [targetUUID];
+        }
+    } else {
+        integer linkNum = (integer)linkTargetStr;
+        if (linkNum == 1) {
+            targets = [targetGame]; // Root prim is the game object itself
+        } else {
+            targetUUID = getLinkUUID(linkNum);
+            if (targetUUID != NULL_KEY) targets += [targetUUID];
+        }
     }
     
-    // Reset state
-    currentOperation = "";
-    targetGameKey = NULL_KEY;
-    updatePin = 0;
-    scriptQueue = [];
-    currentScriptIndex = 0;
-    
-    llOwnerSay("💡 Update complete! You can now delete this updater box.");
-}
-
-// Handle update errors
-handleUpdateError(string error) {
-    llOwnerSay("❌ Update failed: " + error);
-    
-    // Notify target game of failure
-    if (targetGameKey != NULL_KEY) {
-        llRegionSayTo(targetGameKey, UPDATER_CHANNEL, "UPDATE_FAILED|" + error);
+    if (llGetListLength(targets) == 0) {
+        llOwnerSay("⚠️ No valid targets found for " + filename + " (Target: " + linkTargetStr + ")");
+        // Skip but continue
+        installIndex++;
+        downloadNextScript();
+        return;
     }
     
-    // Reset state
-    currentOperation = "";
-    targetGameKey = NULL_KEY;
-    updatePin = 0;
-    scriptQueue = [];
-    currentScriptIndex = 0;
+    // Install to all targets
+    integer t;
+    for (t = 0; t < llGetListLength(targets); t++) {
+        key target = llList2Key(targets, t);
+        llRemoteLoadScriptPin(target, filename, targetPin, TRUE, 0);
+    }
+    
+    // Move to next
+    installIndex++;
+    downloadNextScript();
+}
+
+finishUpdate() {
+    llOwnerSay("✅ Update sequence complete!");
+    llRegionSayTo(targetGame, UPDATER_CHANNEL, "UPDATE_COMPLETE|" + CURRENT_VERSION);
+    
+    isBusy = FALSE;
+    targetGame = NULL_KEY;
+    targetPin = 0;
+    linkUUIDs = [];
 }
 
 default {
     state_entry() {
-        reportMemoryUsage("Peril Dice GitHub Updater");
-        llOwnerSay("🔄 Peril Dice GitHub Updater v" + UPDATER_VERSION);
-        llOwnerSay("📍 Ready to update nearby Peril Dice games");
-        llOwnerSay("👆 Touch your Peril Dice game and select 'Check for Updates'");
-        
-        // Listen for update requests from games
-        if (!isListening) {
-            llListen(UPDATER_CHANNEL, "", NULL_KEY, "");
-            isListening = TRUE;
-        }
-        
-        // Set text to show status
-        llSetText("🔄 Peril Dice GitHub Updater v" + UPDATER_VERSION + "\\n" +
-                  "Ready to install updates from GitHub\\n" +
-                  "Touch your game to begin", <0.2, 1.0, 0.2>, 1.0);
+        llSetText("📦 Peril Dice Updater\nv" + CURRENT_VERSION + "\nTouch to check version", <0,1,0>, 1.0);
+        llListen(UPDATER_CHANNEL, "", NULL_KEY, "");
     }
     
-    on_rez(integer start_param) {
-        llResetScript();
+    touch_start(integer num) {
+        llOwnerSay("🔍 Checking GitHub for latest version...");
+        currentOperation = "version_check";
+        currentHttpRequest = llHTTPRequest(GITHUB_API_URL, [HTTP_METHOD, "GET"], "");
     }
     
     listen(integer channel, string name, key id, string message) {
-        if (channel != UPDATER_CHANNEL) return;
-        
-        list parts = llParseString2List(message, ["|"], []);
-        string command = llList2String(parts, 0);
-        
-        if (command == "UPDATE_REQUEST") {
-            string version = llList2String(parts, 1);
-            integer pin = (integer)llList2String(parts, 2);
+        if (channel == UPDATER_CHANNEL) {
+            list parts = llParseString2List(message, ["|"], []);
+            string command = llList2String(parts, 0);
             
-            llOwnerSay("📨 Update request from " + name + " (current: " + version + ")");
-            
-            if (currentOperation != "") {
-                llRegionSayTo(id, UPDATER_CHANNEL, "UPDATE_BUSY|Another update in progress");
-                return;
+            if (command == "PING_UPDATER") {
+                llRegionSayTo(id, UPDATER_CHANNEL, "UPDATER_AVAILABLE|" + CURRENT_VERSION);
             }
-            
-            // Start the update process
-            startUpdate(id, pin);
-            llRegionSayTo(id, UPDATER_CHANNEL, "UPDATE_STARTING|" + UPDATER_VERSION);
-        }
-        else if (command == "PING_UPDATER") {
-            // Respond to updater detection pings
-            llRegionSayTo(id, UPDATER_CHANNEL, "UPDATER_AVAILABLE|" + UPDATER_VERSION);
+            else if (command == "UPDATE_REQUEST") {
+                string version = llList2String(parts, 1); // Version requested (not used currently, we install latest)
+                integer pin = (integer)llList2String(parts, 2);
+                startUpdate(id, version, pin);
+            }
+            else if (command == "LINK_UUIDS_RESPONSE") {
+                if (id != targetGame) return;
+                
+                // Parse UUIDs: "12:uuid,35:uuid,..."
+                string payload = llList2String(parts, 1);
+                list pairs = llParseString2List(payload, [","], []);
+                
+                integer i;
+                for (i = 0; i < llGetListLength(pairs); i++) {
+                    string pair = llList2String(pairs, i);
+                    list kv = llParseString2List(pair, [":"], []);
+                    if (llGetListLength(kv) == 2) {
+                        integer ln = (integer)llList2String(kv, 0);
+                        key uid = (key)llList2String(kv, 1);
+                        
+                        // Update or add
+                        integer idx = llListFindList(linkUUIDs, [ln]);
+                        if (idx != -1) {
+                            linkUUIDs = llListReplaceList(linkUUIDs, [uid], idx+1, idx+1);
+                        } else {
+                            linkUUIDs += [ln, uid];
+                        }
+                    }
+                }
+                
+                // Reset timer as we got data
+                llSetTimerEvent(5.0); // Wait a bit more for other chunks if any
+                
+                // If we have enough critical data, we can start
+                // For now, let's just wait for the timer to trigger the start
+                // This allows multiple chunks to arrive
+            }
         }
     }
     
     timer() {
-        // Continue with next script installation
-        if (currentOperation == "updating") {
-            downloadNextScript();
-        }
         llSetTimerEvent(0.0);
+        
+        if (isBusy && installIndex == 0) {
+            // Timer fired while waiting for UUIDs
+            if (llGetListLength(linkUUIDs) > 0) {
+                llOwnerSay("✅ Received link data. Starting installation...");
+                startDownloadSequence();
+            } else {
+                llOwnerSay("❌ Timed out waiting for Link UUIDs.");
+                llRegionSayTo(targetGame, UPDATER_CHANNEL, "UPDATE_FAILED|Timeout waiting for link data");
+                isBusy = FALSE;
+            }
+        }
     }
     
     http_response(key request_id, integer status, list metadata, string body) {
         if (request_id != currentHttpRequest) return;
         
-        currentHttpRequest = NULL_KEY;
-        
-        if (status == 200) {
-            // Successfully downloaded script
-            string scriptEntry = llList2String(scriptQueue, currentScriptIndex);
-            list parts = llParseString2List(scriptEntry, ["|"], []);
-            integer linkNum = (integer)llList2String(parts, 1);
-            
-            // Install the script
-            installScript(body, downloadingScript, linkNum);
-        } else {
-            handleUpdateError("Failed to download " + downloadingScript + " (HTTP " + (string)status + ")");
+        if (currentOperation == "version_check") {
+            if (status == 200) {
+                string latestVersion = extractJsonValue(body, "tag_name");
+                llOwnerSay("📊 Latest GitHub Version: " + latestVersion);
+                llOwnerSay("📦 Updater Version: v" + CURRENT_VERSION);
+            } else {
+                llOwnerSay("❌ GitHub check failed: " + (string)status);
+            }
         }
-    }
-    
-    touch_start(integer total_number) {
-        key toucher = llDetectedKey(0);
-        
-        if (currentOperation == "updating") {
-            llOwnerSay("⏳ Update in progress - please wait...");
-            llOwnerSay("📊 Installing script " + (string)(currentScriptIndex + 1) + 
-                       " of " + (string)llGetListLength(scriptQueue));
-        } else {
-            llOwnerSay("🔄 Peril Dice GitHub Updater v" + UPDATER_VERSION);
-            llOwnerSay("📍 Ready to update Peril Dice games from GitHub");
-            llOwnerSay("👆 Touch your Peril Dice game (not this updater) and select 'Check for Updates'");
-            llOwnerSay("💡 This updater will automatically download and install scripts");
+        else if (currentOperation == "download_script") {
+            if (status == 200) {
+                installScript(body);
+            } else {
+                llOwnerSay("❌ Failed to download " + currentFile + ": " + (string)status);
+                llRegionSayTo(targetGame, UPDATER_CHANNEL, "UPDATE_FAILED|Download failed for " + currentFile);
+                isBusy = FALSE;
+            }
         }
     }
 }

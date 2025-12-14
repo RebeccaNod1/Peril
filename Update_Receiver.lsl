@@ -316,6 +316,53 @@ default {
             else if (command == "UPDATE_BUSY") {
                 llOwnerSay("⏳ Updater is busy with another installation");
             }
+            else if (command == "REQUEST_LINK_UUIDS") {
+                // Updater is requesting our link UUIDs for proper script installation
+                llOwnerSay("📡 Updater requesting link UUIDs for linkset script installation...");
+                
+                integer linkCount = llGetNumberOfPrims();
+                
+                // Send critical links first
+                list criticalLinks = [12, 35, 83]; // Scoreboard, Leaderboard, Dice Bridge
+                string criticalPayload = "";
+                
+                integer i;
+                for (i = 0; i < llGetListLength(criticalLinks); i++) {
+                    integer linkNum = llList2Integer(criticalLinks, i);
+                    if (linkNum <= linkCount) {
+                        key linkUUID = llGetLinkKey(linkNum);
+                        if (criticalPayload != "") criticalPayload += ",";
+                        criticalPayload += (string)linkNum + ":" + (string)linkUUID;
+                    }
+                }
+                llRegionSayTo(id, UPDATER_CHANNEL, "LINK_UUIDS_RESPONSE|" + criticalPayload);
+                llOwnerSay("✅ Sent critical link UUIDs (" + (string)llGetListLength(criticalLinks) + " links)");
+                if (VERBOSE_LOGGING) llOwnerSay("📊 Critical UUID Data: " + criticalPayload);
+                
+                // Now send all xyzzy links (35-82) in safe-sized chunks as additional LINK_UUIDS_RESPONSE messages
+                if (linkCount >= 82) {
+                    string chunk = "";
+                    integer countInChunk = 0;
+                    integer j;
+                    for (j = 35; j <= 82; j++) {
+                        key luuid = llGetLinkKey(j);
+                        string piece = (string)j + ":" + (string)luuid;
+                        // Flush if adding would exceed ~900 chars or ~20 entries
+                        if ((llStringLength(chunk) + 1 + llStringLength(piece)) > 900 || countInChunk >= 20) {
+                            llRegionSayTo(id, UPDATER_CHANNEL, "LINK_UUIDS_RESPONSE|" + chunk);
+                            chunk = "";
+                            countInChunk = 0;
+                        }
+                        if (chunk != "") chunk += ",";
+                        chunk += piece;
+                        countInChunk++;
+                    }
+                    if (chunk != "") {
+                        llRegionSayTo(id, UPDATER_CHANNEL, "LINK_UUIDS_RESPONSE|" + chunk);
+                    }
+                    llOwnerSay("✅ Sent xyzzy UUIDs (links 35-82) in chunks");
+                }
+            }
         }
     }
     

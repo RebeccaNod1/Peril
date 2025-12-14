@@ -28,6 +28,11 @@ class LSLValidator:
             # Events
             'touch_start', 'touch_end', 'listen', 'timer', 'link_message',
             'collision_start', 'collision', 'collision_end', 'http_response',
+            'sensor', 'no_sensor', 'control', 'land_collision_start', 'land_collision', 
+            'land_collision_end', 'at_target', 'not_at_target', 'at_rot_target', 
+            'not_at_rot_target', 'money', 'email', 'run_time_permissions', 'changed', 
+            'attach', 'dataserver', 'moving_start', 'moving_end', 'transaction_result', 
+            'path_update', 'remote_data',
             # String functions
             'llStringLength', 'llGetSubString', 'llSubStringIndex', 'llToUpper', 'llToLower',
             'llMD5String', 'llSHA1String', 'llEscapeURL', 'llUnescapeURL',
