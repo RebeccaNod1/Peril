@@ -658,18 +658,13 @@ default {
                         }
                     }
                     
-                    // CRITICAL: Send sync message with 0 lives so floater shows elimination state
-                    // Build sync message BEFORE any list modifications to prevent corruption
-                    string livesStr = llList2CSV(lives);
-                    string picksStr = llDumpList2String(picksData, "^");
-                    if (picksStr == "") picksStr = "EMPTY";  // Prevent empty string
-                    string perilStr = perilPlayer;
-                    if (perilStr == "") perilStr = "NONE";   // Prevent empty string
-                    string namesStr = llList2CSV(names);
-                    string playersStr = llList2CSV(players);
-                    
-                    string eliminationSync = livesStr + "~" + picksStr + "~" + perilStr + "~" + namesStr + "~" + playersStr;
-                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, eliminationSync, NULL_KEY);
+                    // Build sync message WITHOUT redundant player keys (5th part) to save memory
+                    // Combined into single message to avoid multiple temporary string allocations
+                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+                        llList2CSV(lives) + "~" + 
+                        (string)llDumpList2String(picksData, "^") + "~" + 
+                        (string)llList2String([perilPlayer, "NONE"], (perilPlayer == "")) + "~" + 
+                        llList2CSV(names), NULL_KEY);
                     
                     // Direct floater update to ensure eliminated status is displayed
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, eliminatedPlayer, llList2Key(players, idx));
@@ -786,10 +781,10 @@ default {
                     
                     // CRITICAL: After elimination, sync state and continue game with new peril player
                     if (perilPlayer != "" && perilPlayer != "NONE") {
-                        // Sync the updated game state to all modules (5-part format)
-                        string picksDataStr = "EMPTY";  // Empty picks for new round
-                        string gameSync = llList2CSV(lives) + "~" + picksDataStr + "~" + perilPlayer + "~" + llList2CSV(names) + "~" + llList2CSV(players);
-                        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
+                        // Sync the updated game state to all modules (4-part format)
+                        // Optimized to avoid large temporary string variables
+                        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+                            llList2CSV(lives) + "~EMPTY~" + perilPlayer + "~" + llList2CSV(names), NULL_KEY);
                         llSleep(0.5); // Give sync time to propagate
                         
                         // Continue the game with the new peril player - delegate to Game Manager
@@ -1246,6 +1241,11 @@ default {
                 }
                 
                 gameStarting = TRUE;
+                
+                // MEMORY OPTIMIZED: Clear stale lists as soon as game enters active phase
+                readyPlayers = [];
+                pendingRegistrations = [];
+                
                 llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
                 
                 integer actualPlayerCount = llGetListLength(names);

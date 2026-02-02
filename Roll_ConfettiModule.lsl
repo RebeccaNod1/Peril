@@ -497,27 +497,19 @@ default {
 
             // Note: Win condition checking is handled by Main Controller after elimination
 
-            // IMPORTANT: After processing a roll, preserve the actual picks data that was used for validation
-            // These picks will be used by Game Manager for building complete avoidance lists
-            list encodedPicksData = [];
-            integer k;
-            for (k = 0; k < llGetListLength(picksData); k++) {
-                string entry = llList2String(picksData, k);
-                // Preserve the actual picks data that was used for validation
-                encodedPicksData += [entry];
-            }
             // Validate perilPlayer is not empty before syncing
             string perilForSync = perilPlayer;
             if (perilForSync == "") {
                 perilForSync = "NONE";
-                llOwnerSay("⚠️ Roll Module: perilPlayer is empty, using NONE placeholder");
             }
             
-            string gameSync = llList2CSV(lives) + "~" + llDumpList2String(encodedPicksData, "^") + "~" + perilForSync + "~" + llList2CSV(names);
-            llOwnerSay("📤 Roll module sending sync with peril player: " + perilForSync);
-            llOwnerSay("🔍 DEBUG - encodedPicksData: " + llDumpList2String(encodedPicksData, " | "));
-            llOwnerSay("🔍 DEBUG - gameSync: " + gameSync);
-            llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, gameSync, NULL_KEY);
+            // MEMORY OPTIMIZED: Direct sync message construction to avoid temporary string allocations
+            // Uses 4-part format to remain compatible with Game Manager
+            llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+                llList2CSV(lives) + "~" + 
+                llDumpList2String(picksData, "^") + "~" + 
+                perilForSync + "~" + 
+                llList2CSV(names), NULL_KEY);
             llSleep(0.2);
             
             // Additional floater updates to ensure correct peril player display

@@ -777,12 +777,13 @@ default {
                     
                     // IMMEDIATE FLOATER UPDATE: Update this player's floater right after their pick is saved
                     // First sync the picks data so Floater Manager has the latest picks, then update the floater
-                    llOwnerSay("🔄 [Game Manager] Syncing picks and updating floater immediately for " + playerName + " with new picks");
-                    
                     // Send just the updated picks data to Floater Manager (lightweight sync)
-                    string picksDataStr = llDumpList2String(picksData, "^");
-                    string lightSync = llList2CSV(lives) + "~" + picksDataStr + "~" + perilPlayer + "~" + llList2CSV(names);
-                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, lightSync, NULL_KEY);
+                    // MEMORY OPTIMIZED: Direct sync message construction
+                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+                        llList2CSV(lives) + "~" + 
+                        llDumpList2String(picksData, "^") + "~" + 
+                        perilPlayer + "~" + 
+                        llList2CSV(names), NULL_KEY);
                     
                     // Brief delay to ensure sync reaches Floater Manager before update request
                     llSleep(0.1);
@@ -790,7 +791,6 @@ default {
                     // Now update the floater
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, llList2Key(players, idx));
                     
-                    // Don't do full sync to Main here - it creates loops, but targeted floater update is safe
                     llSleep(HUMAN_PICK_DELAY);
                     
                     // Move to next picker
@@ -926,12 +926,13 @@ default {
                     
                     // IMMEDIATE FLOATER UPDATE: Update this bot's floater right after their pick is saved
                     // First sync the picks data so Floater Manager has the latest picks, then update the floater
-                    llOwnerSay("🔄 [Game Manager] Syncing picks and updating floater immediately for " + playerName + " (bot) with new picks");
-                    
                     // Send just the updated picks data to Floater Manager (lightweight sync)
-                    string picksDataStr = llDumpList2String(picksData, "^");
-                    string lightSync = llList2CSV(lives) + "~" + picksDataStr + "~" + perilPlayer + "~" + llList2CSV(names);
-                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, lightSync, NULL_KEY);
+                    // MEMORY OPTIMIZED: Direct sync message construction
+                    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
+                        llList2CSV(lives) + "~" + 
+                        llDumpList2String(picksData, "^") + "~" + 
+                        perilPlayer + "~" + 
+                        llList2CSV(names), NULL_KEY);
                     
                     // Brief delay to ensure sync reaches Floater Manager before update request
                     llSleep(0.1);
