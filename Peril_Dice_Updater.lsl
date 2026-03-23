@@ -5,7 +5,7 @@
 // It downloads scripts from GitHub and installs them into the game
 // ====================================================================
 
-#define CURRENT_VERSION "2.8.8"
+#define CURRENT_VERSION "2.8.9"
 #define GITHUB_API_URL "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest"
 #define GITHUB_RAW_URL "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/"
 

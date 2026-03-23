@@ -78,6 +78,11 @@ list leaderboardLosses = []; // Loaded from linkset data at startup
 list profileRequests = []; // Track which profile requests belong to which player
 list httpRequests = []; // Track HTTP requests for profile pictures
 
+// KVP tracking
+key kvpReadReq;
+key kvpWriteReq;
+string pendingSerialize;
+
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
     integer used = llGetUsedMemory();
@@ -162,41 +167,34 @@ updateActionsPrim(string status) {
     ]);
 }
 
-// Load leaderboard data from linkset data
+// Load leaderboard data from Experience KVP database
 loadLeaderboardData() {
-    string countStr = llLinksetDataRead("lb_count");
-    integer loadCount = (integer)countStr;
-    
-    leaderboardNames = [];
-    leaderboardWins = [];
-    leaderboardLosses = [];
-    
-    if (loadCount > 0) {
-        integer loadI;
-        for (loadI = 0; loadI < loadCount; loadI++) {
-            string name = llLinksetDataRead("lb_player_" + (string)loadI);
-            string wins = llLinksetDataRead("lb_wins_" + (string)loadI);
-            string losses = llLinksetDataRead("lb_losses_" + (string)loadI);
-            
-            if (name != "") {
-                leaderboardNames += [name];
-                leaderboardWins += [(integer)wins];
-                leaderboardLosses += [(integer)losses];
-            }
-        }
+    kvpReadReq = llReadKeyValue("Peril_LB_Top50");
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("🔍 Requesting global scoreboard from Experience database...");
     }
 }
 
-// Save leaderboard data to linkset data
+// Save leaderboard data to Experience KVP database
 saveLeaderboardData() {
+    string serialized = "";
     integer saveCount = llGetListLength(leaderboardNames);
-    llLinksetDataWrite("lb_count", (string)saveCount);
+    if (saveCount > 50) saveCount = 50; // Cap at Top 50 to fit safely in KVP 4Kb limit
     
     integer saveI;
     for (saveI = 0; saveI < saveCount; saveI++) {
-        llLinksetDataWrite("lb_player_" + (string)saveI, llList2String(leaderboardNames, saveI));
-        llLinksetDataWrite("lb_wins_" + (string)saveI, (string)llList2Integer(leaderboardWins, saveI));
-        llLinksetDataWrite("lb_losses_" + (string)saveI, (string)llList2Integer(leaderboardLosses, saveI));
+        string entry = llList2String(leaderboardNames, saveI) + ":" + 
+                       (string)llList2Integer(leaderboardWins, saveI) + ":" + 
+                       (string)llList2Integer(leaderboardLosses, saveI);
+        if (serialized != "") serialized += "|";
+        serialized += entry;
+    }
+    
+    pendingSerialize = serialized;
+    kvpWriteReq = llUpdateKeyValue("Peril_LB_Top50", serialized, FALSE, "");
+    
+    if (VERBOSE_LOGGING) {
+        llOwnerSay("💾 Synced " + (string)saveCount + " players to global scoreboard database.");
     }
 }
 
@@ -385,19 +383,20 @@ generateLeaderboardText() {
     llMessageLinked(35, MSG_RESET_LEADERBOARD, "FORMATTED_TEXT|" + leaderboardText, NULL_KEY);
 }
 
-// Reset leaderboard data
+// Reset leaderboard data (SECURED for Creator Only)
 resetLeaderboard() {
+    // PROTECT THE GLOBAL DATABASE!
+    if (llGetOwner() != llGetCreator()) {
+        llOwnerSay("❌ Access Denied: Only the creator of Peril Dice can wipe the Global Scoreboard!");
+        return;
+    }
+    
     leaderboardNames = [];
     leaderboardWins = [];
     leaderboardLosses = [];
-    integer resetI;
-    for (resetI = 0; resetI < 100; resetI++) {
-        llLinksetDataDelete("lb_player_" + (string)resetI);
-        llLinksetDataDelete("lb_wins_" + (string)resetI);
-        llLinksetDataDelete("lb_losses_" + (string)resetI);
-    }
-    llLinksetDataDelete("lb_count");
-    generateLeaderboardText(); // Send empty leaderboard
+    pendingSerialize = "";
+    kvpWriteReq = llUpdateKeyValue("Peril_LB_Top50", "", FALSE, "");
+    generateLeaderboardText(); // Send empty leaderboard immediately
 }
 
 // Clear all current players from the scoreboard
@@ -859,10 +858,6 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
                 //     llOwnerSay("🔄 [Scoreboard] Requesting profile pic for " + playerName + ", showing default for now");
                 // }
             }
-        } else {
-            // if (VERBOSE_LOGGING) {
-            //     llOwnerSay("🔍 [DEBUG] " + playerName + " - profileTexture != profileUUID, not making HTTP request");
-            // }
         }
     }
     
@@ -941,11 +936,10 @@ default {
         // Reset manager cube to neutral state
         resetManagerCube();
         
-        // Load persistent leaderboard data
+        // Load persistent leaderboard data from KVP Experience database
         loadLeaderboardData();
-        
-        // Generate initial leaderboard
-        generateLeaderboardText();
+        // NOTE: generateLeaderboardText() will be triggered by dataserver automatically when data arrives
+        // No need to generate it randomly before data arrives
         
         // Ensure no glow effects remain from previous sessions
         currentPerilPlayer = "";
@@ -1117,6 +1111,63 @@ default {
                         if (VERBOSE_LOGGING) {
                             llOwnerSay("❌ ERROR: HTTP response tried to update invalid prim " + (string)profilePrimIndex + " for player " + (string)playerIndex);
                         }
+                    }
+                }
+            }
+        }
+    }
+    
+    dataserver(key queryid, string data) {
+        if (queryid == kvpReadReq) {
+            integer comma = llSubStringIndex(data, ",");
+            if (comma != -1) {
+                string status = llGetSubString(data, 0, comma - 1);
+                string val = llGetSubString(data, comma + 1, -1);
+                
+                if (status == "0") {
+                    leaderboardNames = [];
+                    leaderboardWins = [];
+                    leaderboardLosses = [];
+                    
+                    list entries = llParseString2List(val, ["|"], []);
+                    integer i;
+                    for (i = 0; i < llGetListLength(entries); i++) {
+                        string entry = llList2String(entries, i);
+                        list parts = llParseString2List(entry, [":"], []);
+                        if (llGetListLength(parts) >= 3) {
+                            leaderboardNames += [llList2String(parts, 0)];
+                            leaderboardWins += [(integer)llList2String(parts, 1)];
+                            leaderboardLosses += [(integer)llList2String(parts, 2)];
+                        }
+                    }
+                    if (VERBOSE_LOGGING) {
+                        llOwnerSay("✅ Loaded global scoreboard containing " + (string)llGetListLength(leaderboardNames) + " players!");
+                    }
+                } else if (status == "3") { // XP_ERROR_KEY_NOT_FOUND
+                    leaderboardNames = [];
+                    leaderboardWins = [];
+                    leaderboardLosses = [];
+                    if (VERBOSE_LOGGING) {
+                        llOwnerSay("ℹ️ Global scoreboard is currently empty (database fresh).");
+                    }
+                } else {
+                    if (VERBOSE_LOGGING) {
+                        llOwnerSay("⚠️ Failed to load global scoreboard (Status: " + status + ")");
+                    }
+                }
+            }
+            // Generate board with downloaded or empty data
+            generateLeaderboardText();
+        } else if (queryid == kvpWriteReq) {
+            integer comma = llSubStringIndex(data, ",");
+            if (comma != -1) {
+                string status = llGetSubString(data, 0, comma - 1);
+                if (status == "3") {
+                    // Update failed because key didn't exist yet! Create it.
+                    llCreateKeyValue("Peril_LB_Top50", pendingSerialize);
+                } else if (status == "0") {
+                    if (VERBOSE_LOGGING) {
+                        llOwnerSay("✅ Global scoreboard synced successfully.");
                     }
                 }
             }
