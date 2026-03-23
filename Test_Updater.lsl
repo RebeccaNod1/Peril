@@ -3,8 +3,8 @@
 // ====================================================================
 // Simple test to see if llRemoteLoadScriptPin works at all
 
-string TEST_VERSION = "1.0.0";
-integer UPDATER_CHANNEL = -7723847;
+#define TEST_VERSION "1.0.0"
+#define UPDATER_CHANNEL -7723847
 
 // Test state
 key targetGameKey = NULL_KEY;
@@ -12,7 +12,9 @@ integer testPin = 0;
 integer testStep = 0;
 
 // Simple test script content
-string TEST_SCRIPT = "default {\n    state_entry() {\n        llOwnerSay(\"✅ Test script installed successfully!\");\n        llOwnerSay(\"📝 This proves llRemoteLoadScriptPin is working.\");\n    }\n}";
+#define TEST_SCRIPT "default {
+    state_entry() {
+        llOwnerSay(\"✅ Test script installed successfully!\")\n        llOwnerSay(\"📝 This proves llRemoteLoadScriptPin is working.\");\n    }\n}";
 
 default {
     state_entry() {

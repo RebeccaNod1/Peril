@@ -12,11 +12,11 @@
 // ====================================================================
 
 string CURRENT_VERSION = "2.8.8";
-string GITHUB_API_URL = "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest";
+#define GITHUB_API_URL "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest"
 
 // External updater communication
-integer UPDATER_CHANNEL = -7723847; // Must match Peril_Dice_Updater.lsl
-integer SENSOR_RANGE = 96; // meters to scan for updater boxes
+#define UPDATER_CHANNEL -7723847 // Must match Peril_Dice_Updater.lsl
+#define SENSOR_RANGE 96 // meters to scan for updater boxes
 list nearbyUpdaters = [];
 key selectedUpdater = NULL_KEY;
 
@@ -30,12 +30,12 @@ key currentHttpRequest = NULL_KEY;
 string currentOperation = "";
 
 // Message constants - following existing Peril Dice patterns
-integer MSG_ADMIN_MENU_RESPONSE = 888;
-integer MSG_UPDATE_CHECK_REQUEST = 2100;
-integer MSG_TOGGLE_VERBOSE_LOGS = 9999;
+#define MSG_ADMIN_MENU_RESPONSE 888
+#define MSG_UPDATE_CHECK_REQUEST 2100
+#define MSG_TOGGLE_VERBOSE_LOGS 9999
 
 // Update dialog constants
-integer UPDATE_DIALOG_CHANNEL = -77401; // Unique channel for update dialogs
+#define UPDATE_DIALOG_CHANNEL -77401 // Unique channel for update dialogs
 integer updateDialogHandle = -1;
 key pendingUpdateUser = NULL_KEY;
 

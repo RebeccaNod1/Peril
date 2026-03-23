@@ -16,7 +16,7 @@ string myName;
 // Listen handle management
 integer listenHandle = -1;
 
-integer MSG_SYNC_GAME_STATE = 107;
+#define MSG_SYNC_GAME_STATE 107
 
 list lives;
 list picksData;

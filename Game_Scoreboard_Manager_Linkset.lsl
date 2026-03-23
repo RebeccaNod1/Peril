@@ -8,57 +8,57 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = FALSE;  // Global flag for verbose debug logs - DISABLED to save memory
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Message constants for link communication
 // Scoreboard messages (from link 1 - controller)
-integer MSG_GAME_STATUS = 3001;
-integer MSG_PLAYER_UPDATE = 3002;
-integer MSG_CLEAR_GAME = 3003;
-integer MSG_REMOVE_PLAYER = 3004;
-integer MSG_UPDATE_PERIL_PLAYER = 3005;
-integer MSG_UPDATE_WINNER = 3006;
+#define MSG_GAME_STATUS 3001
+#define MSG_PLAYER_UPDATE 3002
+#define MSG_CLEAR_GAME 3003
+#define MSG_REMOVE_PLAYER 3004
+#define MSG_UPDATE_PERIL_PLAYER 3005
+#define MSG_UPDATE_WINNER 3006
 
 // Leaderboard messages (to link 35)  
-integer MSG_GAME_WON = 3010;
-integer MSG_GAME_LOST = 3011;
-integer MSG_RESET_LEADERBOARD = 3012;
+#define MSG_GAME_WON 3010
+#define MSG_GAME_LOST 3011
+#define MSG_RESET_LEADERBOARD 3012
 
 // Dice messages (to link 83)
-integer MSG_DICE_ROLL = 3020;
-integer MSG_CLEAR_DICE = 3021;
+#define MSG_DICE_ROLL 3020
+#define MSG_CLEAR_DICE 3021
 
 // Prim indices (UPDATED after overlay prim insertion - overlays are links 2-11)
-integer BACKGROUND_PRIM = 13;     // Now link 13 (backboard)
-integer ACTIONS_PRIM = 14;        // Now link 14 (title/action)
-integer FIRST_PROFILE_PRIM = 15;  // Profile prims start at 15
-integer LAST_PROFILE_PRIM = 34;   // Profile/life prims end at 34
-integer FIRST_OVERLAY_PRIM = 2;   // Overlay prims start at 2
-integer LAST_OVERLAY_PRIM = 11;   // Overlay prims end at 11
+#define BACKGROUND_PRIM 13     // Now link 13 (backboard)
+#define ACTIONS_PRIM 14        // Now link 14 (title/action)
+#define FIRST_PROFILE_PRIM 15  // Profile prims start at 15
+#define LAST_PROFILE_PRIM 34   // Profile/life prims end at 34
+#define FIRST_OVERLAY_PRIM 2   // Overlay prims start at 2
+#define LAST_OVERLAY_PRIM 11   // Overlay prims end at 11
 
 // Heart texture UUIDs - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
-string TEXTURE_0_HEARTS = "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b"; // 0 hearts (dead)
-string TEXTURE_1_HEARTS = "6605d25f-8e2d-2870-eb87-77c58cd47fa9"; // 1 heart
-string TEXTURE_2_HEARTS = "7ba6cb1e-f384-25a5-8e88-a90bbd7cc041"; // 2 hearts
-string TEXTURE_3_HEARTS = "a5d16715-4648-6526-5582-e8068293f792"; // 3 hearts
+#define TEXTURE_0_HEARTS "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b" // 0 hearts (dead)
+#define TEXTURE_1_HEARTS "6605d25f-8e2d-2870-eb87-77c58cd47fa9" // 1 heart
+#define TEXTURE_2_HEARTS "7ba6cb1e-f384-25a5-8e88-a90bbd7cc041" // 2 hearts
+#define TEXTURE_3_HEARTS "a5d16715-4648-6526-5582-e8068293f792" // 3 hearts
 
 // Default textures - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
-string TEXTURE_DEFAULT_PROFILE = "1ce89375-6c3c-3845-26b1-1dc666bc9169"; // Default avatar
-string TEXTURE_BOT_PROFILE = "62f31722-04c1-8c29-c236-398543f2a6ae"; // Bot avatar picture
-string BLANK_TEXTURE = "5748decc-f629-461c-9a36-a35a221fe21f"; // White texture UUID
-string TEXTURE_BACKGROUND = "5748decc-f629-461c-9a36-a35a221fe21f"; // Background texture (blank + black color)
-string TEXTURE_ACTIONS = "6aac8dce-1b83-f931-abe3-286f4f2faa29"; // Punishment texture
+#define TEXTURE_DEFAULT_PROFILE "1ce89375-6c3c-3845-26b1-1dc666bc9169" // Default avatar
+#define TEXTURE_BOT_PROFILE "62f31722-04c1-8c29-c236-398543f2a6ae" // Bot avatar picture
+#define BLANK_TEXTURE "5748decc-f629-461c-9a36-a35a221fe21f" // White texture UUID
+#define TEXTURE_BACKGROUND "5748decc-f629-461c-9a36-a35a221fe21f" // Background texture (blank + black color)
+#define TEXTURE_ACTIONS "6aac8dce-1b83-f931-abe3-286f4f2faa29" // Punishment texture
 
 // Status textures - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
-string TEXTURE_PERIL = "c5676fec-0c85-5567-3dd8-f939234e21d9"; // Elimination texture
-string TEXTURE_PERIL_SELECTED = "a53ff601-3c8a-e312-9e0e-f6fa76f6773a"; // Peril Selected texture
-string TEXTURE_VICTORY = "ec5bf10e-4970-fb63-e7bf-751e1dc27a8d"; // Victory texture
-string TEXTURE_PUNISHMENT = "acfabed0-84ad-bfd1-cdfc-2ada0aeeaa2f"; // Punishment texture (fallback)
-string TEXTURE_DIRECT_HIT = "ecd2dba2-3969-6c39-ad59-319747307f55"; // Direct Hit texture
-string TEXTURE_NO_SHIELD = "2440174f-e385-44e2-8016-ac34934f11f5"; // No Shield texture
-string TEXTURE_PLOT_TWIST = "ec533379-4f7f-8183-e877-e68af703dcce"; // Plot Twist texture
-string TEXTURE_TITLE = "624bb7a7-e856-965c-bae8-94d75226c1bc"; // Title texture
-string TEXTURE_ELIMINATED_X = "90524092-03b0-1b3c-bcea-3ea5118c6dba"; // Red X overlay for eliminated players
+#define TEXTURE_PERIL "c5676fec-0c85-5567-3dd8-f939234e21d9" // Elimination texture
+#define TEXTURE_PERIL_SELECTED "a53ff601-3c8a-e312-9e0e-f6fa76f6773a" // Peril Selected texture
+#define TEXTURE_VICTORY "ec5bf10e-4970-fb63-e7bf-751e1dc27a8d" // Victory texture
+#define TEXTURE_PUNISHMENT "acfabed0-84ad-bfd1-cdfc-2ada0aeeaa2f" // Punishment texture (fallback)
+#define TEXTURE_DIRECT_HIT "ecd2dba2-3969-6c39-ad59-319747307f55" // Direct Hit texture
+#define TEXTURE_NO_SHIELD "2440174f-e385-44e2-8016-ac34934f11f5" // No Shield texture
+#define TEXTURE_PLOT_TWIST "ec533379-4f7f-8183-e877-e68af703dcce" // Plot Twist texture
+#define TEXTURE_TITLE "624bb7a7-e856-965c-bae8-94d75226c1bc" // Title texture
+#define TEXTURE_ELIMINATED_X "90524092-03b0-1b3c-bcea-3ea5118c6dba" // Red X overlay for eliminated players
 
 // Player data - used for BOTH current game display AND leaderboard
 list playerNames = []; // Current game players for display
@@ -849,7 +849,7 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
                 // }
                 
                 // Request profile picture via HTTP (will update later)
-                string URL_RESIDENT = "https://world.secondlife.com/resident/";
+                #define URL_RESIDENT "https://world.secondlife.com/resident/"
                 key httpRequestID = llHTTPRequest(URL_RESIDENT + profileUUID, [HTTP_METHOD, "GET"], "");
                 
                 // Store the HTTP request mapping: requestID -> playerIndex

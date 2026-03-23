@@ -1,23 +1,23 @@
 // === Roll and Confetti Module (with Roll Dialog Handler) ===
 
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_ROLL_RESULT = 102;
-integer MSG_UPDATE_FLOAT = 103;
-integer MSG_CLEANUP_FLOAT = 104;
-integer MSG_REZ_FLOAT = 105;
-integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_SHOW_ROLL_DIALOG = 301;
+#define MSG_SHOW_DIALOG 101
+#define MSG_ROLL_RESULT 102
+#define MSG_UPDATE_FLOAT 103
+#define MSG_CLEANUP_FLOAT 104
+#define MSG_REZ_FLOAT 105
+#define MSG_SYNC_GAME_STATE 107
+#define MSG_SHOW_ROLL_DIALOG 301
 
 // Dice messages (sent to Main Controller)
-integer MSG_DICE_ROLL = 3020;
-integer MSG_CLEAR_DICE = 3021;
+#define MSG_DICE_ROLL 3020
+#define MSG_CLEAR_DICE 3021
 
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION
 // =============================================================================
 
 // Base channel offset - should match Main.lsl
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
 integer calculateChannel(integer offset) {

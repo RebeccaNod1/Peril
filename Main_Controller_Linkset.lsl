@@ -20,82 +20,82 @@ string getPlayerName(key id) {
 // =============================================================================
 
 // Target link numbers (UPDATED after overlay prim insertion)
-integer SCOREBOARD_LINK = 12;     // Scoreboard manager cube
-integer LEADERBOARD_LINK = 35;    // Leaderboard manager (first XyzzyText prim)
-integer DICE_LINK = 83;           // Dice display manager (first dice prim)
+#define SCOREBOARD_LINK 12     // Scoreboard manager cube
+#define LEADERBOARD_LINK 35    // Leaderboard manager (first XyzzyText prim)
+#define DICE_LINK 83           // Dice display manager (first dice prim)
 
 // Message constants for link communication
 // Scoreboard messages (to link 12)
-integer MSG_GAME_STATUS = 3001;
-integer MSG_PLAYER_UPDATE = 3002;
-integer MSG_CLEAR_GAME = 3003;
-integer MSG_REMOVE_PLAYER = 3004;
-integer MSG_UPDATE_PERIL_PLAYER = 3005;
-integer MSG_UPDATE_WINNER = 3006;
+#define MSG_GAME_STATUS 3001
+#define MSG_PLAYER_UPDATE 3002
+#define MSG_CLEAR_GAME 3003
+#define MSG_REMOVE_PLAYER 3004
+#define MSG_UPDATE_PERIL_PLAYER 3005
+#define MSG_UPDATE_WINNER 3006
 
 // Leaderboard messages (to link 35)  
-integer MSG_GAME_WON = 3010;
-integer MSG_GAME_LOST = 3011;
-integer MSG_RESET_LEADERBOARD = 3012;
+#define MSG_GAME_WON 3010
+#define MSG_GAME_LOST 3011
+#define MSG_RESET_LEADERBOARD 3012
 
 // Dice messages (to link 83)
-integer MSG_DICE_ROLL = 3020;
-integer MSG_CLEAR_DICE = 3021;
+#define MSG_DICE_ROLL 3020
+#define MSG_CLEAR_DICE 3021
 
 // Legacy message constants (keep for internal controller communication)
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_ROLL_RESULT = 102;
-integer MSG_UPDATE_FLOAT = 103;
-integer MSG_CLEANUP_FLOAT = 104;
-integer MSG_REZ_FLOAT = 105;
-integer MSG_REGISTER_PLAYER = 106;
-integer MSG_REGISTER_PLAYER_REQUEST = 9050;  // New dedicated message to Player_RegistrationManager
-integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_SHOW_MENU = 201;
-integer MSG_TOGGLE_READY = 202;
-integer MSG_QUERY_READY_STATE = 210;
-integer MSG_READY_STATE_RESULT = 211;
-integer MSG_CLEANUP_ALL_FLOATERS = 212;
-integer MSG_QUERY_OWNER_STATUS = 213;
-integer MSG_OWNER_STATUS_RESULT = 214;
-integer MSG_SHOW_ROLL_DIALOG = 301;
-integer MSG_GET_CURRENT_DIALOG = 302;
-integer MSG_PLAYER_WON = 551;
-integer MSG_GET_PICKS_REQUIRED = 1002;
-integer MSG_GET_PICKER_INDEX = 1003;
+#define MSG_SHOW_DIALOG 101
+#define MSG_ROLL_RESULT 102
+#define MSG_UPDATE_FLOAT 103
+#define MSG_CLEANUP_FLOAT 104
+#define MSG_REZ_FLOAT 105
+#define MSG_REGISTER_PLAYER 106
+#define MSG_REGISTER_PLAYER_REQUEST 9050  // New dedicated message to Player_RegistrationManager
+#define MSG_SYNC_GAME_STATE 107
+#define MSG_SHOW_MENU 201
+#define MSG_TOGGLE_READY 202
+#define MSG_QUERY_READY_STATE 210
+#define MSG_READY_STATE_RESULT 211
+#define MSG_CLEANUP_ALL_FLOATERS 212
+#define MSG_QUERY_OWNER_STATUS 213
+#define MSG_OWNER_STATUS_RESULT 214
+#define MSG_SHOW_ROLL_DIALOG 301
+#define MSG_GET_CURRENT_DIALOG 302
+#define MSG_PLAYER_WON 551
+#define MSG_GET_PICKS_REQUIRED 1002
+#define MSG_GET_PICKER_INDEX 1003
 
 // Memory monitoring handled by Controller_Memory.lsl helper script
-integer MSG_MEMORY_CHECK = 6001;
-integer MSG_MEMORY_STATS = 6002;
-integer MSG_MEMORY_CLEANUP = 6003;
-integer MSG_MEMORY_REPORT = 6004;
-integer MSG_EMERGENCY_CLEANUP = 6005;
-integer MSG_MEMORY_STATS_REQUEST = 6006;
+#define MSG_MEMORY_CHECK 6001
+#define MSG_MEMORY_STATS 6002
+#define MSG_MEMORY_CLEANUP 6003
+#define MSG_MEMORY_REPORT 6004
+#define MSG_EMERGENCY_CLEANUP 6005
+#define MSG_MEMORY_STATS_REQUEST 6006
 
 // Unified Timer System - prevents conflicts between multiple timer needs
-integer TIMER_IDLE = 0;
-integer TIMER_STATUS = 1;
-integer TIMER_VICTORY_DELAY = 2;  // Timer mode for victory glow display
+#define TIMER_IDLE 0
+#define TIMER_STATUS 1
+#define TIMER_VICTORY_DELAY 2  // Timer mode for victory glow display
 integer currentTimerMode = 0;    // Track what the timer is currently doing
 float timerInterval = 1.0;       // How often timer() is called for checks
 integer victoryDelayTimer = 0;   // Track victory delay timing
 
 // Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
-integer DEBUG_PICKS = FALSE;
+#define DEBUG_PICKS FALSE
 
 // Verbose logging moved to dedicated Verbose_Logger.lsl script to save memory
 // Message constants for verbose logging
-integer MSG_VERBOSE_LOG = 9020;
-integer MSG_VERBOSE_TOGGLE = 9010;
+#define MSG_VERBOSE_LOG 9020
+#define MSG_VERBOSE_TOGGLE 9010
 
 // Script ID for Main Controller (used by Verbose_Logger for prefixes)
-integer SCRIPT_ID_MAIN = 0;
+#define SCRIPT_ID_MAIN 0
 
 // Message handling constants (delegate to Controller_MessageHandler)
-integer MSG_OWNER_MESSAGE = 9030;
-integer MSG_PUBLIC_MESSAGE = 9031;
-integer MSG_REGION_MESSAGE = 9032;
-integer MSG_DIALOG_REQUEST = 9033;
+#define MSG_OWNER_MESSAGE 9030
+#define MSG_PUBLIC_MESSAGE 9031
+#define MSG_REGION_MESSAGE 9032
+#define MSG_DIALOG_REQUEST 9033
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
@@ -115,7 +115,7 @@ reportMemoryUsage(string scriptName) {
 // REMOVED: Heavy message forwarding functions - too memory intensive
 
 // Status message timing
-float STATUS_DISPLAY_TIME = 8.0; // How long to show status messages on scoreboard
+#define STATUS_DISPLAY_TIME 8.0 // How long to show status messages on scoreboard
 integer statusTimer = 0;         // Track when status messages were sent
 string lastStatus = "";          // Track last status sent
 
@@ -143,28 +143,28 @@ integer gameStarting = FALSE;  // Track when game is in startup sequence
 
 // Prevent duplicate registration by tracking pending registrations
 list pendingRegistrations = [];  // Keys of players who have registration in progress
-integer REGISTRATION_TIMEOUT = 10;  // Seconds to keep pending registration
+#define REGISTRATION_TIMEOUT 10  // Seconds to keep pending registration
 
 // Display configuration
-integer CONTROLLER_FACE = 1;  // Face to display start image on (front face)
-string TEXTURE_START = "title_start";  // Start image texture
-string TEXTURE_GAME_ACTIVE = "game_active";  // Optional: different texture during game
+#define CONTROLLER_FACE 1  // Face to display start image on (front face)
+#define TEXTURE_START "title_start"  // Start image texture
+#define TEXTURE_GAME_ACTIVE "game_active"  // Optional: different texture during game
 
 // Maximum number of players allowed (including test players)
-integer MAX_PLAYERS = 10;
+#define MAX_PLAYERS 10
 
 // Timeout system removed - using owner kick functionality instead
 
 key currentPicker;
 
 // Game timing settings
-float BOT_PICK_DELAY = 2.0;      
-float HUMAN_PICK_DELAY = 1.0;    
-float DIALOG_DELAY = 1.5;        
+#define BOT_PICK_DELAY 2.0      
+#define HUMAN_PICK_DELAY 1.0    
+#define DIALOG_DELAY 1.5        
 integer gameTimer = 0;           
 
 // Dynamic channel system for floaters and dialogs (still needed for external communication)
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 integer calculateChannel(integer offset) {
     string ownerStr = (string)llGetOwner();

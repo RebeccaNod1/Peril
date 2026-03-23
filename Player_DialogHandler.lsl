@@ -18,7 +18,7 @@ string getPlayerName(key id) {
 // =============================================================================
 
 // Base channel offset - should match Main.lsl
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
 integer calculateChannel(integer offset) {
@@ -73,20 +73,20 @@ rotation controller_rot;
 list foundDisplays; // Store found display info: [type, key, offset, rotation, ...]
 integer scanInProgress = FALSE;
 
-integer MSG_SHOW_MENU = 201;
-integer MSG_PICK_ACTION = 204;
-integer MSG_PLAYER_LIST_RESULT = 203;
-integer MSG_PICK_LIST_RESULT = 205;
-integer MSG_LIFE_LOOKUP = 207;
-integer MSG_REGISTER_PLAYER = 106;
-integer MSG_REZ_FLOAT = 105;
-integer MSG_TOGGLE_READY = 202;
-integer MSG_QUERY_READY_STATE = 210;
-integer MSG_READY_STATE_RESULT = 211;
-integer MSG_CLEANUP_ALL_FLOATERS = 212;
-integer MSG_QUERY_OWNER_STATUS = 213;
-integer MSG_OWNER_STATUS_RESULT = 214;
-integer MSG_GET_CURRENT_DIALOG = 302;
+#define MSG_SHOW_MENU 201
+#define MSG_PICK_ACTION 204
+#define MSG_PLAYER_LIST_RESULT 203
+#define MSG_PICK_LIST_RESULT 205
+#define MSG_LIFE_LOOKUP 207
+#define MSG_REGISTER_PLAYER 106
+#define MSG_REZ_FLOAT 105
+#define MSG_TOGGLE_READY 202
+#define MSG_QUERY_READY_STATE 210
+#define MSG_READY_STATE_RESULT 211
+#define MSG_CLEANUP_ALL_FLOATERS 212
+#define MSG_QUERY_OWNER_STATUS 213
+#define MSG_OWNER_STATUS_RESULT 214
+#define MSG_GET_CURRENT_DIALOG 302
 
 // Categorized owner menu system
 list mainOwnerOptions = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "⬅️ Back to Game"];
@@ -105,7 +105,7 @@ integer pendingMenuIsOwner = FALSE;
 integer pendingMenuRequestID = 0;      // Unique ID for each menu request
 integer currentRequestID = 0;           // Counter for generating unique request IDs
 float pendingMenuTimestamp = 0.0;       // Timeout for pending requests
-float MENU_REQUEST_TIMEOUT = 5.0;       // 5 second timeout for menu requests
+#define MENU_REQUEST_TIMEOUT 5.0       // 5 second timeout for menu requests
 
 // Lockout system - when TRUE, only owner can access menus
 integer isLocked = FALSE;

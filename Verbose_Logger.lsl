@@ -7,11 +7,11 @@ integer VERBOSE_LOGGING = FALSE;
 
 // Loop protection - prevent rapid toggle spam
 float lastToggleTime = 0.0;
-float TOGGLE_COOLDOWN = 2.0; // Minimum 2 seconds between toggles
+#define TOGGLE_COOLDOWN 2.0 // Minimum 2 seconds between toggles
 
 // Message constants for verbose logging system
-integer MSG_VERBOSE_TOGGLE = 9010;        // Toggle verbose logging on/off
-integer MSG_VERBOSE_BROADCAST = 9011;     // Broadcast logging state to all modules
+#define MSG_VERBOSE_TOGGLE 9010        // Toggle verbose logging on/off
+#define MSG_VERBOSE_BROADCAST 9011     // Broadcast logging state to all modules
 
 // Report memory status of this script
 reportMemoryStatus() {

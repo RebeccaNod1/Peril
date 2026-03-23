@@ -3,9 +3,9 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
-integer MSG_SYNC_GAME_STATE = 107;
+#define MSG_SYNC_GAME_STATE 107
 
 list validatePicksData(list picksData, list names) {
     list allPicksFlat = [];

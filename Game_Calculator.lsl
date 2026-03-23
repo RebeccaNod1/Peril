@@ -5,7 +5,7 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
@@ -20,13 +20,13 @@ reportMemoryUsage(string scriptName) {
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
 }
 
-integer MSG_GET_DICE_TYPE = 1001;
-integer MSG_DICE_TYPE_RESULT = 1005;
-integer MSG_GET_PICKS_REQUIRED = 1002;
-integer MSG_GET_PICKER_INDEX = 1003;
-integer MSG_SERIALIZE_GAME_STATE = 1004;
-integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_SYNC_PICKQUEUE = 2001;
+#define MSG_GET_DICE_TYPE 1001
+#define MSG_DICE_TYPE_RESULT 1005
+#define MSG_GET_PICKS_REQUIRED 1002
+#define MSG_GET_PICKER_INDEX 1003
+#define MSG_SERIALIZE_GAME_STATE 1004
+#define MSG_SYNC_GAME_STATE 107
+#define MSG_SYNC_PICKQUEUE 2001
 
 list lives;
 list picksData;
@@ -35,7 +35,7 @@ list names;
 list pickQueue;
 
 // List of supported dice sizes; ensure the last entry can accommodate 10 players × 3 picks = 30
-list STANDARD_DICE = [6, 12, 20, 30];
+#define STANDARD_DICE [6, 12, 20, 30]
 
 // Determine which die to use based on player count.
 // Each player should have at least 3 numbers available to choose from.

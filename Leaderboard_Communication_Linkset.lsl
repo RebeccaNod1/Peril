@@ -9,15 +9,15 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Message constants for link communication
 // Leaderboard messages (from link 12 - scoreboard)
-integer MSG_GAME_WON = 3010;
-integer MSG_GAME_LOST = 3011;
-integer MSG_RESET_LEADERBOARD = 3012;
+#define MSG_GAME_WON 3010
+#define MSG_GAME_LOST 3011
+#define MSG_RESET_LEADERBOARD 3012
 
-integer DISPLAY_STRING = 204000;
+#define DISPLAY_STRING 204000
 
 // Bank assignments based on actual link testing - UPDATED FOR LINKSET:
 // Original links were 1-48, now they are 35-82 (offset by +34)

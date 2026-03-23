@@ -4,21 +4,21 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Memory monitoring system
-float MEMORY_WARNING_THRESHOLD = 0.8;   // Warn at 80% usage
-float MEMORY_CRITICAL_THRESHOLD = 0.9;  // Critical at 90% usage
+#define MEMORY_WARNING_THRESHOLD 0.8   // Warn at 80% usage
+#define MEMORY_CRITICAL_THRESHOLD 0.9  // Critical at 90% usage
 integer lastMemoryCheck = 0;             // Track last memory check time
-integer MEMORY_CHECK_INTERVAL = 60;      // Check every 60 seconds
+#define MEMORY_CHECK_INTERVAL 60      // Check every 60 seconds
 
 // Message constants for inter-script communication
-integer MSG_MEMORY_CHECK = 6001;
-integer MSG_MEMORY_STATS = 6002;
-integer MSG_MEMORY_CLEANUP = 6003;
-integer MSG_MEMORY_REPORT = 6004;
-integer MSG_EMERGENCY_CLEANUP = 6005;
-integer MSG_MEMORY_STATS_REQUEST = 6006;
+#define MSG_MEMORY_CHECK 6001
+#define MSG_MEMORY_STATS 6002
+#define MSG_MEMORY_CLEANUP 6003
+#define MSG_MEMORY_REPORT 6004
+#define MSG_EMERGENCY_CLEANUP 6005
+#define MSG_MEMORY_STATS_REQUEST 6006
 
 // Track main controller stats for comprehensive reporting
 list mainControllerStats = [];

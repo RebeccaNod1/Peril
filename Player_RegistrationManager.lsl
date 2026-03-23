@@ -3,30 +3,30 @@
 // This script takes over the memory-heavy player management operations
 
 // Message constants for communication
-integer MSG_REGISTER_PLAYER_REQUEST = 9050;  // Dedicated message from Main Controller for registration
-integer MSG_OWNER_MESSAGE = 9030;
-integer MSG_PUBLIC_MESSAGE = 9031;
-integer MSG_REGION_MESSAGE = 9032;
-integer MSG_SHOW_MENU = 201;
-integer MSG_UPDATE_MAIN_LISTS = 9040;  // Optimized message to update main controller lists
-integer MSG_SYNC_GAME_STATE = 107;
+#define MSG_REGISTER_PLAYER_REQUEST 9050  // Dedicated message from Main Controller for registration
+#define MSG_OWNER_MESSAGE 9030
+#define MSG_PUBLIC_MESSAGE 9031
+#define MSG_REGION_MESSAGE 9032
+#define MSG_SHOW_MENU 201
+#define MSG_UPDATE_MAIN_LISTS 9040  // Optimized message to update main controller lists
+#define MSG_SYNC_GAME_STATE 107
 
 // Scoreboard and display message constants
-integer SCOREBOARD_LINK = 12;
-integer MSG_PLAYER_UPDATE = 3002;
+#define SCOREBOARD_LINK 12
+#define MSG_PLAYER_UPDATE 3002
 
 // Dialog forwarding constants
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_SHOW_ROLL_DIALOG = 301;
-integer MSG_DIALOG_FORWARD_REQUEST = 9060; // New message for dialog forwarding requests
+#define MSG_SHOW_DIALOG 101
+#define MSG_SHOW_ROLL_DIALOG 301
+#define MSG_DIALOG_FORWARD_REQUEST 9060 // New message for dialog forwarding requests
 
 // Game state tracking (synced from Main Controller)
 list players = [];
 list names = [];
 list lives = [];
 list readyPlayers = [];
-integer MAX_PLAYERS = 10;
-integer FLOATER_BASE_CHANNEL = -86000;
+#define MAX_PLAYERS 10
+#define FLOATER_BASE_CHANNEL -86000
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;
 

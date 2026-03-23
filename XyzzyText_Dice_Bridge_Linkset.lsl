@@ -9,18 +9,18 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Message constants for link communication
 // Dice messages (from link 1 - controller)
-integer MSG_DICE_ROLL = 3020;
-integer MSG_CLEAR_DICE = 3021;
+#define MSG_DICE_ROLL 3020
+#define MSG_CLEAR_DICE 3021
 
-integer DISPLAY_STRING = 204000;
+#define DISPLAY_STRING 204000
 
 // Dice prim links
-integer DICE_PRIM_1 = 83;  // First dice prim (characters 0-9)
-integer DICE_PRIM_2 = 84;  // Second dice prim (characters 10-19)
+#define DICE_PRIM_1 83  // First dice prim (characters 0-9)
+#define DICE_PRIM_2 84  // Second dice prim (characters 10-19)
 
 // Function to display dice text across both prims
 displayDiceText(string text) {

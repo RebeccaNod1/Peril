@@ -11,29 +11,29 @@
  
 /////////////// CONSTANTS ///////////////////
 // XyText Message Map.
-integer DISPLAY_STRING      = 204000;
-integer DISPLAY_EXTENDED    = 204001;
-integer REMAP_INDICES       = 204002;
-integer RESET_INDICES       = 204003;
-integer SET_CELL_INFO       = 204004;
-integer SET_THICKNESS       = 204006;
-integer SET_COLOR           = 204007;
+#define DISPLAY_STRING 204000
+#define DISPLAY_EXTENDED 204001
+#define REMAP_INDICES 204002
+#define RESET_INDICES 204003
+#define SET_CELL_INFO 204004
+#define SET_THICKNESS 204006
+#define SET_COLOR 204007
  
 // This is an extended character escape sequence.
-string  ESCAPE_SEQUENCE = "\\e";
+#define ESCAPE_SEQUENCE "\e"
  
 // This is used to get an index for the extended character.
-string  EXTENDED_INDEX  = "123456789abcdef";
+#define EXTENDED_INDEX "123456789abcdef"
  
 // Face numbers.
-integer FACE_1          = 3;
-integer FACE_2          = 7;
-integer FACE_3          = 4;
-integer FACE_4          = 6;
-integer FACE_5          = 1;
+#define FACE_1 3
+#define FACE_2 7
+#define FACE_3 4
+#define FACE_4 6
+#define FACE_5 1
  
 // Used to hide the text after a fade-out.
-key        TRANSPARENT     = "701917a8-d614-471f-13dd-5f4644e36e3c";
+#define TRANSPARENT "701917a8-d614-471f-13dd-5f4644e36e3c"
 // This is a list of textures for all 2-character combinations.
 list    CHARACTER_GRID  = [
         "00e9f9f7-0669-181c-c192-7f8e67678c8d",

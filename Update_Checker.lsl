@@ -19,9 +19,9 @@
 // - Link 84: "dice col 2" - no script needed
 // ====================================================================
 
-string CURRENT_VERSION = "2.8.7";
-string GITHUB_API_URL = "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest";
-string GITHUB_RAW_URL = "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/";
+#define CURRENT_VERSION "2.8.7"
+#define GITHUB_API_URL "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest"
+#define GITHUB_RAW_URL "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/"
 
 // VERIFIED Link 1 Scripts (from actual scan of "Peril Dice Controller V2")
 list LINK1_SCRIPTS = [
@@ -48,7 +48,7 @@ list LINKSET_SPECIFIC_SCRIPTS = [
 ];
 
 // XyzzyText system - VERIFIED 48 prims (Links 35-82)
-string XYZZY_SCRIPT = "xyzzy_Master_script.lsl";
+#define XYZZY_SCRIPT "xyzzy_Master_script.lsl"
 
 // Essential documentation files  
 list ESSENTIAL_DOCS = [
@@ -63,9 +63,9 @@ integer downloadMode = FALSE;
 string downloadingFile = "";
 
 // Message constants - following existing Peril Dice patterns
-integer MSG_ADMIN_MENU_RESPONSE = 888;           // Integration with admin menu
-integer MSG_UPDATE_CHECK_REQUEST = 2100;         // Request from admin menu
-integer MSG_TOGGLE_VERBOSE_LOGS = 9999;          // Verbose logging toggle
+#define MSG_ADMIN_MENU_RESPONSE 888           // Integration with admin menu
+#define MSG_UPDATE_CHECK_REQUEST 2100         // Request from admin menu
+#define MSG_TOGGLE_VERBOSE_LOGS 9999          // Verbose logging toggle
 
 // Internal verbose logging (follows existing pattern)
 integer VERBOSE_LOGGING = FALSE;

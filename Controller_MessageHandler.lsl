@@ -4,7 +4,7 @@
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
@@ -20,16 +20,16 @@ reportMemoryUsage(string scriptName) {
 }
 
 // Message constants for communication with main controller
-integer MSG_REQUEST_PLAYER_DATA = 8001;
-integer MSG_REQUEST_PICK_DATA = 8002;
-integer MSG_REQUEST_LIFE_DATA = 8003;
-integer MSG_PICK_ACTION = 8004;
-integer MSG_DICE_TYPE_REQUEST = 8005;
-integer MSG_LEAVE_GAME_REQUEST = 8006;
-integer MSG_OWNER_MESSAGE = 9030;        // Send formatted owner message
-integer MSG_PUBLIC_MESSAGE = 9031;       // Send formatted public message
-integer MSG_REGION_MESSAGE = 9032;       // Send formatted region message
-integer MSG_DIALOG_REQUEST = 9033;       // Send formatted dialog
+#define MSG_REQUEST_PLAYER_DATA 8001
+#define MSG_REQUEST_PICK_DATA 8002
+#define MSG_REQUEST_LIFE_DATA 8003
+#define MSG_PICK_ACTION 8004
+#define MSG_DICE_TYPE_REQUEST 8005
+#define MSG_LEAVE_GAME_REQUEST 8006
+#define MSG_OWNER_MESSAGE 9030        // Send formatted owner message
+#define MSG_PUBLIC_MESSAGE 9031       // Send formatted public message
+#define MSG_REGION_MESSAGE 9032       // Send formatted region message
+#define MSG_DIALOG_REQUEST 9033       // Send formatted dialog
 
 // Game state data synchronized from Main Controller
 list players = [];
@@ -43,17 +43,17 @@ integer roundStarted = FALSE;  // Track if the game round has started
 
 // Message constants from Main Controller (synchronized)
 integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_SYNC_PICKQUEUE = 2001;
+#define MSG_SYNC_PICKQUEUE 2001
 
 // Channel constants for scoreboard updates
 integer SCOREBOARD_CHANNEL_1;
 integer SCOREBOARD_CHANNEL_2;
 integer FLOATER_BASE_CHANNEL;
-integer MSG_CLEANUP_FLOAT = 104;
-integer MSG_UPDATE_FLOAT = 103;
+#define MSG_CLEANUP_FLOAT 104
+#define MSG_UPDATE_FLOAT 103
 
 // Dynamic channel calculation (matches Main Controller)
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 integer calculateChannel(integer offset) {
     // Use BOTH owner's key AND object's key to make channels unique per game instance

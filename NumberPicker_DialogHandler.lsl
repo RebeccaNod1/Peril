@@ -1,18 +1,18 @@
 // === Dialog Handler (Updated for Peril Dice - Paginated Multiple Picks) ===
 
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_GET_CURRENT_DIALOG = 302;
+#define MSG_SHOW_DIALOG 101
+#define MSG_GET_CURRENT_DIALOG 302
 
 // Verbose logging control
 integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-integer MSG_TOGGLE_VERBOSE_LOGS = 9998;  // Message to toggle verbose logging
+#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION
 // =============================================================================
 
 // Base channel offset - should match Main.lsl
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
 integer calculateChannel(integer offset) {
@@ -58,7 +58,7 @@ integer picksNeeded = 1;
 list currentPicks = [];
 list globallyPickedNumbers = []; // Numbers already picked by other players
 integer currentPage = 0;
-integer NUMBERS_PER_PAGE = 9; // Leave room for navigation buttons
+#define NUMBERS_PER_PAGE 9 // Leave room for navigation buttons
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {

@@ -6,7 +6,7 @@
 // =============================================================================
 
 // Base channel offset - should match Main.lsl
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
 integer calculateChannel(integer offset) {
@@ -35,16 +35,16 @@ initializeChannels() {
 
 // Configuration
 integer LISTEN_CHANNEL; // Will be set dynamically
-integer MSG_SYNC_GAME_STATE = 107;
+#define MSG_SYNC_GAME_STATE 107
 
 // Listen handle management
 integer listenHandle = -1;
 
 // Bot timing configuration to prevent dialog system overload
-float BOT_RESPONSE_DELAY = 1.5;  // Delay before bot responds to commands
+#define BOT_RESPONSE_DELAY 1.5  // Delay before bot responds to commands
 
 // Memory monitoring
-float MEMORY_WARNING_THRESHOLD = 0.8;  // Warn when using >80% of memory
+#define MEMORY_WARNING_THRESHOLD 0.8  // Warn when using >80% of memory
 
 // Track game state to validate bot commands
 list names = [];

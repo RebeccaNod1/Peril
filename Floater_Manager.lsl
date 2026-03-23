@@ -1,25 +1,25 @@
 // === FloatManager (Consolidated) ===
 // This version enforces a maximum of 10 players.
 
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_ROLL_RESULT = 102;
-integer MSG_UPDATE_FLOAT = 103;
-integer MSG_CLEANUP_FLOAT = 104;
-integer MSG_REZ_FLOAT = 105;
-integer MSG_REGISTER_PLAYER = 106;
-integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_CLEANUP_ALL_FLOATERS = 212;
+#define MSG_SHOW_DIALOG 101
+#define MSG_ROLL_RESULT 102
+#define MSG_UPDATE_FLOAT 103
+#define MSG_CLEANUP_FLOAT 104
+#define MSG_REZ_FLOAT 105
+#define MSG_REGISTER_PLAYER 106
+#define MSG_SYNC_GAME_STATE 107
+#define MSG_CLEANUP_ALL_FLOATERS 212
 
 // Debug control message constants
-integer MSG_DEBUG_PICKS_ON = 7001;
-integer MSG_DEBUG_PICKS_OFF = 7002;
+#define MSG_DEBUG_PICKS_ON 7001
+#define MSG_DEBUG_PICKS_OFF 7002
 
 // =============================================================================
 // DYNAMIC CHANNEL CONFIGURATION FOR FLOATERS
 // =============================================================================
 
 // Base channel offset - should match Main.lsl
-integer CHANNEL_BASE = -77000;
+#define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
 integer calculateChannel(integer offset) {
@@ -47,7 +47,7 @@ initializeChannels() {
 }
 
 // Maximum number of players allowed in the game
-integer MAX_PLAYERS = 10;
+#define MAX_PLAYERS 10
 
 // Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
 integer DEBUG_PICKS = FALSE;

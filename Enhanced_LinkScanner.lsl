@@ -34,7 +34,7 @@ list LINKSET_SPECIFIC_SCRIPTS = [
     "XyzzyText_Dice_Bridge_Linkset.lsl"         // Link 83
 ];
 
-string XYZZY_SCRIPT = "xyzzy_Master_script.lsl";  // Links 35-82 (48 prims)
+#define XYZZY_SCRIPT "xyzzy_Master_script.lsl"  // Links 35-82 (48 prims)
 
 // Scan results
 integer totalPrims = 0;

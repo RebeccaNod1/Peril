@@ -5,12 +5,12 @@
 // It downloads scripts from GitHub and installs them into the game
 // ====================================================================
 
-string CURRENT_VERSION = "2.8.8";
-string GITHUB_API_URL = "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest";
-string GITHUB_RAW_URL = "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/";
+#define CURRENT_VERSION "2.8.8"
+#define GITHUB_API_URL "https://api.github.com/repos/RebeccaNod1/Peril/releases/latest"
+#define GITHUB_RAW_URL "https://raw.githubusercontent.com/RebeccaNod1/Peril/main/"
 
 // Communication channels
-integer UPDATER_CHANNEL = -7723847; // Must match Update_Receiver.lsl
+#define UPDATER_CHANNEL -7723847 // Must match Update_Receiver.lsl
 
 // State tracking
 key targetGame = NULL_KEY;

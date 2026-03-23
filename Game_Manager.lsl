@@ -11,10 +11,10 @@ string getPlayerName(key id) {
 }
 
 // Game timing settings
-float BOT_PICK_DELAY = 2.0;
-float HUMAN_PICK_DELAY = 1.0;
-float DIALOG_DELAY = 1.5;
-float STATUS_DISPLAY_TIME = 8.0;
+#define BOT_PICK_DELAY 2.0
+#define HUMAN_PICK_DELAY 1.0
+#define DIALOG_DELAY 1.5
+#define STATUS_DISPLAY_TIME 8.0
 
 // Game state - synced from Main Controller
 list players = [];
@@ -95,16 +95,16 @@ reportMemoryUsage(string scriptName) {
 integer VERBOSE_LOGGING = FALSE;
 
 // Message constants
-integer MSG_SHOW_DIALOG = 101;
-integer MSG_SHOW_ROLL_DIALOG = 301;
-integer MSG_GET_DICE_TYPE = 1001;
-integer MSG_DICE_TYPE_RESULT = 1005;
-integer MSG_SYNC_GAME_STATE = 107;
-integer MSG_SYNC_PICKQUEUE = 2001;
-integer MSG_PLAYER_WON = 551;
-integer MSG_UPDATE_FLOAT = 2010;
-integer MSG_DIALOG_FORWARD_REQUEST = 9060; // Request dialog forwarding from Player_RegistrationManager
-integer MSG_CONTINUE_ROUND = 998; // Continue round after roll processing
+#define MSG_SHOW_DIALOG 101
+#define MSG_SHOW_ROLL_DIALOG 301
+#define MSG_GET_DICE_TYPE 1001
+#define MSG_DICE_TYPE_RESULT 1005
+#define MSG_SYNC_GAME_STATE 107
+#define MSG_SYNC_PICKQUEUE 2001
+#define MSG_PLAYER_WON 551
+#define MSG_UPDATE_FLOAT 2010
+#define MSG_DIALOG_FORWARD_REQUEST 9060 // Request dialog forwarding from Player_RegistrationManager
+#define MSG_CONTINUE_ROUND 998 // Continue round after roll processing
 
 continueCurrentRound() {
     // MEMORY OPTIMIZED: Skip complex validation - trust game state
