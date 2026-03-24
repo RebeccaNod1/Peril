@@ -115,6 +115,9 @@ distributeToBank(string text, list linkNumbers) {
 }
 
 default {
+    on_rez(integer start_param) {
+        llResetScript(); // Fixes Z-fighting and alignment glitches on rez
+    }
     state_entry() {
         if (VERBOSE_LOGGING) {
             llOwnerSay("📋 Leaderboard Communication Script ready! (Linkset Version)");

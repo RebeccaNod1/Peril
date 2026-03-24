@@ -19,6 +19,13 @@ string getPlayerName(key id) {
 // LINKSET COMMUNICATION CONSTANTS
 // =============================================================================
 
+#define DEBUG_LOGS 0 // Set to 1 to enable logs, 0 to STRIP them from bytecode and recover memory
+#if DEBUG_LOGS
+#define dbg(msg) dbg(msg)
+#else
+#define dbg(msg)
+#endif
+
 // Target link numbers (UPDATED after overlay prim insertion)
 #define SCOREBOARD_LINK 12     // Scoreboard manager cube
 #define LEADERBOARD_LINK 35    // Leaderboard manager (first XyzzyText prim)
@@ -343,7 +350,7 @@ resetGame() {
     llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_WINNER, "", NULL_KEY);  // Clear winner glow
     llMessageLinked(DICE_LINK, MSG_CLEAR_DICE, "", NULL_KEY);
     
-    llOwnerSay("🎮 Game reset! All state cleared (including scoreboard).");
+    dbg("🎮 Game reset! All state cleared (including scoreboard).");
     
     statusTimer = 0;
     lastStatus = "";
@@ -365,7 +372,7 @@ resetGame() {
 default {
     state_entry() {
         reportMemoryUsage("Main Controller");
-        llOwnerSay("🎮 Main Controller ready! (Linkset Version)");
+        dbg("🎮 Main Controller ready! (Linkset Version)");
         
         // Initialize lockout system
         gameOwner = llGetOwner();
@@ -377,12 +384,12 @@ default {
         // Reset the game on startup to ensure clean state
         resetGame();
         
-        llOwnerSay("✅ Main Controller initialization complete!");
+        dbg("✅ Main Controller initialization complete!");
     }
     
     on_rez(integer start_param) {
         reportMemoryUsage("Main Controller");
-        llOwnerSay("🔄 Main Controller rezzed - resetting game state...");
+        dbg("🔄 Main Controller rezzed - resetting game state...");
         
         // Re-initialize lockout system
         gameOwner = llGetOwner();
@@ -394,7 +401,7 @@ default {
         // Reset the game to ensure clean state when rezzed
         resetGame();
         
-        llOwnerSay("✅ Main Controller reset complete after rez!");
+        dbg("✅ Main Controller reset complete after rez!");
     }
 
     touch_start(integer total_number) {
@@ -475,11 +482,11 @@ default {
         }
         
         if (toucher == llGetOwner()) {
-            llOwnerSay("🔍 [DEBUG] Owner touched - idx: " + (string)idx + ", players list: " + llList2CSV(players));
+            dbg("🔍 [DEBUG] Owner touched - idx: " + (string)idx + ", players list: " + llList2CSV(players));
             if (idx == -1) {
                 // Owner is not in game - show join/admin choice
                 if (llListFindList(pendingRegistrations, [toucher]) != -1) {
-                    llOwnerSay("⏳ Registration already in progress for " + getPlayerName(toucher));
+                    dbg("⏳ Registration already in progress for " + getPlayerName(toucher));
                     return;
                 }
                 
@@ -521,7 +528,7 @@ default {
             string playerName = getPlayerName(toucher);
             if (playerName != "") {
                 if (llListFindList(pendingRegistrations, [toucher]) != -1) {
-                    llOwnerSay("⏳ Registration already in progress for " + playerName);
+                    dbg("⏳ Registration already in progress for " + playerName);
                     return;
                 }
                 
@@ -538,7 +545,7 @@ default {
                 }
                 llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
             } else {
-                llOwnerSay("⚠️ Could not get name for toucher: " + (string)toucher);
+                dbg("⚠️ Could not get name for toucher: " + (string)toucher);
             }
         }
     }
@@ -567,8 +574,8 @@ default {
                 integer existingPlayerIdx = llListFindList(players, [id]);
                 
                 if (existingPlayerIdx != -1) {
-                    llOwnerSay("⚠️ [Main Controller] DUPLICATE PLAYER KEY DETECTED - Player: " + newName + " (" + (string)id + ") already exists!");
-                    llOwnerSay("⚠️ [Main Controller] Players list length: " + (string)llGetListLength(players) + ", Names list length: " + (string)llGetListLength(names));
+                    dbg("⚠️ [Main Controller] DUPLICATE PLAYER KEY DETECTED - Player: " + newName + " (" + (string)id + ") already exists!");
+                    dbg("⚠️ [Main Controller] Players list length: " + (string)llGetListLength(players) + ", Names list length: " + (string)llGetListLength(names));
                     return; // Skip adding duplicate
                 }
                 
@@ -585,8 +592,8 @@ default {
                 }
                 
                 // That's it! Player_RegistrationManager already sent sync and scoreboard updates
-                llOwnerSay("✅ Player added to master lists: " + newName + " (" + (string)llGetFreeMemory() + " bytes free)");
-                llOwnerSay("🔍 [DEBUG] Updated lists - Players: " + (string)llGetListLength(players) + ", Names: " + (string)llGetListLength(names));
+                dbg("✅ Player added to master lists: " + newName + " (" + (string)llGetFreeMemory() + " bytes free)");
+                dbg("🔍 [DEBUG] Updated lists - Players: " + (string)llGetListLength(players) + ", Names: " + (string)llGetListLength(names));
             }
             return;
         }
@@ -625,7 +632,7 @@ default {
                             // SEND WINNER GLOW to scoreboard and trigger floater update
                             llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
                             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, potentialWinner, NULL_KEY);  // Update winner's floater
-                            llOwnerSay("🏆 [Main Controller] Pre-victory winner glow sent for: " + potentialWinner);
+                            dbg("🏆 [Main Controller] Pre-victory winner glow sent for: " + potentialWinner);
                         }
                     }
                     
@@ -718,7 +725,7 @@ default {
                             
                             // ENHANCED: Give eliminated player's floater time to show eliminated status
                             // before declaring victory and cleaning up
-                            llOwnerSay("⏳ [Main Controller] Final elimination detected - allowing display time before victory");
+                            dbg("⏳ [Main Controller] Final elimination detected - allowing display time before victory");
                             llSleep(2.0); // Give final eliminated player time to show red eliminated status
                             
                             // CRITICAL: Set victory flag immediately to prevent sync processing
@@ -750,7 +757,7 @@ default {
                             llMessageLinked(SCOREBOARD_LINK, MSG_GAME_WON, winner, NULL_KEY);
                             
                             // Use timer instead of llSleep to avoid immediate reset
-                            llOwnerSay("🏆 [Main Controller] Winner glow applied - starting victory delay timer");
+                            dbg("🏆 [Main Controller] Winner glow applied - starting victory delay timer");
                             victoryDelayTimer = llGetUnixTime();
                             currentTimerMode = TIMER_VICTORY_DELAY;
                             llSetTimerEvent(1.0);  // Check every second
@@ -800,7 +807,7 @@ default {
         
         // Handle emergency reset for stuck games
         if (num == -99998 && str == "EMERGENCY_RESET") {
-            llOwnerSay("🚨 [Main Controller] Emergency reset triggered - sending emergency reset to all scripts");
+            dbg("🚨 [Main Controller] Emergency reset triggered - sending emergency reset to all scripts");
             // Signal all scripts to emergency reset
             llMessageLinked(LINK_SET, -99998, "EMERGENCY_RESET", NULL_KEY);
             llSleep(0.5);
@@ -857,7 +864,7 @@ default {
             integer idx = llListFindList(names, [playerName]);
             if (idx != -1) {
                 if (llSubStringIndex(playerName, "Bot") == 0) {
-                    llOwnerSay("🤖 Bots are always ready and cannot change state");
+                    dbg("🤖 Bots are always ready and cannot change state");
                     return;
                 }
                 
@@ -971,12 +978,12 @@ default {
                         }
                         
                         if (newPerilPlayer != "") {
-                            llOwnerSay("🎯 [Main Controller] Peril player left - assigning new peril player: " + newPerilPlayer);
+                            dbg("🎯 [Main Controller] Peril player left - assigning new peril player: " + newPerilPlayer);
                             perilPlayer = newPerilPlayer;
                             // Send peril player update to scoreboard for glow effect
                             llMessageLinked(SCOREBOARD_LINK, 3005, newPerilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
                         } else {
-                            llOwnerSay("⚠️ [Main Controller] No valid peril player candidates found after player left!");
+                            dbg("⚠️ [Main Controller] No valid peril player candidates found after player left!");
                             perilPlayer = "NONE";
                             // Clear peril player glow on scoreboard
                             llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
@@ -1006,7 +1013,7 @@ default {
                     
                     // Check if we should reset the game (no players left)
                     if (llGetListLength(names) == 0) {
-                        llOwnerSay("🔄 [Main Controller] All players left - resetting game");
+                        dbg("🔄 [Main Controller] All players left - resetting game");
                         // Force clear any remaining game state before reset
                         roundStarted = FALSE;
                         gameStarting = FALSE;
@@ -1018,7 +1025,7 @@ default {
                     
                     // Skip updateHelpers to prevent memory crashes during player removal
                     // Scoreboard was already updated with MSG_REMOVE_PLAYER above
-                    llOwnerSay("✅ [Main Controller] Synchronized removal of " + leavingName);
+                    dbg("✅ [Main Controller] Synchronized removal of " + leavingName);
                 }
             }
             return;
@@ -1029,7 +1036,7 @@ default {
             if (id == gameOwner && str == "LOCK_GAME") {
                 isLocked = TRUE;
                 updateFloatingText();
-                llOwnerSay("🔒 [Main Controller] Game has been LOCKED - Floating text updated");
+                dbg("🔒 [Main Controller] Game has been LOCKED - Floating text updated");
             }
             return;
         }
@@ -1038,7 +1045,7 @@ default {
             if (id == gameOwner && str == "UNLOCK_GAME") {
                 isLocked = FALSE;
                 updateFloatingText();
-                llOwnerSay("🔓 [Main Controller] Game has been UNLOCKED - Floating text updated");
+                dbg("🔓 [Main Controller] Game has been UNLOCKED - Floating text updated");
             }
             return;
         }
@@ -1059,13 +1066,13 @@ default {
         // Handle memory monitor messages
         if (num == MSG_EMERGENCY_CLEANUP) {
             // Removed emergencyMemoryCleanup call to save memory
-            llOwnerSay("Emergency cleanup disabled to prevent crashes");
+            dbg("Emergency cleanup disabled to prevent crashes");
             return;
         }
         
         // Handle reset requests from other scripts (like Game_Manager)
         if (num == -99998 && str == "REQUEST_GAME_RESET") {
-            llOwnerSay("🔄 [Main Controller] Reset requested by " + (string)sender + ", executing...");
+            dbg("🔄 [Main Controller] Reset requested by " + (string)sender + ", executing...");
             resetGame();
             return;
         }
@@ -1076,7 +1083,7 @@ default {
         if (channel == rollDialogChannel) {
             if (msg == "Start Next Round" || msg == "BEGIN KILLING GAME") {
                 if (roundStarted) {
-                    llOwnerSay("⚠️ Round already in progress, ignoring duplicate round start from roll dialog");
+                    dbg("⚠️ Round already in progress, ignoring duplicate round start from roll dialog");
                     return;
                 }
                 
@@ -1124,23 +1131,23 @@ default {
                 if (msg == "Reset Leaderboard") {
                     // CHANGED: Send to scoreboard, which will handle leaderboard reset
                     llMessageLinked(SCOREBOARD_LINK, MSG_RESET_LEADERBOARD, "", NULL_KEY);
-                    llOwnerSay("🏆 Leaderboard scores reset - game wins cleared!");
+                    dbg("🏆 Leaderboard scores reset - game wins cleared!");
                     return;
                 }
                 if (msg == "Reset All") {
                     resetGame();
                     llMessageLinked(SCOREBOARD_LINK, MSG_RESET_LEADERBOARD, "", NULL_KEY);
-                    llOwnerSay("🔄 Complete reset - game and leaderboard cleared!");
+                    dbg("🔄 Complete reset - game and leaderboard cleared!");
                     return;
                 }
                 if (msg == "Memory Stats") {
                     // Removed reportMemoryStats call to save memory
-                    llOwnerSay("Memory stats reporting disabled to prevent crashes");
+                    dbg("Memory stats reporting disabled to prevent crashes");
                     return;
                 }
                 if (msg == "Add Test Player") {
                     if (llGetListLength(players) >= MAX_PLAYERS) {
-                        llOwnerSay("⚠️ Cannot add test player; the game is full (max " + (string)MAX_PLAYERS + ").");
+                        dbg("⚠️ Cannot add test player; the game is full (max " + (string)MAX_PLAYERS + ").");
                         return;
                     }
                     
@@ -1161,11 +1168,11 @@ default {
                     
                     // Don't show menu immediately - let the player touch the board again
                     // This avoids timing issues where the menu is shown before registration completes
-                    llOwnerSay("✅ " + testName + " registration sent - touch the board again to refresh menu");
+                    dbg("✅ " + testName + " registration sent - touch the board again to refresh menu");
                     return;
                 }
                 if (msg == "Force Floaters") {
-                    llOwnerSay("🔧 Forcing floater creation for all " + (string)llGetListLength(names) + " players...");
+                    dbg("🔧 Forcing floater creation for all " + (string)llGetListLength(names) + " players...");
                     integer i;
                     for (i = 0; i < llGetListLength(names); i++) {
                         string playerName = llList2String(names, i);
@@ -1173,7 +1180,7 @@ default {
                         llMessageLinked(LINK_SET, MSG_REZ_FLOAT, playerName, playerKey);
                         llSleep(0.3);
                     }
-                    llOwnerSay("✅ Floater creation requests sent for all players!");
+                    dbg("✅ Floater creation requests sent for all players!");
                     
                     // After forcing floaters, show appropriate menu based on owner registration status
                     integer ownerIdx = llListFindList(players, [llGetOwner()]);
@@ -1205,7 +1212,7 @@ default {
                 integer playerCount = llGetListLength(players);
                 integer nameCount = llGetListLength(names);
                 if (playerCount < 2) {
-                    llOwnerSay("⚠️ Need at least 2 players to start the game.");
+                    dbg("⚠️ Need at least 2 players to start the game.");
                     return;
                 }
                 
@@ -1220,7 +1227,7 @@ default {
                 }
                 
                 if (starterName == "") {
-                    llOwnerSay("⚠️ Only the game starter can start the game.");
+                    dbg("⚠️ Only the game starter can start the game.");
                     return;
                 }
                 
@@ -1236,7 +1243,7 @@ default {
                 }
                 
                 if (llGetListLength(notReadyPlayers) > 0) {
-                    llOwnerSay("⚠️ Cannot start game. These players are not ready: " + llList2CSV(notReadyPlayers));
+                    dbg("⚠️ Cannot start game. These players are not ready: " + llList2CSV(notReadyPlayers));
                     return;
                 }
                 
@@ -1269,7 +1276,7 @@ default {
                 lastStatus = "";
                 // CHANGED: Use link message instead of llRegionSay
                 llMessageLinked(SCOREBOARD_LINK, MSG_GAME_STATUS, "Title", NULL_KEY);
-                llOwnerSay("📢 Status cleared - reverted to Title");
+                dbg("📢 Status cleared - reverted to Title");
                 currentTimerMode = TIMER_IDLE;
                 llSetTimerEvent(0);
             }
@@ -1278,7 +1285,7 @@ default {
             if (victoryDelayTimer > 0) {
                 integer elapsed = llGetUnixTime() - victoryDelayTimer;
                 if (elapsed >= (integer)(STATUS_DISPLAY_TIME * 3.0)) {  // 24 seconds
-                    llOwnerSay("🏆 [Main Controller] Victory display time complete - executing game reset");
+                    dbg("🏆 [Main Controller] Victory display time complete - executing game reset");
                     victoryDelayTimer = 0;
                     currentTimerMode = TIMER_IDLE;
                     llSetTimerEvent(0);

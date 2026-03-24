@@ -46,6 +46,9 @@ displayDiceText(string text) {
 }
 
 default {
+    on_rez(integer start_param) {
+        llResetScript(); // Fixes Z-fighting and alignment glitches on rez
+    }
     state_entry() {
         if (VERBOSE_LOGGING) {
             llOwnerSay("🎲 Dice Display Bridge ready! (Linkset Version)");

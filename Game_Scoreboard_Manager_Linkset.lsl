@@ -7,7 +7,15 @@
 // =============================================================================
 
 // Verbose logging control
-integer VERBOSE_LOGGING = FALSE;  // Global flag for verbose debug logs - DISABLED to save memory
+#define DEBUG_LOGS 0 // Set to 1 to enable, 0 to STRIP all logs from memory
+
+#if DEBUG_LOGS
+    #define dbg(msg) llOwnerSay(msg)
+    integer VERBOSE_LOGGING = FALSE;
+#else
+    #define dbg(msg)
+    #define VERBOSE_LOGGING 0
+#endif
 #define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Message constants for link communication
@@ -919,7 +927,11 @@ updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
 }
 
 default {
+    on_rez(integer start_param) {
+        llResetScript(); // Fixes Z-fighting and alignment glitches on rez
+    }
     state_entry() {
+        llListen(1, "", llGetOwner(), ""); // Listen on channel 1 for local owner testing commands
         reportMemoryUsage("Scoreboard Manager");
         if (VERBOSE_LOGGING) {
             llOwnerSay("📈 Scoreboard Manager ready! (Linkset Version)");
@@ -938,6 +950,8 @@ default {
         
         // Load persistent leaderboard data from KVP Experience database
         loadLeaderboardData();
+        // Set a timer to passively auto-refresh the global scoreboard every 5 minutes
+        llSetTimerEvent(300.0);
         // NOTE: generateLeaderboardText() will be triggered by dataserver automatically when data arrives
         // No need to generate it randomly before data arrives
         
@@ -954,6 +968,7 @@ default {
     
     link_message(integer sender, integer num, string str, key id) {
         // Handle verbose logging toggle
+#if DEBUG_LOGS
         if (num == MSG_TOGGLE_VERBOSE_LOGS) {
             VERBOSE_LOGGING = !VERBOSE_LOGGING;
             if (VERBOSE_LOGGING) {
@@ -963,6 +978,7 @@ default {
             }
             return;
         }
+#endif
         
         // Only listen to messages from the main controller (link 1)
         if (sender != 1) return;
@@ -1124,7 +1140,7 @@ default {
                 string status = llGetSubString(data, 0, comma - 1);
                 string val = llGetSubString(data, comma + 1, -1);
                 
-                if (status == "0") {
+                if (status == "1") {
                     leaderboardNames = [];
                     leaderboardWins = [];
                     leaderboardLosses = [];
@@ -1165,7 +1181,7 @@ default {
                 if (status == "3") {
                     // Update failed because key didn't exist yet! Create it.
                     llCreateKeyValue("Peril_LB_Top50", pendingSerialize);
-                } else if (status == "0") {
+                } else if (status == "1") {
                     if (VERBOSE_LOGGING) {
                         llOwnerSay("✅ Global scoreboard synced successfully.");
                     }
@@ -1181,6 +1197,34 @@ default {
             llOwnerSay("  Active players: " + (string)llGetListLength(playerNames));
             llOwnerSay("  Leaderboard entries: " + (string)llGetListLength(leaderboardNames));
             llOwnerSay("  HTTP requests pending: " + (string)(llGetListLength(httpRequests) / 2));
+        }
+    }
+    
+    timer() {
+        if (VERBOSE_LOGGING) {
+            llOwnerSay("⏱️ Auto-refreshing Global Scoreboard Data...");
+        }
+        loadLeaderboardData();
+    }
+    
+    listen(integer channel, string name, key id, string message) {
+        string msg = llToLower(llStringTrim(message, STRING_TRIM));
+        if (msg == "testx") {
+            llOwnerSay("Testing X overlays on all 10 player slots...");
+            integer i;
+            for (i = 0; i < 10; i++) {
+                integer overlayIdx = getOverlayPrimLink(i);
+                if (overlayIdx >= FIRST_OVERLAY_PRIM && overlayIdx <= LAST_OVERLAY_PRIM) {
+                    llSetLinkPrimitiveParamsFast(overlayIdx, [
+                        PRIM_TEXTURE, ALL_SIDES, TEXTURE_ELIMINATED_X, <1,1,0>, <0,0,0>, 0.0,
+                        PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
+                    ]);
+                }
+            }
+        }
+        else if (msg == "clearx") {
+            llOwnerSay("Refreshing display to clear test X overlays...");
+            refreshPlayerDisplay();
         }
     }
 }

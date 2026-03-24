@@ -92,7 +92,15 @@ reportMemoryUsage(string scriptName) {
 }
 
 // Verbose logging control - toggled by owner
+#define DEBUG_LOGS 0  // Set to 1 to enable logs, 0 to STRIP from memory completely
+#if DEBUG_LOGS
+#define dbg(msg) dbg(msg)
 integer VERBOSE_LOGGING = FALSE;
+#else
+#define dbg(msg)
+#define VERBOSE_LOGGING 0
+#endif
+// Original VERBOSE_LOGGING definition removed
 
 // Message constants
 #define MSG_SHOW_DIALOG 101
@@ -118,30 +126,30 @@ continueCurrentRound() {
         if (continuePlayerIdx != -1 && continuePlayerIdx < llGetListLength(lives)) {
             integer continuePlayerLives = llList2Integer(lives, continuePlayerIdx);
             if (continuePlayerLives <= 0) {
-                llOwnerSay("🛑 [Game Manager] continueCurrentRound: Found eliminated player " + continueName + " with " + (string)continuePlayerLives + " lives - aborting round start");
+                dbg("🛑 [Game Manager] continueCurrentRound: Found eliminated player " + continueName + " with " + (string)continuePlayerLives + " lives - aborting round start");
                 return;
             }
         }
     }
     
     if (perilPlayer == "" || perilPlayer == "NONE") {
-        llOwnerSay("🛑 [Game Manager] continueCurrentRound: Invalid peril player (" + perilPlayer + ") - aborting round start");
+        dbg("🛑 [Game Manager] continueCurrentRound: Invalid peril player (" + perilPlayer + ") - aborting round start");
         return;
     }
     
     // Verify peril player exists and has lives
     integer perilIdx = llListFindList(names, [perilPlayer]);
     if (perilIdx == -1) {
-        llOwnerSay("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " not found in names list - aborting round start");
+        dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " not found in names list - aborting round start");
         return;
     }
     if (perilIdx >= llGetListLength(lives)) {
-        llOwnerSay("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " index out of bounds - aborting round start");
+        dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " index out of bounds - aborting round start");
         return;
     }
     integer perilLives = llList2Integer(lives, perilIdx);
     if (perilLives <= 0) {
-        llOwnerSay("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " has " + (string)perilLives + " lives - aborting round start");
+        dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " has " + (string)perilLives + " lives - aborting round start");
         return;
     }
     
@@ -149,7 +157,7 @@ continueCurrentRound() {
     // globalPickedNumbers will be cleared when first player picks
     picksData = [];
     
-    llOwnerSay("🔄 [Game Manager] continueCurrentRound: All validation passed, starting fresh round with " + (string)llGetListLength(names) + " players");
+    dbg("🔄 [Game Manager] continueCurrentRound: All validation passed, starting fresh round with " + (string)llGetListLength(names) + " players");
     
     // Set round as started for the new round
     roundStarted = TRUE;
@@ -165,7 +173,7 @@ continueCurrentRound() {
     }
     currentPickerIdx = 0;
     
-    llOwnerSay("🎯 [Game Manager] Pick queue created: " + llList2CSV(pickQueue) + ", requesting dice type");
+    dbg("🎯 [Game Manager] Pick queue created: " + llList2CSV(pickQueue) + ", requesting dice type");
     
     // Request dice type directly from Calculator for the new round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
@@ -176,12 +184,12 @@ continueCurrentRound() {
 startNextRound() {
     // Prevent multiple calls to start round
     if (roundStarted) {
-        llOwnerSay("⚠️ Round already started, ignoring duplicate start request");
+        dbg("⚠️ Round already started, ignoring duplicate start request");
         return;
     }
     
     if (llGetListLength(names) < 2) {
-        llOwnerSay("⚠️ Need at least 2 players to start the game.");
+        dbg("⚠️ Need at least 2 players to start the game.");
         return;
     }
     
@@ -200,7 +208,7 @@ startNextRound() {
         return;
     }
     
-    llOwnerSay("🎯 Game Manager starting new round...");
+    dbg("🎯 Game Manager starting new round...");
     
     // Set roundStarted immediately to prevent duplicate calls
     roundStarted = TRUE;
@@ -216,7 +224,7 @@ startNextRound() {
         llMessageLinked(12, 3005, perilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
         
         // Sync state to floater manager first, then update floaters to show new peril player immediately
-        llOwnerSay("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
+        dbg("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
         syncStateToMain(); // Sync the peril player to all modules first
         llSleep(0.1); // Brief delay to ensure sync propagates
         integer startJ;
@@ -230,7 +238,7 @@ startNextRound() {
     // globalPickedNumbers will be cleared when first player picks
     
     // Create pick queue with peril player first
-    llOwnerSay("🎯 Debug - Creating pickQueue. names: " + llList2CSV(names) + ", perilPlayer: " + perilPlayer);
+    dbg("🎯 Debug - Creating pickQueue. names: " + llList2CSV(names) + ", perilPlayer: " + perilPlayer);
     pickQueue = [perilPlayer];
     integer k;
     for (k = 0; k < llGetListLength(names); k++) {
@@ -240,11 +248,11 @@ startNextRound() {
         }
     }
     currentPickerIdx = 0;
-    llOwnerSay("🎯 Debug - Created pickQueue: " + llList2CSV(pickQueue) + ", currentPickerIdx: " + (string)currentPickerIdx);
+    dbg("🎯 Debug - Created pickQueue: " + llList2CSV(pickQueue) + ", currentPickerIdx: " + (string)currentPickerIdx);
     
     // Request dice type for this round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
-    llOwnerSay("🎯 Game Manager round setup complete, requesting dice type...");
+    dbg("🎯 Game Manager round setup complete, requesting dice type...");
 }
 
 showNextPickerDialog() {
@@ -254,40 +262,40 @@ showNextPickerDialog() {
     // Clear globalPickedNumbers if this is the first picker of a new round
     if (currentPickerIdx == 0 && llGetListLength(picksData) == 0) {
         globalPickedNumbers = [];
-        llOwnerSay("🔄 [Game Manager] Cleared globalPickedNumbers at start of new round");
+        dbg("🔄 [Game Manager] Cleared globalPickedNumbers at start of new round");
     }
     
     if (diceType <= 0) {
-        llOwnerSay("❌ Cannot show picker dialog: diceType not set (" + (string)diceType + ")");
+        dbg("❌ Cannot show picker dialog: diceType not set (" + (string)diceType + ")");
         return;
     }
     
     if (currentPickerIdx >= llGetListLength(pickQueue)) {
-        llOwnerSay("❌ Cannot show picker dialog: currentPickerIdx (" + (string)currentPickerIdx + ") >= pickQueue length (" + (string)llGetListLength(pickQueue) + ")");
+        dbg("❌ Cannot show picker dialog: currentPickerIdx (" + (string)currentPickerIdx + ") >= pickQueue length (" + (string)llGetListLength(pickQueue) + ")");
         return;
     }
     
     string firstName = llList2String(pickQueue, currentPickerIdx);
     if (firstName == "") {
-        llOwnerSay("❌ Cannot show picker dialog: empty player name at index " + (string)currentPickerIdx);
+        dbg("❌ Cannot show picker dialog: empty player name at index " + (string)currentPickerIdx);
         return;
     }
     
     // CRITICAL: Verify this player is still alive and in the game
     integer showPlayerIdx = llListFindList(names, [firstName]);
     if (showPlayerIdx == -1) {
-        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " not found in current game");
+        dbg("❌ Cannot show picker dialog: player " + firstName + " not found in current game");
         return;
     }
     
     if (showPlayerIdx >= llGetListLength(lives)) {
-        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " index out of bounds for lives list");
+        dbg("❌ Cannot show picker dialog: player " + firstName + " index out of bounds for lives list");
         return;
     }
     
     integer showPlayerLives = llList2Integer(lives, showPlayerIdx);
     if (showPlayerLives <= 0) {
-        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " has been eliminated (" + (string)showPlayerLives + " lives)");
+        dbg("❌ Cannot show picker dialog: player " + firstName + " has been eliminated (" + (string)showPlayerLives + " lives)");
         return;
     }
     
@@ -299,7 +307,7 @@ showNextPickerDialog() {
             string existingPicks = llGetSubString(llList2String(picksData, showIdx), llStringLength(firstName) + 1, -1);
             if (existingPicks != "") {
                 alreadyHasPicks = TRUE;
-                llOwnerSay("🎯 Game Manager: " + firstName + " already has picks (" + existingPicks + "), advancing to next player");
+                dbg("🎯 Game Manager: " + firstName + " already has picks (" + existingPicks + "), advancing to next player");
             }
         }
     }
@@ -319,7 +327,7 @@ showNextPickerDialog() {
     
     integer nameIdx = llListFindList(names, [firstName]);
     if (nameIdx == -1) {
-        llOwnerSay("❌ Cannot show picker dialog: player " + firstName + " not found in names list");
+        dbg("❌ Cannot show picker dialog: player " + firstName + " not found in names list");
         return;
     }
     
@@ -337,7 +345,7 @@ showNextPickerDialog() {
                 string existingBotPicks = llGetSubString(llList2String(picksData, showJ), llStringLength(firstName) + 1, -1);
                 if (existingBotPicks != "") {
                     botAlreadyHasPicks = TRUE;
-                    llOwnerSay("⚠️ [Game Manager] Bot " + firstName + " already has picks, skipping bot command: " + existingBotPicks);
+                    dbg("⚠️ [Game Manager] Bot " + firstName + " already has picks, skipping bot command: " + existingBotPicks);
                 }
             }
         }
@@ -354,9 +362,9 @@ showNextPickerDialog() {
             list showCompleteAvoidList = buildCompleteAvoidanceList();
             string showAvoidListStr = llList2CSV(showCompleteAvoidList);
             string botCommand = "BOT_PICK:" + firstName + ":" + (string)showPicksNeeded + ":" + (string)diceType + ":" + showAvoidListStr;
-            llOwnerSay("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(showCompleteAvoidList) + " numbers): " + showAvoidListStr);
+            dbg("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(showCompleteAvoidList) + " numbers): " + showAvoidListStr);
             llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
-            llOwnerSay("🤖 " + firstName + " is automatically picking " + (string)showPicksNeeded + " numbers...");
+            dbg("🤖 " + firstName + " is automatically picking " + (string)showPicksNeeded + " numbers...");
         } else {
             // Bot already has picks, advance to next player immediately
             currentPickerIdx++;
@@ -382,7 +390,7 @@ showNextPickerDialog() {
         string humanAvoidListStr = llList2CSV(humanCompleteAvoidList);
         string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)humanPicksNeeded + "|" + humanAvoidListStr;
         
-        llOwnerSay("🎯 Showing pick dialog for " + firstName);
+        dbg("🎯 Showing pick dialog for " + firstName);
         llSleep(0.5);  // Brief delay to prevent spam
         
         // Send dialog request through Player_RegistrationManager (it has the correct player keys)
@@ -403,7 +411,7 @@ syncStateToMain() {
 default {
     state_entry() {
         reportMemoryUsage("Game Manager");
-        llOwnerSay("🎯 Game Manager initializing...");
+        dbg("🎯 Game Manager initializing...");
         
         // Initialize/reset all game state variables
         players = [];
@@ -424,12 +432,12 @@ default {
         lastBotPickMessage = "";
         lastProcessTime = 0;
         
-        llOwnerSay("🎯 Game Manager ready!");
+        dbg("🎯 Game Manager ready!");
     }
     
     on_rez(integer start_param) {
         reportMemoryUsage("Game Manager");
-        llOwnerSay("🔄 Game Manager rezzed - reinitializing...");
+        dbg("🔄 Game Manager rezzed - reinitializing...");
         
         // Reset all game state variables on rez
         players = [];
@@ -450,7 +458,7 @@ default {
         lastBotPickMessage = "";
         lastProcessTime = 0;
         
-        llOwnerSay("✅ Game Manager reset complete after rez!");
+        dbg("✅ Game Manager reset complete after rez!");
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -528,7 +536,7 @@ default {
                     }
                     
                     if (livesChanged && newPerilPlayer != "" && newPerilPlayer != "NONE" && roundStarted && allPicksEmpty) {
-                        llOwnerSay("🎯 Post-roll state update detected - continuing round");
+                        dbg("🎯 Post-roll state update detected - continuing round");
                         continueCurrentRound();
                     }
                 }
@@ -538,21 +546,21 @@ default {
         
         // Receive legacy game state updates from main controller (simplified version)
         if (num == 9071) {
-            llOwnerSay("🔧 [Game Manager] Received sync: " + str);
+            dbg("🔧 [Game Manager] Received sync: " + str);
             list parts = llParseString2List(str, ["~"], []);
-            llOwnerSay("🔧 [Game Manager] Parsed into " + (string)llGetListLength(parts) + " parts");
+            dbg("🔧 [Game Manager] Parsed into " + (string)llGetListLength(parts) + " parts");
             
             // MEMORY OPTIMIZED: Skip heavy validation that causes sync rejections
             // Trust that Main Controller sends valid data
             
             // Handle special RESET sync message
             if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
-                llOwnerSay("🔄 [Game Manager] Received reset sync - ignoring during reset");
+                dbg("🔄 [Game Manager] Received reset sync - ignoring during reset");
                 return;
             }
             
             if (llGetListLength(parts) < 4) {
-                llOwnerSay("⚠️ [Game Manager] Incomplete sync message received, parts: " + (string)llGetListLength(parts) + " - IGNORING");
+                dbg("⚠️ [Game Manager] Incomplete sync message received, parts: " + (string)llGetListLength(parts) + " - IGNORING");
                 return;
             }
             {
@@ -588,14 +596,14 @@ default {
                         }
                     }
                     
-                    llOwnerSay("🎯 [Game Manager] Updated: " + (string)llGetListLength(names) + " players (minimal parsing)");
+                    dbg("🎯 [Game Manager] Updated: " + (string)llGetListLength(names) + " players (minimal parsing)");
                 }
                 
                 // Update peril player
                 string receivedPerilPlayer = llList2String(parts, 2);
                 if (receivedPerilPlayer != "NONE" && receivedPerilPlayer != "") {
                     perilPlayer = receivedPerilPlayer;
-                    llOwnerSay("🎯 [Game Manager] Peril player updated to: " + perilPlayer);
+                    dbg("🎯 [Game Manager] Peril player updated to: " + perilPlayer);
                 }
                 
                 // MEMORY OPTIMIZED: Skip all other complex processing
@@ -608,26 +616,26 @@ default {
             list newPickQueue = llCSV2List(str);
             string senderStr = (string)sender;
             string queueLenStr = (string)llGetListLength(newPickQueue);
-            llOwnerSay("🔍 [Game Manager] Received pickQueue sync from sender " + senderStr + ": '" + str + "' (" + queueLenStr + " items)");
+            dbg("🔍 [Game Manager] Received pickQueue sync from sender " + senderStr + ": '" + str + "' (" + queueLenStr + " items)");
             
             // STRONGEST PROTECTION: Never accept empty pickQueues during any active round
             if (roundStarted && llGetListLength(pickQueue) > 0 && (str == "" || llGetListLength(newPickQueue) == 0)) {
-                llOwnerSay("🔍 [Game Manager] REJECTING empty/invalid pickQueue sync during active round - keeping: " + llList2CSV(pickQueue));
+                dbg("🔍 [Game Manager] REJECTING empty/invalid pickQueue sync during active round - keeping: " + llList2CSV(pickQueue));
                 return;
             }
             
             // Additional protection: Don't accept pickQueue syncs if we just created a valid one
             if (llGetListLength(pickQueue) > 0 && (str == "" || llGetListLength(newPickQueue) == 0)) {
-                llOwnerSay("🔍 [Game Manager] REJECTING empty pickQueue sync - keeping valid queue: " + llList2CSV(pickQueue));
+                dbg("🔍 [Game Manager] REJECTING empty pickQueue sync - keeping valid queue: " + llList2CSV(pickQueue));
                 return;
             }
             
             // Only accept valid non-empty pickQueues
             if (llGetListLength(newPickQueue) > 0) {
                 pickQueue = newPickQueue;
-                llOwnerSay("🔍 [Game Manager] pickQueue updated to: " + llList2CSV(pickQueue));
+                dbg("🔍 [Game Manager] pickQueue updated to: " + llList2CSV(pickQueue));
             } else {
-                llOwnerSay("🔍 [Game Manager] Ignoring invalid pickQueue sync - keeping current: " + llList2CSV(pickQueue));
+                dbg("🔍 [Game Manager] Ignoring invalid pickQueue sync - keeping current: " + llList2CSV(pickQueue));
             }
             return;
         }
@@ -636,13 +644,13 @@ default {
         if (num == MSG_DICE_TYPE_RESULT) {
             // Prevent duplicate processing of dice type results
             if (diceTypeProcessed) {
-                llOwnerSay("🎲 Ignoring duplicate dice type result: " + str);
+                dbg("🎲 Ignoring duplicate dice type result: " + str);
                 return;
             }
             
             diceType = (integer)str;
             diceTypeProcessed = TRUE;
-            llOwnerSay("🎲 Game Manager received dice type: d" + str + " from Calculator");
+            dbg("🎲 Game Manager received dice type: d" + str + " from Calculator");
             llSleep(0.3);  // Brief delay
             
             // Start dialog if round has been started and we have a queue
@@ -662,7 +670,7 @@ default {
                 }
                 
                 if (!alreadyHasPicks) {
-                    llOwnerSay("🎯 Starting picks for " + currentPlayerName);
+                    dbg("🎯 Starting picks for " + currentPlayerName);
                     llSleep(0.5);
                     showNextPickerDialog();
                 }
@@ -679,7 +687,7 @@ default {
                 string playerName = llList2String(parts, 1);
                 string picksStr = llList2String(parts, 2);
                 
-                llOwnerSay("👤 HUMAN: " + playerName + " picking " + picksStr + " (global has: " + llList2CSV(globalPickedNumbers) + ")");
+                dbg("👤 HUMAN: " + playerName + " picking " + picksStr + " (global has: " + llList2CSV(globalPickedNumbers) + ")");
                 
                 // Check if this player already has picks to prevent duplicate processing
                 integer alreadyHasPicks = FALSE;
@@ -689,7 +697,7 @@ default {
                     if (llSubStringIndex(llList2String(picksData, m), playerName + "|") == 0) {
                         string existingPicks = llGetSubString(llList2String(picksData, m), llStringLength(playerName) + 1, -1);
                         if (existingPicks != "") {
-                            llOwnerSay("⚠️ [Game Manager] " + playerName + " already has picks: " + existingPicks + ", ignoring duplicate HUMAN_PICKED");
+                            dbg("⚠️ [Game Manager] " + playerName + " already has picks: " + existingPicks + ", ignoring duplicate HUMAN_PICKED");
                             alreadyHasPicks = TRUE;
                         }
                     }
@@ -706,7 +714,7 @@ default {
                 list duplicatePicks = [];
                 integer i;
                 
-                llOwnerSay("🔍 [Game Manager] Validating " + playerName + "'s picks against complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + llList2CSV(completeAvoidList));
+                dbg("🔍 [Game Manager] Validating " + playerName + "'s picks against complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + llList2CSV(completeAvoidList));
                 
                 for (i = 0; i < llGetListLength(newPicks); i++) {
                     string pick = llStringTrim(llList2String(newPicks, i), STRING_TRIM);
@@ -721,7 +729,7 @@ default {
                 }
                 
                 if (llGetListLength(duplicatePicks) > 0) {
-                    llOwnerSay("❌ DUPLICATE PICKS REJECTED: " + playerName + " tried to pick: " + llList2CSV(duplicatePicks));
+                    dbg("❌ DUPLICATE PICKS REJECTED: " + playerName + " tried to pick: " + llList2CSV(duplicatePicks));
                     integer idx = llListFindList(names, [playerName]);
                     if (idx != -1) {
                         llRegionSayTo(llList2Key(players, idx), 0, "❌ Some picks were already taken. Please pick again.");
@@ -736,7 +744,7 @@ default {
                             }
                         }
                         // Re-show the dialog with updated globally picked numbers
-                        llOwnerSay("⚠️ [Game Manager] Re-showing pick dialog for " + playerName + " with updated picks");
+                        dbg("⚠️ [Game Manager] Re-showing pick dialog for " + playerName + " with updated picks");
                         
                         // Calculate picks needed based on peril player's lives
                         integer perilIdx = llListFindList(names, [perilPlayer]);
@@ -771,7 +779,7 @@ default {
                     } else {
                         picksData = llListReplaceList(picksData, [newEntry], picksIdx, picksIdx);
                     }
-                    llOwnerSay("🟢 " + playerName + " picks saved: " + picksStr);
+                    dbg("🟢 " + playerName + " picks saved: " + picksStr);
                     
                     llSay(0, "🎯 " + playerName + " stakes their life on numbers: " + picksStr + " 🎲");
                     
@@ -797,19 +805,19 @@ default {
                     currentPickerIdx++;
                     
                     if (currentPickerIdx < llGetListLength(pickQueue)) {
-                        llOwnerSay("🔍 [Game Manager] More players in queue, showing next dialog");
+                        dbg("🔍 [Game Manager] More players in queue, showing next dialog");
                         showNextPickerDialog();
                     } else {
                         // All picked, show roll dialog
-                        llOwnerSay("🎯 [Game Manager] All players have picked! Showing roll dialog to " + perilPlayer);
+                        dbg("🎯 [Game Manager] All players have picked! Showing roll dialog to " + perilPlayer);
                         
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
-                        llOwnerSay("🔄 [Game Manager] Syncing final picks data before roll phase...");
+                        dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
                         llSleep(1.0); // Longer delay to ensure sync propagates to all modules
                         
                         // Send roll dialog through Player_RegistrationManager
-                        llOwnerSay("🎯 [Game Manager] Sending roll dialog request for: " + perilPlayer);
+                        dbg("🎯 [Game Manager] Sending roll dialog request for: " + perilPlayer);
                         string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     }
@@ -820,13 +828,13 @@ default {
         
 // Handle bot picks
         if (num == -9997 && llSubStringIndex(str, "BOT_PICKED:") == 0) {
-            llOwnerSay("🔍 [Game Manager] BOT_PICKED message received: " + str);
+            dbg("🔍 [Game Manager] BOT_PICKED message received: " + str);
             list parts = llParseString2List(str, [":"], []);
             if (llGetListLength(parts) >= 3) {
                 string playerName = llList2String(parts, 1);
                 string picksStr = llList2String(parts, 2);
                 
-                llOwnerSay("🤖 BOT: " + playerName + " picking " + picksStr + " (global had: " + llList2CSV(globalPickedNumbers) + ")");
+                dbg("🤖 BOT: " + playerName + " picking " + picksStr + " (global had: " + llList2CSV(globalPickedNumbers) + ")");
                 
                 // Check if this bot has already made picks this round to prevent duplicates
                 integer existingPicksIdx = -1;
@@ -835,7 +843,7 @@ default {
                     if (llSubStringIndex(llList2String(picksData, m), playerName + "|") == 0) {
                         string existingPicks = llGetSubString(llList2String(picksData, m), llStringLength(playerName) + 1, -1);
                         if (existingPicks != "") {
-                            llOwnerSay("⚠️ [Game Manager] Ignoring duplicate BOT_PICKED for " + playerName + " (already has picks: " + existingPicks + ")");
+                            dbg("⚠️ [Game Manager] Ignoring duplicate BOT_PICKED for " + playerName + " (already has picks: " + existingPicks + ")");
                             
                             // IMPORTANT: Even though this is a duplicate, check if all players have now picked
                             // Count how many players have picks
@@ -857,15 +865,15 @@ default {
                             
                     // If all players have picks, advance to roll phase
                     if (playersWithPicks >= llGetListLength(names)) {
-                        llOwnerSay("🎯 [Game Manager] All players have picks! Moving to roll phase...");
+                        dbg("🎯 [Game Manager] All players have picks! Moving to roll phase...");
                         
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
-                        llOwnerSay("🔄 [Game Manager] Syncing final picks data before roll phase...");
+                        dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
                         llSleep(1.0); // Longer delay to ensure sync propagates to all modules
                         
                         // Force close any active number picker dialogs
-                        llOwnerSay("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
+                        dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
                         llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
@@ -881,8 +889,8 @@ default {
                 
                 // VALIDATE: Check for duplicate picks before saving
                 if (picksStr != "" && llListFindList(globalPickedNumbers, [picksStr]) != -1) {
-                    llOwnerSay("❌ [Game Manager] Bot " + playerName + " tried to pick duplicate number: " + picksStr + " - REJECTING");
-                    llOwnerSay("🙄 [Game Manager] Sending new pick command to Bot Manager for " + playerName);
+                    dbg("❌ [Game Manager] Bot " + playerName + " tried to pick duplicate number: " + picksStr + " - REJECTING");
+                    dbg("🙄 [Game Manager] Sending new pick command to Bot Manager for " + playerName);
                     
                     // Calculate picks needed for bot retry
                     integer perilIdx = llListFindList(names, [perilPlayer]);
@@ -896,14 +904,14 @@ default {
                     list completeAvoidList = buildCompleteAvoidanceList();
                     string avoidListStr = llList2CSV(completeAvoidList);
                     string botCommand = "BOT_PICK:" + playerName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + avoidListStr;
-                    llOwnerSay("🎯 [Game Manager] Sending retry bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
+                    dbg("🎯 [Game Manager] Sending retry bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
                     llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
                     return; // Don't save this pick
                 }
                 
                 // Update picks data
                 integer idx = llListFindList(names, [playerName]);
-                llOwnerSay("🔧 [Game Manager] Looking for bot " + playerName + " in names list: " + llList2CSV(names) + " (idx: " + (string)idx + ")");
+                dbg("🔧 [Game Manager] Looking for bot " + playerName + " in names list: " + llList2CSV(names) + " (idx: " + (string)idx + ")");
                 if (idx != -1) {
                     integer picksIdx = -1;
                     integer k;
@@ -963,19 +971,19 @@ default {
                         }
                     }
                     
-                    llOwnerSay("🔍 [Game Manager] Bot pick complete - players with picks: " + (string)playersWithPicks + "/" + (string)llGetListLength(names));
+                    dbg("🔍 [Game Manager] Bot pick complete - players with picks: " + (string)playersWithPicks + "/" + (string)llGetListLength(names));
                     
                     // If all players have picks, advance to roll phase
                     if (playersWithPicks >= llGetListLength(names)) {
-                        llOwnerSay("🎯 [Game Manager] All players have picks! Moving to roll phase...");
+                        dbg("🎯 [Game Manager] All players have picks! Moving to roll phase...");
                         
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
-                        llOwnerSay("🔄 [Game Manager] Syncing final picks data before roll phase...");
+                        dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
                         llSleep(0.2); // Brief delay to ensure sync propagates
                         
                         // Force close any active number picker dialogs
-                        llOwnerSay("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
+                        dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
                         llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
@@ -995,12 +1003,12 @@ default {
         
         // Handle continue round requests from Main Controller
         if (num == MSG_CONTINUE_ROUND) {
-            llOwnerSay("🎯 [Game Manager] Received continue round request with peril player: '" + str + "'");
+            dbg("🎯 [Game Manager] Received continue round request with peril player: '" + str + "'");
             
             // Update peril player from the continue message if provided
             if (str != "" && str != "NONE") {
                 perilPlayer = str;
-                llOwnerSay("🎯 [Game Manager] Updated peril player to: " + perilPlayer);
+                dbg("🎯 [Game Manager] Updated peril player to: " + perilPlayer);
                 
                 // Reset round state and continue with existing peril player
                 roundStarted = FALSE;
@@ -1012,7 +1020,7 @@ default {
                 continueCurrentRound();
             } else {
                 // Empty peril player means this is initial game start - use startNextRound()
-                llOwnerSay("🎯 [Game Manager] Empty peril player - starting initial game round");
+                dbg("🎯 [Game Manager] Empty peril player - starting initial game round");
                 
                 // Reset round state
                 roundStarted = FALSE;
@@ -1030,11 +1038,13 @@ default {
         if (num == 9011 && llSubStringIndex(str, "VERBOSE_LOGGING|") == 0) {
             list parts = llParseString2List(str, ["|"], []);
             if (llGetListLength(parts) >= 2) {
+                #if DEBUG_LOGS
                 VERBOSE_LOGGING = (integer)llList2String(parts, 1);
+#endif
                 if (VERBOSE_LOGGING) {
-                    llOwnerSay("🔍 [Game Manager] Verbose logging ON");
+                    dbg("🔍 [Game Manager] Verbose logging ON");
                 } else {
-                    llOwnerSay("🔍 [Game Manager] Verbose logging OFF");
+                    dbg("🔍 [Game Manager] Verbose logging OFF");
                 }
             }
             return;
@@ -1051,13 +1061,13 @@ default {
             diceTypeProcessed = FALSE;  // Reset for new game
             roundContinueInProgress = FALSE;  // Reset protection flag
             lastSyncProcessTime = 0;  // Reset sync timing
-            llOwnerSay("🎯 Game Manager reset - ready for new game!");
+            dbg("🎯 Game Manager reset - ready for new game!");
             return;
         }
         
         // Handle emergency state reset (for when game gets stuck)
         if (num == -99998 && str == "EMERGENCY_RESET") {
-            llOwnerSay("🚨 [Game Manager] Emergency reset triggered!");
+            dbg("🚨 [Game Manager] Emergency reset triggered!");
             roundStarted = FALSE;
             perilPlayer = "";
             currentPickerIdx = 0;
@@ -1065,7 +1075,7 @@ default {
             diceTypeProcessed = FALSE;
             roundContinueInProgress = FALSE;
             lastSyncProcessTime = 0;  // Reset sync timing
-            llOwnerSay("🔒 [Game Manager] Emergency state reset complete");
+            dbg("🔒 [Game Manager] Emergency state reset complete");
             return;
         }
     }

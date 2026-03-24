@@ -1,3 +1,10 @@
+#define DEBUG_LOGS 0 // Set to 1 to enable logs, 0 to STRIP from memory completely
+#if DEBUG_LOGS
+#define dbg(msg) dbg(msg)
+#else
+#define dbg(msg)
+#endif
+
 // === Dialog Handler (Owner & Player) with unified Ready/Leave menu and join support ===
 
 // Helper function to get display name with fallback to username
@@ -51,11 +58,11 @@ initializeChannels() {
     DICE_DATA_CHANNEL = calculateChannel(8);        // ~-85000 range
     
     // Report channel to owner for debugging
-    llOwnerSay("🔧 [Owner/Player Dialog] Dynamic channels initialized:");
-    llOwnerSay("  Main Dialog: " + (string)MAIN_DIALOG_CHANNEL);
-    llOwnerSay("  Scoreboard: " + (string)SCOREBOARD_DATA_CHANNEL);
-    llOwnerSay("  Leaderboard: " + (string)LEADERBOARD_DATA_CHANNEL);
-    llOwnerSay("  Dice: " + (string)DICE_DATA_CHANNEL);
+    dbg("🔧 [Owner/Player Dialog] Dynamic channels initialized:");
+    dbg("  Main Dialog: " + (string)MAIN_DIALOG_CHANNEL);
+    dbg("  Scoreboard: " + (string)SCOREBOARD_DATA_CHANNEL);
+    dbg("  Leaderboard: " + (string)LEADERBOARD_DATA_CHANNEL);
+    dbg("  Dice: " + (string)DICE_DATA_CHANNEL);
 }
 
 integer DIALOG_CHANNEL; // Legacy variable, will be set dynamically
@@ -165,7 +172,7 @@ showTroubleshootingMenu(key id) {
 showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
     // Check for timeout of previous request
     if (pendingMenuPlayer != NULL_KEY && (llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
-        llOwnerSay("⏰ Previous menu request timed out, clearing pending state");
+        dbg("⏰ Previous menu request timed out, clearing pending state");
         pendingMenuPlayer = NULL_KEY;
     }
     
@@ -176,7 +183,7 @@ showReadyLeaveMenu(key id, integer isStarter, integer isOwner) {
     
     // If there's a pending request for a different player, warn about it but proceed
     if (pendingMenuPlayer != NULL_KEY && pendingMenuPlayer != id) {
-        llOwnerSay("⚠️ [Debug] Overriding pending request for " + (string)pendingMenuPlayer + " with new request for " + (string)id);
+        dbg("⚠️ [Debug] Overriding pending request for " + (string)pendingMenuPlayer + " with new request for " + (string)id);
     }
     
     pendingMenuPlayer = id;
@@ -291,7 +298,7 @@ showKickPlayerMenu(key id, list playerNames) {
         string buttonLabel = "👢 " + kickDisplayName;
         
         // Debug: Check button length
-        llOwnerSay("🔍 Debug kick button: '" + buttonLabel + "' = " + (string)llStringLength(buttonLabel) + " chars");
+        dbg("🔍 Debug kick button: '" + buttonLabel + "' = " + (string)llStringLength(buttonLabel) + " chars");
         
         kickOptions += [buttonLabel];
         kickDisplayNames += [buttonLabel];  // Store the full button label
@@ -363,14 +370,14 @@ default {
         leaderboardHandle = llListen(LEADERBOARD_DATA_CHANNEL, "", "", "");
         diceHandle = llListen(DICE_DATA_CHANNEL, "", "", "");
         
-        llOwnerSay("🎭 Owner and Player Dialog Handler ready with lockout system!");
-        llOwnerSay("🔓 Game is UNLOCKED - All players can access menus");
+        dbg("🎭 Owner and Player Dialog Handler ready with lockout system!");
+        dbg("🔓 Game is UNLOCKED - All players can access menus");
     }
     
     on_rez(integer start_param) {
         reportMemoryUsage("🎭 Player Dialog");
         
-        llOwnerSay("🔄 Player Dialog Handler rezzed - reinitializing...");
+        dbg("🔄 Player Dialog Handler rezzed - reinitializing...");
         
         // Re-initialize dynamic channels
         initializeChannels();
@@ -408,7 +415,7 @@ default {
         leaderboardHandle = llListen(LEADERBOARD_DATA_CHANNEL, "", "", "");
         diceHandle = llListen(DICE_DATA_CHANNEL, "", "", "");
         
-        llOwnerSay("✅ Player Dialog Handler reset complete after rez!");
+        dbg("✅ Player Dialog Handler reset complete after rez!");
     }
 
     link_message(integer sender, integer num, string str, key id) {
@@ -424,14 +431,14 @@ default {
             currentPickList = [];
             currentPickTarget = "";
             currentPickLimit = 3;
-            llOwnerSay("🎭 Owner and Player Dialog Handler reset!");
+            dbg("🎭 Owner and Player Dialog Handler reset!");
             return;
         }
         
         if (num == MSG_SHOW_MENU) {
             list args = llParseString2List(str, ["|"], []);
             if (llGetListLength(args) < 2) {
-                llOwnerSay("⚠️ Invalid message format: " + str);
+                dbg("⚠️ Invalid message format: " + str);
                 return;
             }
             string targetType = llList2String(args, 0);
@@ -468,7 +475,7 @@ default {
                 if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
                     // Check for timeout
                     if ((llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
-                        llOwnerSay("⏰ Menu request timed out, ignoring response");
+                        dbg("⏰ Menu request timed out, ignoring response");
                         pendingMenuPlayer = NULL_KEY;
                         return;
                     }
@@ -479,20 +486,20 @@ default {
                     pendingMenuRequestID = 0;
                 }
             } else {
-                llOwnerSay("⚠️ Invalid ready state result format - expected 4 parts, got " + (string)llGetListLength(parts));
+                dbg("⚠️ Invalid ready state result format - expected 4 parts, got " + (string)llGetListLength(parts));
             }
             return;
         }
         else if (num == MSG_PLAYER_LIST_RESULT) {
             list playerNames = llParseString2List(str, [","], []);
-            llOwnerSay("📋 Fetching list of players for pick management...");
+            dbg("📋 Fetching list of players for pick management...");
             showPickManageMenu(id, playerNames);
         }
         // Handle player list result for kick functionality
         else if (num == 8009) {
-            llOwnerSay("🔍 [Dialog Handler] Received kick player list string: '" + str + "'");
+            dbg("🔍 [Dialog Handler] Received kick player list string: '" + str + "'");
             list rawNames = llParseString2List(str, [","], []);
-            llOwnerSay("🔍 [Dialog Handler] Raw parsed into " + (string)llGetListLength(rawNames) + " names: " + llList2CSV(rawNames));
+            dbg("🔍 [Dialog Handler] Raw parsed into " + (string)llGetListLength(rawNames) + " names: " + llList2CSV(rawNames));
             
             // Filter out any command strings that might have gotten mixed in
             list playerNames = [];
@@ -506,11 +513,11 @@ default {
                     llSubStringIndex(name, "MSG_") != 0) {
                     playerNames += [name];
                 } else {
-                    llOwnerSay("⚠️ [Dialog Handler] Filtered out invalid name: '" + name + "'");
+                    dbg("⚠️ [Dialog Handler] Filtered out invalid name: '" + name + "'");
                 }
             }
             
-            llOwnerSay("🔍 [Dialog Handler] Filtered to " + (string)llGetListLength(playerNames) + " valid names: " + llList2CSV(playerNames));
+            dbg("🔍 [Dialog Handler] Filtered to " + (string)llGetListLength(playerNames) + " valid names: " + llList2CSV(playerNames));
             showKickPlayerMenu(id, playerNames);
         }
         else if (num == MSG_PICK_LIST_RESULT) {
@@ -518,11 +525,11 @@ default {
             string returnedName = llList2String(parts, 0);
             string picks = llList2String(parts, 1);
             if (llStringTrim(returnedName, STRING_TRIM) == llStringTrim(currentPickTarget, STRING_TRIM)) {
-                llOwnerSay("✅ Matched pick list for: " + returnedName);
+                dbg("✅ Matched pick list for: " + returnedName);
                 currentPickList = llCSV2List(picks);
                 llMessageLinked(LINK_THIS, MSG_LIFE_LOOKUP, currentPickTarget, id);
             } else {
-                llOwnerSay("❌ Name mismatch: got " + returnedName + " but expected " + currentPickTarget);
+                dbg("❌ Name mismatch: got " + returnedName + " but expected " + currentPickTarget);
             }
         }
         else if (num == MSG_LIFE_LOOKUP) {
@@ -546,7 +553,7 @@ default {
                 if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
                     // Check for timeout
                     if ((llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
-                        llOwnerSay("⏰ Owner status query timed out, ignoring response");
+                        dbg("⏰ Owner status query timed out, ignoring response");
                         pendingMenuPlayer = NULL_KEY;
                         return;
                     }
@@ -554,13 +561,13 @@ default {
                     // Decide which menu to show based on registration status
                     if (isRegistered) {
                         // Owner is registered - show ready/leave menu with Owner button
-                        llOwnerSay("🔍 [Debug] Owner is registered, isStarter=" + (string)isStarter + ", showing ready/leave menu");
-                        llOwnerSay("🔍 [Debug] About to call showReadyLeaveMenu with id=" + (string)id + ", isStarter=" + (string)isStarter + ", isOwner=TRUE");
+                        dbg("🔍 [Debug] Owner is registered, isStarter=" + (string)isStarter + ", showing ready/leave menu");
+                        dbg("🔍 [Debug] About to call showReadyLeaveMenu with id=" + (string)id + ", isStarter=" + (string)isStarter + ", isOwner=TRUE");
                         
                         // DON'T reset pending state here - showReadyLeaveMenu needs it!
                         // The ready state handler will reset it when the dialog is shown
                         showReadyLeaveMenu(id, isStarter, TRUE);
-                        llOwnerSay("🔍 [Debug] showReadyLeaveMenu call completed");
+                        dbg("🔍 [Debug] showReadyLeaveMenu call completed");
                     } else if (isPending) {
                         llRegionSayTo(id, 0, "⏳ Registration already in progress for " + ownerName);
                         // Reset pending state for non-registered responses
@@ -576,10 +583,10 @@ default {
                         pendingMenuRequestID = 0;
                     }
                 } else {
-                    llOwnerSay("⚠️ Owner status response mismatch - ignoring");
+                    dbg("⚠️ Owner status response mismatch - ignoring");
                 }
             } else {
-                llOwnerSay("⚠️ Invalid owner status result format - expected 5 parts, got " + (string)llGetListLength(parts));
+                dbg("⚠️ Invalid owner status result format - expected 5 parts, got " + (string)llGetListLength(parts));
             }
             return;
         }
@@ -603,7 +610,7 @@ default {
                 isLocked = TRUE;
                 // Notify Main Controller to update floating text
                 llMessageLinked(LINK_SET, 9001, "LOCK_GAME", id);
-                llOwnerSay("🔒 Game has been LOCKED - Only owner can access any features");
+                dbg("🔒 Game has been LOCKED - Only owner can access any features");
                 llSay(0, "🔒 Game has been locked by the owner. Only the owner can access any features.");
                 showOwnerMenu(id); // Refresh the owner menu
             } else {
@@ -615,7 +622,7 @@ default {
                 isLocked = FALSE;
                 // Notify Main Controller to update floating text
                 llMessageLinked(LINK_SET, 9002, "UNLOCK_GAME", id);
-                llOwnerSay("🔓 Game has been UNLOCKED - All players can access menus");
+                dbg("🔓 Game has been UNLOCKED - All players can access menus");
                 llSay(0, "🔓 Game has been unlocked by the owner. All features are now available.");
                 showOwnerMenu(id); // Refresh the owner menu
             } else {
@@ -676,25 +683,25 @@ default {
         }
         else if (msg == "Cleanup Floaters") {
             // Universal floater cleanup that works even after script resets
-            llOwnerSay("🧩 Force cleaning ALL possible floater channels...");
+            dbg("🧩 Force cleaning ALL possible floater channels...");
             llMessageLinked(LINK_SET, MSG_CLEANUP_ALL_FLOATERS, "", NULL_KEY);
         }
         else if (msg == "Force Floaters") {
             // Force creation of floaters for all registered players - send as dialog response to Main Controller
-            llOwnerSay("🔧 Requesting floater creation for all registered players...");
+            dbg("🔧 Requesting floater creation for all registered players...");
             // This will be handled by Main Controller's dialog listener
             // No need to forward via link_message - the Main Controller is already listening on DIALOG_CHANNEL
         }
         else if (msg == "🔍 Toggle Verbose Logs") {
             // Toggle verbose logging system-wide
-            llOwnerSay("🔍 Toggling verbose logging system-wide...");
+            dbg("🔍 Toggling verbose logging system-wide...");
             llMessageLinked(LINK_SET, 9010, "TOGGLE_VERBOSE_LOGS", id);
             // Return to troubleshooting menu after toggling
             showTroubleshootingMenu(id);
         }
         else if (msg == "🔄 Check for Updates") {
             // Trigger update check via Update_Receiver script
-            llOwnerSay("🔄 Checking GitHub for Peril Dice updates...");
+            dbg("🔄 Checking GitHub for Peril Dice updates...");
             llMessageLinked(LINK_SET, 2100, "CHECK_UPDATES_REQUEST", id);
             // Return to troubleshooting menu
             showTroubleshootingMenu(id);
@@ -704,7 +711,7 @@ default {
         }
         else if (llSubStringIndex(msg, "🛠 ") == 0) {
             currentPickTarget = llStringTrim(llDeleteSubString(msg, 0, 1), STRING_TRIM);
-            llOwnerSay("🎯 Pick target set to: " + currentPickTarget);
+            dbg("🎯 Pick target set to: " + currentPickTarget);
             currentPickList = [];
             llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
         }
@@ -731,7 +738,7 @@ default {
                 // Send kick message to Controller_MessageHandler (not sync channel 107!)
                 llMessageLinked(LINK_SET, 8007, "KICK_PLAYER|" + playerToKick + "|" + (string)id, NULL_KEY);
             } else {
-                llOwnerSay("⚠️ Could not find original name for kick selection: " + msg);
+                dbg("⚠️ Could not find original name for kick selection: " + msg);
             }
             // Return to player management menu
             showPlayerManagementMenu(id);
@@ -739,19 +746,19 @@ default {
         // Forward numeric picks to the game logic
         else if ((integer)msg > 0) {
             if (llGetListLength(currentPickList) >= currentPickLimit) {
-                llOwnerSay("⚠️ Reached pick limit of " + (string)currentPickLimit + " for " + currentPickTarget);
+                dbg("⚠️ Reached pick limit of " + (string)currentPickLimit + " for " + currentPickTarget);
                 showPickListMenu(id);
                 return;
             }
             if (llListFindList(currentPickList, [msg]) != -1) {
-                llOwnerSay("⚠️ Pick already exists: " + msg);
+                dbg("⚠️ Pick already exists: " + msg);
                 showPickListMenu(id);
                 return;
             }
             integer i;
             for (i = 0; i < llGetListLength(currentPickList); i++) {
                 if (llList2String(currentPickList, i) == msg) {
-                    llOwnerSay("⚠️ Duplicate pick detected.");
+                    dbg("⚠️ Duplicate pick detected.");
                     return;
                 }
             }
@@ -779,9 +786,9 @@ default {
                 // Store display info: [type, offset, rotation, ...]
                 foundDisplays += [object_type, offset, rel_rot];
                 
-                llOwnerSay("✅ Found " + object_type + " display at position " + (string)object_pos);
-                llOwnerSay("   Config: " + object_type + "_offset=" + (string)offset);
-                llOwnerSay("   Rotation: " + object_type + "_rotation=" + (string)rel_rot);
+                dbg("✅ Found " + object_type + " display at position " + (string)object_pos);
+                dbg("   Config: " + object_type + "_offset=" + (string)offset);
+                dbg("   Rotation: " + object_type + "_rotation=" + (string)rel_rot);
             }
         }
         // Note: Automatic auto-config requests are now handled by Controller_Discovery.lsl
@@ -795,18 +802,18 @@ default {
         integer numDisplays = llGetListLength(foundDisplays) / 3; // 3 items per display (type, offset, rotation)
         
         if (numDisplays == 0) {
-            llOwnerSay("\n⚠️ No follower displays found within 20 meters.");
-            llOwnerSay("📝 Make sure your displays have the follower script and are close enough.");
-            llOwnerSay("🔄 Check that they use the same dynamic channel system as this controller.");
+            dbg("\n⚠️ No follower displays found within 20 meters.");
+            dbg("📝 Make sure your displays have the follower script and are close enough.");
+            dbg("🔄 Check that they use the same dynamic channel system as this controller.");
         } else {
-            llOwnerSay("\n🎉 Position scan complete! Found " + (string)numDisplays + " display(s).");
-            llOwnerSay("\n📄 CONFIG UPDATE METHODS:");
-            llOwnerSay("1️⃣ MANUAL: Copy the config lines above to each display's 'config' notecard");
-            llOwnerSay("2️⃣ AUTOMATIC: The displays should move to their new positions automatically!");
-            llOwnerSay("\n📆 The new positions are now saved and will be remembered when objects are rezzed.");
+            dbg("\n🎉 Position scan complete! Found " + (string)numDisplays + " display(s).");
+            dbg("\n📄 CONFIG UPDATE METHODS:");
+            dbg("1️⃣ MANUAL: Copy the config lines above to each display's 'config' notecard");
+            dbg("2️⃣ AUTOMATIC: The displays should move to their new positions automatically!");
+            dbg("\n📆 The new positions are now saved and will be remembered when objects are rezzed.");
             
             // Send position update commands to displays (future enhancement)
-            llOwnerSay("🔄 Broadcasting position updates to all found displays...");
+            dbg("🔄 Broadcasting position updates to all found displays...");
             
             // Broadcast updates to each found display
             integer i;
@@ -822,18 +829,18 @@ default {
                 else if (displayType == "dice") updateChannel = DICE_DATA_CHANNEL;
                 else {
                     // Skip unknown display types
-                    llOwnerSay("⚠️ Unknown display type: " + displayType);
+                    dbg("⚠️ Unknown display type: " + displayType);
                 }
                 
                 // Only send update if we found a valid channel
                 if (displayType == "scoreboard" || displayType == "leaderboard" || displayType == "dice") {
                     string updateMsg = "POSITION_UPDATE|" + displayType + "|" + (string)displayOffset + "|" + (string)displayRotation;
                     llRegionSay(updateChannel, updateMsg);
-                    llOwnerSay("✅ Sent position update to " + displayType + " display");
+                    dbg("✅ Sent position update to " + displayType + " display");
                 }
             }
             
-            llOwnerSay("\n✨ Position reset complete! Your displays should now be in the correct positions.");
+            dbg("\n✨ Position reset complete! Your displays should now be in the correct positions.");
         }
     }
 }
