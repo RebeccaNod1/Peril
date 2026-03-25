@@ -3,6 +3,31 @@ PERIL DICE CHANGELOG
 
 All notable changes to Peril Dice are documented in this file.
 
+[3.0.0] - 2026-03-24
+====================
+
+📦 COMMERCIAL CASPERVEND INTEGRATION
+- Professional Delivery: Transitioned from the custom GitHub updater to the industry-standard CasperVend delivery system.
+- Legacy Code Removal: Completely stripped the Update_Receiver, Update_Checker, and Peril_Dice_Updater systems.
+- Secure Distribution: Game board and standalone scripts now fully compliant with CasperVend "No Modify/No Transfer" security requirements.
+
+🧠 MACRO MEMORY OPTIMIZATION
+- Pre-Processor Directives: Implemented a global DEBUG_LOGS pre-processor macro across core logic scripts.
+- Bytecode Reduction: Converted over 170 verbose llOwnerSay debug statements to a macro, reducing compiled bytecode size.
+- 10-Player Load Stability: Freed critical script memory within Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during maximum load.
+
+🎨 Z-FIGHTING & ALIGNMENT FIXES
+- Initialization Stability: Patched Scoreboard Manager, Leaderboard Communication, and Dice Bridge with on_rez auto-resets to guarantee synchronized texture deployment.
+- Microscopic Position Offsets: Resolved persistent Z-fighting flickering on custom UI elements by applying meticulous microscopic local axis offsets (+0.005m).
+
+[2.8.7] - 2026-03-23
+====================
+
+🔄 GITHUB UPDATE SYSTEM
+- In-World Update Checker: Revolutionary Update_Checker.lsl script provides direct GitHub integration for releases.
+- Enhanced LinkScanner System: Complete 84-prim analysis tools via Enhanced_LinkScanner.lsl for validating linksets.
+- Zero-Infrastructure Updates: Automatically detects and fetches latest game scripts using raw GitHub downloads.
+
 [2.8.6] - 2025-09-16
 ====================
 

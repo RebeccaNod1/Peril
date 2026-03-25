@@ -4,6 +4,29 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [3.0.0] - 2026-03-24
+
+### 📦 **Commercial CasperVend Integration**
+- **Professional Delivery**: Transitioned from the custom GitHub updater to the industry-standard CasperVend delivery system.
+- **Legacy Code Removal**: Completely stripped the `Update_Receiver.lsl`, `Update_Checker.lsl`, and `Peril_Dice_Updater.lsl` systems and their UI endpoints.
+- **Secure Distribution**: Game board and standalone scripts now fully compliant with CasperVend "No Modify/No Transfer" security requirements.
+
+### 🧠 **Macro Memory Optimization**
+- **Pre-Processor Directives**: Implemented a global `DEBUG_LOGS` pre-processor macro across core logic scripts.
+- **Bytecode Reduction**: Converted over 170 verbose `llOwnerSay` debug statements to a conditionally compiled `dbg()` macro, reducing compiled bytecode size.
+- **10-Player Load Stability**: Freed critical script memory limits within `Main_Controller_Linkset.lsl`, `Game_Manager.lsl`, and `Player_DialogHandler.lsl` to ensure rock-solid stability during maximum load.
+
+### 🎨 **Z-Fighting & Alignment Fixes**
+- **Initialization Stability**: Patched `Game_Scoreboard_Manager_Linkset.lsl`, `Leaderboard_Communication_Linkset.lsl`, and `XyzzyText_Dice_Bridge_Linkset.lsl` with `on_rez` auto-resets to guarantee synchronized texture deployment.
+- **Microscopic Position Offsets**: Resolved persistent Z-fighting flickering on custom UI elements by applying meticulous microscopic local axis offsets (`+0.005m`, `+0.008m`).
+
+## [2.8.7] - 2026-03-23
+
+### 🔄 **GitHub Update System**
+- **In-World Update Checker**: Revolutionary `Update_Checker.lsl` script provides direct GitHub integration for releases.
+- **Enhanced LinkScanner System**: Complete 84-prim analysis tools via `Enhanced_LinkScanner.lsl` for validating linksets.
+- **Zero-Infrastructure Updates**: Automatically detects and fetches latest game scripts using raw GitHub downloads.
+
 ## [2.8.6] - 2025-09-16
 
 ### 🏆 **Winner Glow Celebration System**

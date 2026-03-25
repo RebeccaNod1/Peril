@@ -2,11 +2,15 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 2.8.6 - WINNER GLOW CELEBRATION SYSTEM
+CURRENT VERSION: 3.0.0 - COMMERCIAL CASPERVEND RELEASE
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V3.0.0: Fully integrated with the commercial CasperVend delivery system. Over 170 legacy debug mechanisms were stripped using an advanced pre-processor macro to free memory for 10-player stability. Completely eliminated Z-fighting UI alignment glitches with new on_rez state synchronization routines.
+
+NEW IN V2.8.7: Enhanced LinkScanner System for complete 84-prim structure analysis and verification tools. (Legacy GitHub update system replaced by CasperVend in v3.0.0).
 
 NEW IN V2.8.6: Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
@@ -98,6 +102,30 @@ Player Count | Dice Type
 3–4          | d12
 5–6          | d20
 7–10         | d30
+
+RECENT IMPROVEMENTS (V3.0.0)
+============================
+
+📦 COMMERCIAL CASPERVEND INTEGRATION
+- Professional Delivery: Transitioned from the custom GitHub updater to the industry-standard CasperVend delivery system.
+- Legacy Code Removal: Completely stripped the Update_Receiver, Update_Checker, and Peril_Dice_Updater systems.
+- Secure Distribution: Game board and standalone scripts now fully compliant with CasperVend "No Modify/No Transfer" security requirements.
+
+🧠 MACRO MEMORY OPTIMIZATION
+- Pre-Processor Directives: Implemented a global DEBUG_LOGS pre-processor macro across core logic scripts.
+- Bytecode Reduction: Stripped over 170 verbose llOwnerSay debug statements, significantly reducing compiled bytecode size.
+- Load Stability: Freed critical script memory in the Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during 10-player stress tests.
+
+🎨 Z-FIGHTING & ALIGNMENT FIXES
+- Initialization Stability: Patched Scoreboard, Leaderboard, and Dice Bridge scripts with on_rez auto-reset handlers to ensure flawless texture synchronization upon rezzing.
+- Microscopic Position Offsets: Resolved persistent Z-fighting on the custom UI (scoreboard, header, start button) by applying microscopic local axis offsets.
+
+RECENT IMPROVEMENTS (V2.8.7)
+============================
+
+🔍 ENHANCED LINKSCANNER SYSTEM
+- Complete 84-Prim Analysis: Enhanced_LinkScanner.lsl provides detailed linkset structure mapping verified against actual game instances.
+- GitHub Update System (Superseded): The GitHub Update System introduced in v2.8.7 was replaced by the CasperVend update system in v3.0.0.
 
 RECENT IMPROVEMENTS (V2.8.6)
 ============================
@@ -494,9 +522,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 2.8.3
-Last Updated: September 1, 2025
-Status: Production Ready - Critical Game Logic Fixes
+Current Version: 3.0.0
+Last Updated: March 24, 2026
+Status: Production Ready - Commercial CasperVend Release
 
 ORIGINAL GAME RULES CREDIT
 ==========================

@@ -1,13 +1,15 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 2.8.7 - GitHub Update System & Linkset Analysis Tools**
+**Current Version: 3.0.0 - Commercial CasperVend Release**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**🔄 NEW in v2.8.7**: **GITHUB UPDATE SYSTEM** - Revolutionary in-world update checker that connects directly to GitHub releases, with smart file filtering and precise linkset deployment instructions. Includes Enhanced LinkScanner for complete 84-prim structure analysis.
+**🚀 NEW in v3.0.0**: **COMMERCIAL CASPERVEND RELEASE & MEMORY OPTIMIZATION** - Fully integrated with the commercial CasperVend delivery system. Over 170 legacy debug mechanisms were stripped using an advanced pre-processor macro to free critical memory for 10-player stability. Completely eliminated Z-fighting UI alignment glitches with new `on_rez` state synchronization routines.
+
+**🔍 NEW in v2.8.7**: **ENHANCED LINKSCANNER SYSTEM** - Complete 84-prim structure analysis and verification tools. *(Note: The legacy GitHub Update System introduced in v2.8.7 has been superseded by CasperVend in v3.0.0).*
 
 **🏆 NEW in v2.8.6**: **WINNER GLOW CELEBRATION SYSTEM** - Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
@@ -23,9 +25,26 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
+## Major v3.0.0 Improvements 🚀
+
+### 📦 **Commercial CasperVend Integration**
+- **Professional Delivery**: Transitioned from the custom GitHub updater to the industry-standard CasperVend delivery system.
+- **Legacy Code Removal**: Completely stripped the `Update_Receiver.lsl`, `Update_Checker.lsl`, and `Peril_Dice_Updater.lsl` systems.
+- **Secure Distribution**: Game board and standalone scripts now fully compliant with CasperVend "No Modify/No Transfer" security requirements.
+
+### 🧠 **Macro Memory Optimization**
+- **Pre-Processor Directives**: Implemented a global `DEBUG_LOGS` pre-processor macro across core logic scripts.
+- **Bytecode Reduction**: Stripped over 170 verbose `llOwnerSay` debug statements, significantly reducing compiled bytecode size.
+- **Load Stability**: Freed critical script memory in the Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during 10-player stress tests.
+
+### 🎨 **Z-Fighting & Alignment Fixes**
+- **Microscopic Position Offsets**: Resolved persistent Z-fighting on the custom UI (scoreboard, header, start button) by applying microscopic local axis offsets (`0.005m` and `0.008m` relative to the backboard).
+- **Initialization Stability**: Patched Scoreboard, Leaderboard, and Dice Bridge scripts with `on_rez` auto-reset handlers to ensure flawless texture synchronization and state recovery upon rezzing.
+
 ## Major v2.8.7 Improvements 🔄
 
-### 🔄 **GitHub Update System**
+### 🔄 **GitHub Update System (Superseded)**
+> **⚠️ Note**: The GitHub Update System was fully replaced by the CasperVend update system in v3.0.0 for commercial release.
 - **In-World Update Checker**: Revolutionary `Update_Checker.lsl` script provides direct GitHub integration
   - **GitHub API Integration**: Connects to `https://github.com/RebeccaNod1/Peril/releases` for automatic update detection
   - **Smart File Filtering**: Only downloads essential game files, excludes development/test files
@@ -575,9 +594,9 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 2.8.3  
-**Last Updated**: September 1, 2025  
-**Status**: Production Ready - Shield Detection & Initialization Fixes
+**Current Version**: 3.0.0  
+**Last Updated**: March 24, 2026
+**Status**: Production Ready - Commercial CasperVend Release
 
 ### Key Achievements in v2.8.3:
 - ✅ **CRITICAL FIX**: Shield detection logic corrected - no more undeserved damage when shields are provided
