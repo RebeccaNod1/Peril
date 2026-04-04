@@ -2,23 +2,25 @@ PERIL DICE - Professional Single Linkset Game System for Second Life
 
 Created by Rebecca Nod and Noose the Bunny
 
-CURRENT VERSION: 3.0.0 - Commercial CasperVend Release
+CURRENT VERSION: 3.1.0 - The "Linkset Stability" Update
 
 Thrilling multiplayer elimination game for 2-10 players! Each participant selects numbers before a die is rolled. If the peril player's number comes up, they lose a life. Last player standing wins!
 
-NEW IN v3.0.0: Transitioned to commercial CasperVend system! Massive memory optimizations utilizing pre-processor macros for 10-player load stability. Resolved all Z-fighting and alignment glitches on rez to ensure perfectly synchronized graphics.
+NEW IN v3.1.0: **LINKSET STABILITY & DYNAMIC DISCOVERY!** Complete architectural decentralization—scripts now find their linked prims by name, making the game board immune to link-order changes or region restarts. Full migration to modern mesh-based **FURWARE Text** for dice and leaderboards. Centralized system constants in `Peril_Constants.lsl` for 100% project consistency.
 
 KEY FEATURES:
+- Dynamic Link Discovery: "Bulletproof" linkset architecture that auto-configures by prim name
+- FURWARE Text Mesh: Professional, mesh-based displays for dice and leaderboard results
 - Winner Glow Celebration: Bright green glow effects on scoreboard and floaters with 24-second victory timer
 - Visual Scoreboard: Real-time player grid with profile pictures and hearts
 - Enhanced Status Display: Custom textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
 - Color-Coded Glow System: Green (winner), Yellow (peril), Red X (eliminated)
-- Comprehensive Leaderboard: Persistent win tracking with XyzzyText display
+- Experience Leaderboard: Persistent win tracking via Experience KVP with XyzzyText display
 - Bot Support: AI players for testing and gameplay variety
 - Floating HUD Display: Real-time stats for each player with victory text
 - Intelligent Dice Sizing: d6/d12/d20/d30 based on player count
 - Security Features: Owner lockout system, kick player functionality
-- Single Linkset: Complete 74-prim system for easy deployment
+- Single Linkset: Complete consolidated system for instant deployment
 
 GAME RULES:
 1. 2-10 players join and mark ready
@@ -49,11 +51,12 @@ INCLUDED:
 
 PERMISSIONS: Copy/Modify/No Transfer
 LAND IMPACT: 74 prims
-EXPERIENCE: None required
+EXPERIENCE: Required for KVP Leaderboard functionality
 
 Perfect for nightclubs, venues, casinos, private parties, group entertainment, community gatherings.
 
 VERSION HISTORY:
+v3.1.0: Dynamic Link Discovery, FURWARE Text Mesh, and Centralized Constants
 v3.0.0: Commercial CasperVend Release, memory optimizations, and Z-fighting fixes
 v2.8.7: Linkset Analysis Tools and structure verification
 v2.8.6: Winner Glow Celebration System with 24-second victory recognition

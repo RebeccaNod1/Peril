@@ -1,9 +1,4 @@
-#define DEBUG_LOGS 0 // Set to 1 to enable logs, 0 to STRIP from memory completely
-#if DEBUG_LOGS
-#define dbg(msg) dbg(msg)
-#else
-#define dbg(msg)
-#endif
+#include "Peril_Constants.lsl"
 
 // === Dialog Handler (Owner & Player) with unified Ready/Leave menu and join support ===
 
@@ -24,7 +19,7 @@ string getPlayerName(key id) {
 // DYNAMIC CHANNEL CONFIGURATION
 // =============================================================================
 
-// Base channel offset - should match Main.lsl
+// Base channel offset must match Main.lsl
 #define CHANNEL_BASE -77000
 
 // Calculate channels dynamically to avoid hardcoded conflicts
@@ -32,7 +27,8 @@ integer calculateChannel(integer offset) {
     // Use BOTH owner's key AND object's key to make channels unique per game instance
     // This prevents interference when same owner has multiple game tables
     string ownerStr = (string)llGetOwner();
-    string objectStr = (string)llGetKey();
+    // CRITICAL: Always use root prim (1) for channel calculation so scripts in child prims match
+    string objectStr = (string)llGetLinkKey(1);
     string combinedStr = ownerStr + objectStr;
     
     // Create a more unique hash using both keys
@@ -80,21 +76,6 @@ rotation controller_rot;
 list foundDisplays; // Store found display info: [type, key, offset, rotation, ...]
 integer scanInProgress = FALSE;
 
-#define MSG_SHOW_MENU 201
-#define MSG_PICK_ACTION 204
-#define MSG_PLAYER_LIST_RESULT 203
-#define MSG_PICK_LIST_RESULT 205
-#define MSG_LIFE_LOOKUP 207
-#define MSG_REGISTER_PLAYER 106
-#define MSG_REZ_FLOAT 105
-#define MSG_TOGGLE_READY 202
-#define MSG_QUERY_READY_STATE 210
-#define MSG_READY_STATE_RESULT 211
-#define MSG_CLEANUP_ALL_FLOATERS 212
-#define MSG_QUERY_OWNER_STATUS 213
-#define MSG_OWNER_STATUS_RESULT 214
-#define MSG_GET_CURRENT_DIALOG 302
-
 // Categorized owner menu system
 list mainOwnerOptions = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "⬅️ Back to Game"];
 list mainOwnerOptionsLocked = ["👥 Player Management", "🔄 Reset Options", "🛠️ Troubleshooting", "🔓 Unlock Game", "⬅️ Back to Game"];
@@ -103,7 +84,7 @@ list mainOwnerOptionsUnlocked = ["👥 Player Management", "🔄 Reset Options",
 // Sub-menu options for each category
 list playerManagementOptions = ["Add Test Player", "Kick Player", "⬅️ Back to Main"];
 list resetOptions = ["Reset Game", "Reset Leaderboard", "Reset All", "⬅️ Back to Main"];
-list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "🔍 Toggle Verbose Logs", "⬅️ Back to Main"];
+list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "⬅️ Back to Main"];
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
@@ -125,7 +106,7 @@ reportMemoryUsage(string scriptName) {
     integer total = used + free;
     float percentUsed = ((float)used / (float)total) * 100.0;
     
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+    dbg("🧠 [" + scriptName + "] Memory: " + 
                (string)used + " used, " + 
                (string)free + " free (" + 
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
@@ -420,7 +401,7 @@ default {
 
     link_message(integer sender, integer num, string str, key id) {
         // Handle full reset from main controller
-        if (num == -99999 && str == "FULL_RESET") {
+        if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             // Reset dialog state including race condition protection
             pendingMenuPlayer = NULL_KEY;
             pendingMenuIsStarter = FALSE;
@@ -496,7 +477,7 @@ default {
             showPickManageMenu(id, playerNames);
         }
         // Handle player list result for kick functionality
-        else if (num == 8009) {
+        else if (num == MSG_REQUEST_PLAYER_LIST_KICK) {
             dbg("🔍 [Dialog Handler] Received kick player list string: '" + str + "'");
             list rawNames = llParseString2List(str, [","], []);
             dbg("🔍 [Dialog Handler] Raw parsed into " + (string)llGetListLength(rawNames) + " names: " + llList2CSV(rawNames));
@@ -527,12 +508,12 @@ default {
             if (llStringTrim(returnedName, STRING_TRIM) == llStringTrim(currentPickTarget, STRING_TRIM)) {
                 dbg("✅ Matched pick list for: " + returnedName);
                 currentPickList = llCSV2List(picks);
-                llMessageLinked(LINK_THIS, MSG_LIFE_LOOKUP, currentPickTarget, id);
+                llMessageLinked(LINK_THIS, MSG_LIFE_LOOKUP_REQUEST, currentPickTarget, id);
             } else {
                 dbg("❌ Name mismatch: got " + returnedName + " but expected " + currentPickTarget);
             }
         }
-        else if (num == MSG_LIFE_LOOKUP) {
+        else if (num == MSG_LIFE_LOOKUP_REQUEST) {
             list parts = llParseString2List(str, ["|"], []);
             if (llList2String(parts, 0) == currentPickTarget) {
                 currentPickLimit = (integer)llList2String(parts, 1);
@@ -609,7 +590,7 @@ default {
             if (id == gameOwner) {
                 isLocked = TRUE;
                 // Notify Main Controller to update floating text
-                llMessageLinked(LINK_SET, 9001, "LOCK_GAME", id);
+                llMessageLinked(LINK_SET, MSG_LOCK_GAME, "LOCK_GAME", id);
                 dbg("🔒 Game has been LOCKED - Only owner can access any features");
                 llSay(0, "🔒 Game has been locked by the owner. Only the owner can access any features.");
                 showOwnerMenu(id); // Refresh the owner menu
@@ -621,7 +602,7 @@ default {
             if (id == gameOwner) {
                 isLocked = FALSE;
                 // Notify Main Controller to update floating text
-                llMessageLinked(LINK_SET, 9002, "UNLOCK_GAME", id);
+                llMessageLinked(LINK_SET, MSG_UNLOCK_GAME, "UNLOCK_GAME", id);
                 dbg("🔓 Game has been UNLOCKED - All players can access menus");
                 llSay(0, "🔓 Game has been unlocked by the owner. All features are now available.");
                 showOwnerMenu(id); // Refresh the owner menu
@@ -664,13 +645,13 @@ default {
         else if (msg == "Join Game") {
             // Use the avatar's key as the identifier
             string pname = getPlayerName(id);
-            llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER, pname + "|" + (string)id, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, pname + "|" + (string)id, id);
             // Floater Manager will automatically rez the floater during registration
         }
         else if (msg == "Leave Game") {
             // Send leave game message to Controller_MessageHandler (not sync channel 107!)
             string pname = getPlayerName(id);
-            llMessageLinked(LINK_SET, 8007, "LEAVE_GAME|" + pname + "|" + (string)id, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_LEAVE_GAME, "LEAVE_GAME|" + pname + "|" + (string)id, id);
         }
         else if (msg == "Ready" || msg == "Not Ready") {
             // Toggle ready state (both buttons do the same thing - toggle)
@@ -679,7 +660,7 @@ default {
         }
         else if (msg == "Kick Player") {
             // Show kick player menu - request player list first
-            llMessageLinked(LINK_SET, 8009, "REQUEST_PLAYER_LIST_KICK", id);
+            llMessageLinked(LINK_SET, MSG_REQUEST_PLAYER_LIST_KICK, "REQUEST_PLAYER_LIST_KICK", id);
         }
         else if (msg == "Cleanup Floaters") {
             // Universal floater cleanup that works even after script resets
@@ -692,35 +673,28 @@ default {
             // This will be handled by Main Controller's dialog listener
             // No need to forward via link_message - the Main Controller is already listening on DIALOG_CHANNEL
         }
-        else if (msg == "🔍 Toggle Verbose Logs") {
-            // Toggle verbose logging system-wide
-            dbg("🔍 Toggling verbose logging system-wide...");
-            llMessageLinked(LINK_SET, 9010, "TOGGLE_VERBOSE_LOGS", id);
-            // Return to troubleshooting menu after toggling
-            showTroubleshootingMenu(id);
-        }
 
         else if (msg == "Manage Picks") {
-            llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
+            llMessageLinked(LINK_THIS, MSG_REQUEST_PLAYER_LIST_PICK, "REQUEST_PLAYER_LIST", id);
         }
         else if (llSubStringIndex(msg, "🛠 ") == 0) {
             currentPickTarget = llStringTrim(llDeleteSubString(msg, 0, 1), STRING_TRIM);
             dbg("🎯 Pick target set to: " + currentPickTarget);
             currentPickList = [];
-            llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
+            llMessageLinked(LINK_THIS, MSG_OWNER_PICK_MANAGER, currentPickTarget, id);
         }
         else if (msg == "Add Pick") {
             askForNewPick(id);
         }
         else if (msg == "⬅️ Back") {
-            llMessageLinked(LINK_THIS, 202, "REQUEST_PLAYER_LIST", id);
+            llMessageLinked(LINK_THIS, MSG_REQUEST_PLAYER_LIST_PICK, "REQUEST_PLAYER_LIST", id);
         }
         else if (llSubStringIndex(msg, "REMOVE: ") == 0) {
             string pick = llGetSubString(msg, 8, -1);
             string payload = "REMOVE_PICK~" + currentPickTarget + "|" + pick;
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
             llSleep(0.2);
-            llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
+            llMessageLinked(LINK_THIS, MSG_OWNER_PICK_MANAGER, currentPickTarget, id);
         }
         // Handle kick player selection
         else if (llSubStringIndex(msg, "👢 ") == 0) {
@@ -730,7 +704,7 @@ default {
                 string playerToKick = llList2String(kickOriginalNames, idx);
                 llRegionSayTo(id, 0, "👢 Kicking player: " + playerToKick + " from the game...");
                 // Send kick message to Controller_MessageHandler (not sync channel 107!)
-                llMessageLinked(LINK_SET, 8007, "KICK_PLAYER|" + playerToKick + "|" + (string)id, NULL_KEY);
+                llMessageLinked(LINK_SET, MSG_LEAVE_GAME, "KICK_PLAYER|" + playerToKick + "|" + (string)id, id);
             } else {
                 dbg("⚠️ Could not find original name for kick selection: " + msg);
             }
@@ -759,7 +733,7 @@ default {
             string payload = "ADD_PICK~" + currentPickTarget + "|" + msg;
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
             llSleep(0.2);
-            llMessageLinked(LINK_THIS, 206, currentPickTarget, id);
+            llMessageLinked(LINK_THIS, MSG_OWNER_PICK_MANAGER, currentPickTarget, id);
         }
         // Handle position scan responses from follower displays
         else if ((channel == SCOREBOARD_DATA_CHANNEL || channel == LEADERBOARD_DATA_CHANNEL || channel == DICE_DATA_CHANNEL) && 

@@ -1,3 +1,5 @@
+#include "Peril_Constants.lsl"
+
 // === Main Controller - Peril Dice Game (Linkset Version) ===
 
 // Helper function to get display name with fallback to username
@@ -10,74 +12,9 @@ string getPlayerName(key id) {
     return displayName;
 }
 
-//
-// LINKSET VERSION - Uses llMessageLinked() instead of llRegionSay()
-// All discovery and channel management code removed
-//
-
 // =============================================================================
-// LINKSET COMMUNICATION CONSTANTS
+// DEBUG & LOCAL CONSTANTS
 // =============================================================================
-
-#define DEBUG_LOGS 0 // Set to 1 to enable logs, 0 to STRIP them from bytecode and recover memory
-#if DEBUG_LOGS
-#define dbg(msg) dbg(msg)
-#else
-#define dbg(msg)
-#endif
-
-// Target link numbers (UPDATED after overlay prim insertion)
-#define SCOREBOARD_LINK 12     // Scoreboard manager cube
-#define LEADERBOARD_LINK 35    // Leaderboard manager (first XyzzyText prim)
-#define DICE_LINK 83           // Dice display manager (first dice prim)
-
-// Message constants for link communication
-// Scoreboard messages (to link 12)
-#define MSG_GAME_STATUS 3001
-#define MSG_PLAYER_UPDATE 3002
-#define MSG_CLEAR_GAME 3003
-#define MSG_REMOVE_PLAYER 3004
-#define MSG_UPDATE_PERIL_PLAYER 3005
-#define MSG_UPDATE_WINNER 3006
-
-// Leaderboard messages (to link 35)  
-#define MSG_GAME_WON 3010
-#define MSG_GAME_LOST 3011
-#define MSG_RESET_LEADERBOARD 3012
-
-// Dice messages (to link 83)
-#define MSG_DICE_ROLL 3020
-#define MSG_CLEAR_DICE 3021
-
-// Legacy message constants (keep for internal controller communication)
-#define MSG_SHOW_DIALOG 101
-#define MSG_ROLL_RESULT 102
-#define MSG_UPDATE_FLOAT 103
-#define MSG_CLEANUP_FLOAT 104
-#define MSG_REZ_FLOAT 105
-#define MSG_REGISTER_PLAYER 106
-#define MSG_REGISTER_PLAYER_REQUEST 9050  // New dedicated message to Player_RegistrationManager
-#define MSG_SYNC_GAME_STATE 107
-#define MSG_SHOW_MENU 201
-#define MSG_TOGGLE_READY 202
-#define MSG_QUERY_READY_STATE 210
-#define MSG_READY_STATE_RESULT 211
-#define MSG_CLEANUP_ALL_FLOATERS 212
-#define MSG_QUERY_OWNER_STATUS 213
-#define MSG_OWNER_STATUS_RESULT 214
-#define MSG_SHOW_ROLL_DIALOG 301
-#define MSG_GET_CURRENT_DIALOG 302
-#define MSG_PLAYER_WON 551
-#define MSG_GET_PICKS_REQUIRED 1002
-#define MSG_GET_PICKER_INDEX 1003
-
-// Memory monitoring handled by Controller_Memory.lsl helper script
-#define MSG_MEMORY_CHECK 6001
-#define MSG_MEMORY_STATS 6002
-#define MSG_MEMORY_CLEANUP 6003
-#define MSG_MEMORY_REPORT 6004
-#define MSG_EMERGENCY_CLEANUP 6005
-#define MSG_MEMORY_STATS_REQUEST 6006
 
 // Unified Timer System - prevents conflicts between multiple timer needs
 #define TIMER_IDLE 0
@@ -90,19 +27,8 @@ integer victoryDelayTimer = 0;   // Track victory delay timing
 // Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
 #define DEBUG_PICKS FALSE
 
-// Verbose logging moved to dedicated Verbose_Logger.lsl script to save memory
-// Message constants for verbose logging
-#define MSG_VERBOSE_LOG 9020
-#define MSG_VERBOSE_TOGGLE 9010
-
 // Script ID for Main Controller (used by Verbose_Logger for prefixes)
 #define SCRIPT_ID_MAIN 0
-
-// Message handling constants (delegate to Controller_MessageHandler)
-#define MSG_OWNER_MESSAGE 9030
-#define MSG_PUBLIC_MESSAGE 9031
-#define MSG_REGION_MESSAGE 9032
-#define MSG_DIALOG_REQUEST 9033
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
@@ -175,7 +101,8 @@ integer gameTimer = 0;
 
 integer calculateChannel(integer offset) {
     string ownerStr = (string)llGetOwner();
-    string objectStr = (string)llGetKey();
+    // CRITICAL: Always use root prim (1) for channel calculation so scripts in child prims match
+    string objectStr = (string)llGetLinkKey(1);
     string combinedStr = ownerStr + objectStr;
     
     string hashStr = llMD5String(combinedStr, 0);
@@ -259,7 +186,7 @@ sendStatusMessage(string status) {
     lastStatus = status;
     
     // CHANGED: Use link message instead of llRegionSay
-    llMessageLinked(SCOREBOARD_LINK, MSG_GAME_STATUS, status, NULL_KEY);
+    llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, status, NULL_KEY);
     
     // Removed ownerMsg call to save memory
     
@@ -283,7 +210,7 @@ updateHelpers() {
     if (nameCount > 0) {
         integer lastIdx = nameCount - 1;
         // Minimal string operations - direct message
-        llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, 
+        llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, 
                        llList2String(names, lastIdx) + "|" + 
                        (string)llList2Integer(lives, lastIdx) + "|" + 
                        (string)llList2Key(players, lastIdx), NULL_KEY);
@@ -341,14 +268,14 @@ resetGame() {
     victoryInProgress = FALSE;
     currentPicker = NULL_KEY;
     
-    llMessageLinked(LINK_SET, -99999, "FULL_RESET", NULL_KEY);
+    llMessageLinked(LINK_SET, MSG_RESET_ALL, "FULL_RESET", NULL_KEY);
     llSay(syncChannel, "RESET");
     
     // CHANGED: Use link messages instead of llRegionSay for display cleanup
-    llMessageLinked(SCOREBOARD_LINK, MSG_CLEAR_GAME, "", NULL_KEY);
+    llMessageLinked(LINK_SCOREBOARD, MSG_CLEAR_GAME, "", NULL_KEY);
     // Clear winner glow from scoreboard (floaters will clear naturally on reset)
-    llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_WINNER, "", NULL_KEY);  // Clear winner glow
-    llMessageLinked(DICE_LINK, MSG_CLEAR_DICE, "", NULL_KEY);
+    llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, "", NULL_KEY);  // Clear winner glow
+    llMessageLinked(LINK_DICE_BRIDGE, MSG_CLEAR_DICE, "", NULL_KEY);
     
     dbg("🎮 Game reset! All state cleared (including scoreboard).");
     
@@ -371,8 +298,9 @@ resetGame() {
 
 default {
     state_entry() {
+        DISCOVER_CORE_LINKS();
         reportMemoryUsage("Main Controller");
-        dbg("🎮 Main Controller ready! (Linkset Version)");
+        dbg("🎮 Main Controller ready! (Discovery Mode)");
         
         // Initialize lockout system
         gameOwner = llGetOwner();
@@ -388,8 +316,9 @@ default {
     }
     
     on_rez(integer start_param) {
+        DISCOVER_CORE_LINKS();
         reportMemoryUsage("Main Controller");
-        dbg("🔄 Main Controller rezzed - resetting game state...");
+        dbg("🔄 Main Controller reset via rez...");
         
         // Re-initialize lockout system
         gameOwner = llGetOwner();
@@ -413,29 +342,22 @@ default {
             string playerName = llList2String(names, idx);
             
             // ENHANCED: Check if this player is supposed to be the current picker based on game state
-            // This handles cases where currentPicker got corrupted due to disconnect
             integer shouldBePicking = FALSE;
             if (currentPickerIdx < llGetListLength(pickQueue)) {
                 string expectedPickerName = llList2String(pickQueue, currentPickerIdx);
-                // Removed debugMsg call to save memory
                 if (playerName == expectedPickerName) {
                     shouldBePicking = TRUE;
                     // Fix corrupted currentPicker state
                     if (currentPicker != toucher) {
-                    // Removed ownerMsg call to save memory
                         currentPicker = toucher;
                     }
                 }
-            } else {
-                // Removed debugMsg call to save memory
             }
             
             // FALLBACK: If game is stuck and no one is set as current picker, but we're in pick phase,
             // let any registered player attempt to resume (with owner confirmation)
             if (!shouldBePicking && currentPicker == NULL_KEY && currentPickerIdx < llGetListLength(pickQueue)) {
                 if (toucher == llGetOwner()) {
-                    // Removed ownerMsg calls to save memory
-                    // Game stuck error and recovery logging removed
                     currentPicker = toucher;
                     shouldBePicking = TRUE;
                 }
@@ -544,8 +466,6 @@ default {
                     }
                 }
                 llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
-            } else {
-                dbg("⚠️ Could not get name for toucher: " + (string)toucher);
             }
         }
     }
@@ -562,7 +482,7 @@ default {
         }
         
         // Handle registration updates from Player_RegistrationManager
-        if (num == 9040) { // MSG_UPDATE_MAIN_LISTS
+        if (num == MSG_UPDATE_MAIN_LISTS) { // MSG_UPDATE_MAIN_LISTS
             // ULTRA-OPTIMIZED: Player_RegistrationManager now handles all heavy processing
             // Main Controller just adds the player to its master lists
             list parts = llParseString2List(str, ["~"], []);
@@ -599,7 +519,7 @@ default {
         }
         
         // Handle elimination requests
-        if (num == 999) {
+        if (num == MSG_ELIMINATE_PLAYER) {
             list parts = llParseString2List(str, ["|"], []);
             if (llList2String(parts, 0) == "ELIMINATE_PLAYER") {
                 string eliminatedPlayer = llList2String(parts, 1);
@@ -609,7 +529,7 @@ default {
                     lives = llListReplaceList(lives, [0], idx, idx);
                     
                     // Send ONLY a direct scoreboard update to show 0 hearts
-                    llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, 
+                    llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, 
                                    eliminatedPlayer + "|0|" + (string)llList2Key(players, idx), NULL_KEY);
                     
                     // CRITICAL: Check for victory condition BEFORE assigning new peril player
@@ -630,7 +550,7 @@ default {
                         
                         if (potentialWinner != "") {
                             // SEND WINNER GLOW to scoreboard and trigger floater update
-                            llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
                             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, potentialWinner, NULL_KEY);  // Update winner's floater
                             dbg("🏆 [Main Controller] Pre-victory winner glow sent for: " + potentialWinner);
                         }
@@ -657,11 +577,11 @@ default {
                         if (newPerilPlayer != "") {
                             perilPlayer = newPerilPlayer;
                             // Send peril player update to scoreboard for glow effect
-                            llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_PERIL_PLAYER, newPerilPlayer, NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPerilPlayer, NULL_KEY);
                         } else {
                             perilPlayer = "NONE";
                             // Clear peril player glow on scoreboard
-                            llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
                         }
                     }
                     
@@ -714,7 +634,7 @@ default {
                     // Peril player assignment already handled before sync message was sent
                     
                     // CHANGED: Send to scoreboard, which will handle leaderboard updates
-                    llMessageLinked(SCOREBOARD_LINK, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
+                    llMessageLinked(LINK_SCOREBOARD, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
                     
                     // Status message now sent directly by Roll Module
                     
@@ -747,14 +667,14 @@ default {
                             llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
                             
                             llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
-                            llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+                            llMessageLinked(LINK_SET, MSG_EFFECT_CONFETTI, "VICTORY_CONFETTI", NULL_KEY);
                             
                             // IMPORTANT: Send winner update to scoreboard and trigger floater update
-                            llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_WINNER, winner, NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, winner, NULL_KEY);
                             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, winner, NULL_KEY);  // Update winner's floater
                             
                             // CHANGED: Send to scoreboard, which will handle leaderboard updates
-                            llMessageLinked(SCOREBOARD_LINK, MSG_GAME_WON, winner, NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_GAME_WON, winner, NULL_KEY);
                             
                             // Use timer instead of llSleep to avoid immediate reset
                             dbg("🏆 [Main Controller] Winner glow applied - starting victory delay timer");
@@ -806,10 +726,10 @@ default {
         }
         
         // Handle emergency reset for stuck games
-        if (num == -99998 && str == "EMERGENCY_RESET") {
+        if (num == MSG_EMERGENCY_RESET && str == "EMERGENCY_RESET") {
             dbg("🚨 [Main Controller] Emergency reset triggered - sending emergency reset to all scripts");
             // Signal all scripts to emergency reset
-            llMessageLinked(LINK_SET, -99998, "EMERGENCY_RESET", NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_EMERGENCY_RESET, "EMERGENCY_RESET", NULL_KEY);
             llSleep(0.5);
             // Then do full reset
             resetGame();
@@ -822,7 +742,7 @@ default {
             if (llList2String(parts, 0) == "GAME_WON") {
                 string winner = llList2String(parts, 1);
                 // CHANGED: Use link message instead of llRegionSay
-                llMessageLinked(DICE_LINK, MSG_DICE_ROLL, winner + "|WON", NULL_KEY);
+                llMessageLinked(LINK_DICE_BRIDGE, MSG_DICE_ROLL, winner + "|WON", NULL_KEY);
                 llSleep(2.0);
                 resetGame();
             }
@@ -942,7 +862,7 @@ default {
         // MSG_CLEANUP_ALL_FLOATERS is handled by Floater Manager only
         
         // Handle leave game requests processed by Controller_MessageHandler
-        if (num == 8006) { // MSG_LEAVE_GAME_REQUEST
+        if (num == MSG_LEAVE_GAME_REQUEST) { // MSG_LEAVE_GAME_REQUEST
             // This message comes FROM the Controller_MessageHandler after it has processed the removal
             // We need to update the main controller's lists to match
             list parts = llParseString2List(str, ["|"], []);
@@ -953,7 +873,7 @@ default {
                 integer idx = llListFindList(names, [leavingName]);
                 if (idx != -1) {
                     // CHANGED: Remove player from scoreboard BEFORE updating lists
-                    llMessageLinked(SCOREBOARD_LINK, MSG_REMOVE_PLAYER, leavingName, NULL_KEY);
+                    llMessageLinked(LINK_SCOREBOARD, MSG_REMOVE_PLAYER, leavingName, NULL_KEY);
                     
                     // Clean up the leaving player's floater using their current channel
                     integer ch = FLOATER_BASE_CHANNEL + idx;
@@ -981,12 +901,12 @@ default {
                             dbg("🎯 [Main Controller] Peril player left - assigning new peril player: " + newPerilPlayer);
                             perilPlayer = newPerilPlayer;
                             // Send peril player update to scoreboard for glow effect
-                            llMessageLinked(SCOREBOARD_LINK, 3005, newPerilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPerilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
                         } else {
                             dbg("⚠️ [Main Controller] No valid peril player candidates found after player left!");
                             perilPlayer = "NONE";
                             // Clear peril player glow on scoreboard
-                            llMessageLinked(SCOREBOARD_LINK, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
                         }
                     }
                     
@@ -1032,7 +952,7 @@ default {
         }
         
         // Handle lock/unlock messages from Dialog Handler
-        if (num == 9001) { // Lock game message
+        if (num == MSG_LOCK_GAME) { // Lock game message
             if (id == gameOwner && str == "LOCK_GAME") {
                 isLocked = TRUE;
                 updateFloatingText();
@@ -1041,7 +961,7 @@ default {
             return;
         }
         
-        if (num == 9002) { // Unlock game message
+        if (num == MSG_UNLOCK_GAME) { // Unlock game message
             if (id == gameOwner && str == "UNLOCK_GAME") {
                 isLocked = FALSE;
                 updateFloatingText();
@@ -1051,17 +971,6 @@ default {
         }
         
         
-        // Handle verbose logging toggle - redirect to dedicated Verbose_Logger script
-        if (num == MSG_VERBOSE_TOGGLE && str == "TOGGLE_VERBOSE_LOGS") {
-            // Forward to dedicated verbose logger script, but exclude ourselves from LINK_SET
-            // Send to each script individually to avoid the forwarding loop
-            integer i;
-            integer linkCount = llGetNumberOfPrims();
-            for (i = 2; i <= linkCount; i++) { // Start from 2 to skip ourselves (link 1)
-                llMessageLinked(i, MSG_VERBOSE_TOGGLE, "TOGGLE_VERBOSE_LOGS", id);
-            }
-            return;
-        }
         
         // Handle memory monitor messages
         if (num == MSG_EMERGENCY_CLEANUP) {
@@ -1071,7 +980,7 @@ default {
         }
         
         // Handle reset requests from other scripts (like Game_Manager)
-        if (num == -99998 && str == "REQUEST_GAME_RESET") {
+        if (num == MSG_EMERGENCY_RESET && str == "REQUEST_GAME_RESET") {
             dbg("🔄 [Main Controller] Reset requested by " + (string)sender + ", executing...");
             resetGame();
             return;
@@ -1130,13 +1039,13 @@ default {
                 }
                 if (msg == "Reset Leaderboard") {
                     // CHANGED: Send to scoreboard, which will handle leaderboard reset
-                    llMessageLinked(SCOREBOARD_LINK, MSG_RESET_LEADERBOARD, "", NULL_KEY);
+                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "", NULL_KEY);
                     dbg("🏆 Leaderboard scores reset - game wins cleared!");
                     return;
                 }
                 if (msg == "Reset All") {
                     resetGame();
-                    llMessageLinked(SCOREBOARD_LINK, MSG_RESET_LEADERBOARD, "", NULL_KEY);
+                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "", NULL_KEY);
                     dbg("🔄 Complete reset - game and leaderboard cleared!");
                     return;
                 }
@@ -1275,7 +1184,7 @@ default {
                 statusTimer = 0;
                 lastStatus = "";
                 // CHANGED: Use link message instead of llRegionSay
-                llMessageLinked(SCOREBOARD_LINK, MSG_GAME_STATUS, "Title", NULL_KEY);
+                llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Title", NULL_KEY);
                 dbg("📢 Status cleared - reverted to Title");
                 currentTimerMode = TIMER_IDLE;
                 llSetTimerEvent(0);

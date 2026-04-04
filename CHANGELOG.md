@@ -4,6 +4,27 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [3.1.0] - 2026-04-04
+
+### 🔍 **Dynamic Link Discovery System**
+- **Architecture Decentralization**: Eliminated all hardcoded link indices across 15+ scripts. Systems now perform an automated "Link Discovery" scan on startup and `on_rez`.
+- **Name-Based Mapping**: Implemented a robust pattern-matching system (`Scoreboard:0:0`, `profile:R:C`) to identify and bind to links regardless of their link-order in the set.
+- **Improved Resilience**: Resolved persistent "Previously declared within scope" errors and stabilized inter-script communication during region crossings and teleports.
+
+### 🧩 **Unified Constants & Centralized Logic**
+- **Centralized `Peril_Constants.lsl`**: Shifted all system settings, message IDs, and macros to a single, shared constants file for 100% project consistency.
+- **Pre-Processor Debugging**: Implemented a global `dbg()` macro system. Debug logging can now be toggled board-wide with a single switch, significantly reducing production bytecode size.
+
+### 🎭 **FURWARE Text Mesh Migration**
+- **Visual Display Overhaul**: Fully migrated the Dice Display and Leaderboard from legacy prim-based XYText to modern mesh-integrated **FURWARE Text**.
+- **Sync Reliability**: New bridge scripts handle real-time data distribution to the FURWARE master, ensuring 0ms delay in visual updates.
+- **Performance Optimization**: Reduced prim texture-flipping overhead by switching to mesh-offset mapping.
+
+### 🧠 **Compiler & Execution Stability**
+- **Scope Refactoring**: Moved all loop variable declarations (`refreshI`, `glowI`, etc.) to the top-level of their respective functions to ensure compatibility with strict LSL compiler versions.
+- **Logic Robustness**: Replaced `continue` and range-check based validation with explicit "link-found" `if` blocks, preventing infinite loops and scope errors.
+- **Mismatched Variable Fixes**: Resolved inconsistent renaming of local variables in the Scoreboard Manager's refresh logic.
+
 ## [3.0.0] - 2026-03-24
 
 ### 📦 **Commercial CasperVend Integration**
@@ -15,6 +36,10 @@ All notable changes to Peril Dice will be documented in this file.
 - **Pre-Processor Directives**: Implemented a global `DEBUG_LOGS` pre-processor macro across core logic scripts.
 - **Bytecode Reduction**: Converted over 170 verbose `llOwnerSay` debug statements to a conditionally compiled `dbg()` macro, reducing compiled bytecode size.
 - **10-Player Load Stability**: Freed critical script memory limits within `Main_Controller_Linkset.lsl`, `Game_Manager.lsl`, and `Player_DialogHandler.lsl` to ensure rock-solid stability during maximum load.
+
+### 🏆 **Experience-Based Leaderboard**
+- **Persistent Storage**: Leaderboard data is now stored in Second Life Experience Keys (KVP), ensuring lifetime persistence of player statistics.
+- **Region Independence**: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 ### 🎨 **Z-Fighting & Alignment Fixes**
 - **Initialization Stability**: Patched `Game_Scoreboard_Manager_Linkset.lsl`, `Leaderboard_Communication_Linkset.lsl`, and `XyzzyText_Dice_Bridge_Linkset.lsl` with `on_rez` auto-resets to guarantee synchronized texture deployment.

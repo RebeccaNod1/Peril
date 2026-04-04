@@ -1,13 +1,15 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 3.0.0 - Commercial CasperVend Release**
+**Current Version: 3.1.0 - The "Linkset Stability" Update**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**🚀 NEW in v3.0.0**: **COMMERCIAL CASPERVEND RELEASE & MEMORY OPTIMIZATION** - Fully integrated with the commercial CasperVend delivery system. Over 170 legacy debug mechanisms were stripped using an advanced pre-processor macro to free critical memory for 10-player stability. Completely eliminated Z-fighting UI alignment glitches with new `on_rez` state synchronization routines.
+**🚀 NEW in v3.1.0**: **LINKSET STABILITY & DYNAMIC DISCOVERY** - Complete architectural decentralization. Scripts now discovery their linked prims by name at runtime (`Scoreboard:0:0`, `profile:R:C`), making the game board immune to link-order changes or region-side glitches. Full migration from legacy XYText to modern mesh-based **FURWARE Text** for dice and leaderboards.
+
+**📦 NEW in v3.0.0**: **COMMERCIAL CASPERVEND RELEASE & EXPERIENCE LEADERBOARD**
 
 **🔍 NEW in v2.8.7**: **ENHANCED LINKSCANNER SYSTEM** - Complete 84-prim structure analysis and verification tools. *(Note: The legacy GitHub Update System introduced in v2.8.7 has been superseded by CasperVend in v3.0.0).*
 
@@ -25,6 +27,26 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
+## Major v3.1.0 Improvements (Current) 🚀
+
+### 🔍 **Dynamic Link Discovery System**
+- **Zero-Fixed Links**: Eliminated all hardcoded link indices. Each script now performs a "Dynamic Discovery" sweep on startup to find its sibling prims by name.
+- **Relink-Resilient Architecture**: You can now edit the linkset, add decorative prims, or reorder the board without breaking the game logic.
+- **Region-Cross Safety**: Solves "vanishing link" issues often seen during region restarts or teleports by automatically re-scanning for link targets.
+
+### 🎭 **FURWARE Text Mesh Migration**
+- **Enhanced Visuals**: Replaced the legacy 192nd-century XYText (prim-flipping) with modern, mesh-based **FURWARE Text**.
+- **Simplified Bridging**: New bridge scripts handle all dice and leaderboard formatting, ensuring 100% synchronization across all displays.
+- **Performance Boost**: Mesh-based text mapping is significantly more efficient than standard prim texture-flipping for complex board data.
+
+### 🧩 **Centralized System Constants**
+- **`Peril_Constants.lsl`**: All system-wide settings, message IDs, and macros are now centralized in a single header file.
+- **Unified Debugging**: Implemented a global `dbg()` pre-processor macro. One switch in the constants file toggles all debug levels for the entire game board simultaneously.
+
+### 🧠 **Restricted Scope & Loop Stability**
+- **Compiler Safety**: Refactored the entire codebase to use top-level variable declarations for all search loops, ensuring compatibility with strict LSL compiler versions.
+- **Loop Reset Protection**: Eliminated `continue` keywords in critical logic blocks, replacing them with robust `if` validation to prevent loop-hang race conditions.
+
 ## Major v3.0.0 Improvements 🚀
 
 ### 📦 **Commercial CasperVend Integration**
@@ -36,6 +58,10 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **Pre-Processor Directives**: Implemented a global `DEBUG_LOGS` pre-processor macro across core logic scripts.
 - **Bytecode Reduction**: Stripped over 170 verbose `llOwnerSay` debug statements, significantly reducing compiled bytecode size.
 - **Load Stability**: Freed critical script memory in the Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during 10-player stress tests.
+
+### 🏆 **Experience-Based Leaderboard**
+- **Persistent Storage**: Leaderboard data is now stored in Second Life Experience Keys (KVP), ensuring lifetime persistence of player statistics.
+- **Region Independence**: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 ### 🎨 **Z-Fighting & Alignment Fixes**
 - **Microscopic Position Offsets**: Resolved persistent Z-fighting on the custom UI (scoreboard, header, start button) by applying microscopic local axis offsets (`0.005m` and `0.008m` relative to the backboard).
@@ -594,11 +620,18 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 3.0.0  
-**Last Updated**: March 24, 2026
-**Status**: Production Ready - Commercial CasperVend Release
+**Current Version**: 3.1.0  
+**Last Updated**: April 04, 2026
+**Status**: Production Ready - Linkset Stability Release
 
-### Key Achievements in v2.8.3:
+### Key Achievements in v3.1.0:
+- ✅ **Architectural Decentralization**: Implemented Dynamic Link Discovery (no hardcoded links).
+- ✅ **FURWARE Integration**: Complete migration to mesh-based text displays.
+- ✅ **Centralized Constants**: All logic settings moved to `Peril_Constants.lsl`.
+- ✅ **Compiler Compatibility**: Resolved all scope/brace errors and optimized loop logic for 10-player stability.
+- ✅ **Resilient Communication**: System now survives link-order changes and region restarts.
+
+### Key Achievements in v3.0.0:
 - ✅ **CRITICAL FIX**: Shield detection logic corrected - no more undeserved damage when shields are provided
 - ✅ **MAJOR FIX**: Complete initialization system overhaul - games work immediately after rezzing
 - ✅ Added comprehensive `on_rez()` handlers to all critical scripts (7 scripts updated)

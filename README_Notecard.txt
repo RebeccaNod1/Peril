@@ -2,13 +2,13 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 3.0.0 - COMMERCIAL CASPERVEND RELEASE
+CURRENT VERSION: 3.1.0 - THE "LINKSET STABILITY" UPDATE
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-NEW IN V3.0.0: Fully integrated with the commercial CasperVend delivery system. Over 170 legacy debug mechanisms were stripped using an advanced pre-processor macro to free memory for 10-player stability. Completely eliminated Z-fighting UI alignment glitches with new on_rez state synchronization routines.
+NEW IN V3.1.0: LINKSET STABILITY & DYNAMIC DISCOVERY! Complete architectural decentralization—scripts now find their linked prims by name, making the game board immune to link-order changes or region-side glitches. Full migration from legacy XYText to modern mesh-based FURWARE Text for dice and leaderboards. Centralized system constants in Peril_Constants.lsl for 100% project consistency.
 
 NEW IN V2.8.7: Enhanced LinkScanner System for complete 84-prim structure analysis and verification tools. (Legacy GitHub update system replaced by CasperVend in v3.0.0).
 
@@ -103,6 +103,27 @@ Player Count | Dice Type
 5–6          | d20
 7–10         | d30
 
+RECENT IMPROVEMENTS (V3.1.0)
+============================
+
+🔍 DYNAMIC LINK DISCOVERY SYSTEM
+- Zero-Fixed Links: Eliminated all hardcoded link indices. Each script now performs a "Dynamic Discovery" sweep on startup to find its sibling prims by name.
+- Relink-Resilient Architecture: You can now edit the linkset, add decorative prims, or reorder the board without breaking the game logic.
+- Region-Cross Safety: Solves "vanishing link" issues often seen during region restarts or teleports by automatically re-scanning for link targets on rez.
+
+🎭 FURWARE TEXT MESH MIGRATION
+- Enhanced Visuals: Replaced the legacy XYText (prim-flipping) with modern, mesh-based FURWARE Text.
+- Simplified Bridging: New bridge scripts handle all dice and leaderboard formatting, ensuring 100% synchronization across all displays.
+- Performance Boost: Mesh-based text mapping is significantly more efficient than standard prim texture-flipping for complex board data.
+
+🧩 CENTRALIZED SYSTEM CONSTANTS
+- Peril_Constants.lsl: All system-wide settings, message IDs, and macros are now centralized in a single header file.
+- Unified Debugging: Implemented a global dbg() pre-processor macro. One switch in the constants file toggles all debug levels for the entire game board simultaneously.
+
+🧠 RESTRICTED SCOPE & LOOP STABILITY
+- Compiler Safety: Refactored the entire codebase to use top-level variable declarations for all search loops, ensuring compatibility with strict LSL compiler versions.
+- Loop Reset Protection: Eliminated continue keywords in critical logic blocks, replacing them with robust if validation to prevent loop-hang race conditions.
+
 RECENT IMPROVEMENTS (V3.0.0)
 ============================
 
@@ -115,6 +136,10 @@ RECENT IMPROVEMENTS (V3.0.0)
 - Pre-Processor Directives: Implemented a global DEBUG_LOGS pre-processor macro across core logic scripts.
 - Bytecode Reduction: Stripped over 170 verbose llOwnerSay debug statements, significantly reducing compiled bytecode size.
 - Load Stability: Freed critical script memory in the Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during 10-player stress tests.
+
+🏆 EXPERIENCE-BASED LEADERBOARD
+- Persistent Storage: Leaderboard data is now stored in Second Life Experience Keys (KVP), ensuring lifetime persistence of player statistics.
+- Region Independence: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 🎨 Z-FIGHTING & ALIGNMENT FIXES
 - Initialization Stability: Patched Scoreboard, Leaderboard, and Dice Bridge scripts with on_rez auto-reset handlers to ensure flawless texture synchronization upon rezzing.
@@ -522,9 +547,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 3.0.0
-Last Updated: March 24, 2026
-Status: Production Ready - Commercial CasperVend Release
+Current Version: 3.1.0
+Last Updated: April 04, 2026
+Status: Production Ready - Linkset Stability Release
 
 ORIGINAL GAME RULES CREDIT
 ==========================

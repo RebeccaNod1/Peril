@@ -1,11 +1,10 @@
 // ====================================================================
-// Enhanced Link Scanner for Peril Dice Update System
+// Enhanced Link Scanner for Peril Dice Linkset
 // ====================================================================
 // Extended version of Temp_LinkScanner.lsl that identifies:
 // 1. Current linkset structure 
 // 2. Which scripts belong on which links
 // 3. Missing scripts or misplaced scripts
-// 4. Generates accurate placement info for Update_Checker.lsl
 //
 // USAGE: Place this script on any prim in the linkset, touch to scan
 // ====================================================================
@@ -83,7 +82,6 @@ performFullScan() {
         string scriptName = llList2String(LINK1_SCRIPTS, j);
         llOwnerSay("    • " + scriptName);
     }
-    llOwnerSay("  + Update_Checker.lsl (NEW - replaces eliminated UpdateHelper)");
     llOwnerSay("");
     
     // Analyze scoreboard
@@ -119,15 +117,7 @@ performFullScan() {
     }
     llOwnerSay("");
     
-    // Update checker guide
-    llOwnerSay("=== 🎯 UPDATE CHECKER PLACEMENT GUIDE ===");
-    llOwnerSay("📥 UPDATE CHECKER DEPLOYMENT:");
-    llOwnerSay("  ✅ Place Update_Checker.lsl on Link 1 (Root Prim)");
-    llOwnerSay("  ✅ Replaces eliminated UpdateHelper.lsl from v2.8.5");
-    llOwnerSay("  ✅ Integrates with existing admin menu system");
-    llOwnerSay("");
-    
-    llOwnerSay("🔄 ESSENTIAL FILES FOR UPDATES:");
+    llOwnerSay("🔄 ESSENTIAL FILES FOR GAMEPLAY:");
     llOwnerSay("  📂 Link 1 Scripts (" + (string)llGetListLength(LINK1_SCRIPTS) + " files)");
     llOwnerSay("  📂 Link-Specific Scripts (3 files)");
     llOwnerSay("  📂 XyzzyText Script (1 file × 48 prims)");
@@ -147,7 +137,6 @@ performFullScan() {
 default {
     state_entry() {
         llOwnerSay("🔍 Enhanced Link Scanner ready for Peril Dice linkset");
-        llOwnerSay("📊 This will map script locations for the Update Checker");
         llOwnerSay("👆 Touch to perform full linkset analysis");
     }
     

@@ -1,35 +1,8 @@
+#include "Peril_Constants.lsl"
+
 // === Controller Message Handler Helper Script ===
 // Handles non-critical message processing for the Main Controller
 // Reduces Main Controller size and improves modularity
-
-// Verbose logging control
-integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
-
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
-
-// Message constants for communication with main controller
-#define MSG_REQUEST_PLAYER_DATA 8001
-#define MSG_REQUEST_PICK_DATA 8002
-#define MSG_REQUEST_LIFE_DATA 8003
-#define MSG_PICK_ACTION 8004
-#define MSG_DICE_TYPE_REQUEST 8005
-#define MSG_LEAVE_GAME_REQUEST 8006
-#define MSG_OWNER_MESSAGE 9030        // Send formatted owner message
-#define MSG_PUBLIC_MESSAGE 9031       // Send formatted public message
-#define MSG_REGION_MESSAGE 9032       // Send formatted region message
-#define MSG_DIALOG_REQUEST 9033       // Send formatted dialog
 
 // Game state data synchronized from Main Controller
 list players = [];
@@ -42,15 +15,12 @@ string perilPlayer = "";  // Track who the peril player is to determine if game 
 integer roundStarted = FALSE;  // Track if the game round has started
 
 // Message constants from Main Controller (synchronized)
-integer MSG_SYNC_GAME_STATE = 107;
 #define MSG_SYNC_PICKQUEUE 2001
 
 // Channel constants for scoreboard updates
 integer SCOREBOARD_CHANNEL_1;
 integer SCOREBOARD_CHANNEL_2;
 integer FLOATER_BASE_CHANNEL;
-#define MSG_CLEANUP_FLOAT 104
-#define MSG_UPDATE_FLOAT 103
 
 // Dynamic channel calculation (matches Main Controller)
 #define CHANNEL_BASE -77000
@@ -70,6 +40,19 @@ integer calculateChannel(integer offset) {
     return CHANNEL_BASE - (offset * 1000) - combinedHash;
 }
 
+// Memory reporting function
+reportMemoryUsage(string scriptName) {
+    integer used = llGetUsedMemory();
+    integer free = llGetFreeMemory();
+    integer total = used + free;
+    float percentUsed = ((float)used / (float)total) * 100.0;
+    
+    dbg("🧠 [" + scriptName + "] Memory: " + 
+               (string)used + " used, " + 
+               (string)free + " free (" + 
+               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+}
+
 initializeChannels() {
     SCOREBOARD_CHANNEL_1 = calculateChannel(6);   // ~-77600 range
     SCOREBOARD_CHANNEL_2 = calculateChannel(7);   // ~-77700 range  
@@ -79,7 +62,7 @@ initializeChannels() {
 // Handle player list requests
 handlePlayerListRequest(key requester) {
     string namesCSV = llList2CSV(names);
-    llMessageLinked(LINK_SET, 203, namesCSV, requester);
+    llMessageLinked(LINK_SET, MSG_PLAYER_LIST_PICK_RESULT, namesCSV, requester);
 }
 
 // Handle pick data requests
@@ -89,11 +72,11 @@ handlePickDataRequest(string targetName, key requester) {
         string rawEntry = llList2String(picksData, j);
         list pickParts = llParseString2List(rawEntry, ["|"], []);
         if (llList2String(pickParts, 0) == targetName) {
-            llMessageLinked(LINK_SET, 205, targetName + "|" + llList2String(pickParts, 1), requester);
+            llMessageLinked(LINK_SET, MSG_PICK_LIST_RESULT, targetName + "|" + llList2String(pickParts, 1), requester);
             return;
         }
     }
-    llMessageLinked(LINK_SET, 205, targetName + "|", requester);
+    llMessageLinked(LINK_SET, MSG_PICK_LIST_RESULT, targetName + "|", requester);
 }
 
 // Handle life data requests
@@ -101,7 +84,7 @@ handleLifeDataRequest(string playerName, key requester) {
     integer lifeIdx = llListFindList(names, [playerName]);
     if (lifeIdx != -1) {
         string lifeVal = llList2String(lives, lifeIdx);
-        llMessageLinked(LINK_SET, 208, playerName + "|" + lifeVal, requester);
+        llMessageLinked(LINK_SET, MSG_LIFE_LOOKUP_RESULT, playerName + "|" + lifeVal, requester);
     }
 }
 
@@ -127,17 +110,11 @@ handlePickAction(string actionData) {
             if (pickAction == "ADD_PICK") {
                 if (llListFindList(pickList, [pick]) == -1) {
                     pickList += [pick];
-                    if (VERBOSE_LOGGING) {
-                        llOwnerSay("➕ [Message Handler] Added " + pick + " to " + name);
-                    }
                 }
             } else if (pickAction == "REMOVE_PICK") {
                 integer removeIdx = llListFindList(pickList, [pick]);
                 if (removeIdx != -1) {
                     pickList = llDeleteSubList(pickList, removeIdx, removeIdx);
-                    if (VERBOSE_LOGGING) {
-                        llOwnerSay("➖ [Message Handler] Removed " + pick + " from " + name);
-                    }
                 }
             }
             
@@ -145,7 +122,7 @@ handlePickAction(string actionData) {
             picksData = llListReplaceList(picksData, [name + "|" + llList2CSV(pickList)], k, k);
             
             // Notify Main Controller of the change
-            llMessageLinked(LINK_SET, 204, actionData, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_PICK_ACTION, actionData, NULL_KEY);
             return;
         }
     }
@@ -153,10 +130,7 @@ handlePickAction(string actionData) {
 
 // Handle dice type requests
 handleDiceTypeRequest(key requester) {
-    if (VERBOSE_LOGGING) {
-        llOwnerSay("🎲 [Message Handler] Sending dice type: " + (string)diceType);
-    }
-    llMessageLinked(LINK_SET, 102, (string)diceType, requester); // MSG_ROLL_RESULT
+    llMessageLinked(LINK_SET, MSG_DICE_TYPE_RESULT, (string)diceType, requester); 
 }
 
 // Handle leave game and kick player requests
@@ -175,13 +149,6 @@ handleLeaveGameRequest(string requestData) {
             lives = llDeleteSubList(lives, leaveIdx, leaveIdx);
             picksData = llDeleteSubList(picksData, leaveIdx, leaveIdx);
             
-            // THEN send floater cleanup using the previously calculated channel
-            // Note: We DON'T send MSG_CLEANUP_FLOAT here anymore to avoid double-cleanup
-            // The Main Controller will handle floater cleanup after list synchronization
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("📝 [Message Handler] Updated local lists for " + leavingName + ", deferring floater cleanup to Main Controller");
-            }
-            
             // Remove from ready list if present
             integer readyIdx = llListFindList(readyPlayers, [leavingName]);
             if (readyIdx != -1) {
@@ -190,10 +157,8 @@ handleLeaveGameRequest(string requestData) {
             
             // Different messages for voluntary leave vs kick
             if (leaveAction == "LEAVE_GAME") {
-                llOwnerSay("👋 [Message Handler] " + leavingName + " left the game");
                 llSay(0, "👋 " + leavingName + " has left the deadly game! 👋");
             } else if (leaveAction == "KICK_PLAYER") {
-                llOwnerSay("👢 [Message Handler] " + leavingName + " was kicked from the game");
                 llSay(0, "👢 " + leavingName + " has been kicked from the deadly game by the owner! 👢");
             }
             
@@ -202,22 +167,16 @@ handleLeaveGameRequest(string requestData) {
             
             // Check if game should end (0 players = reset, 1 player = victory)
             if (llGetListLength(names) == 0) {
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("🔄 [Message Handler] All players left - game will reset");
-                }
                 // Main Controller will handle the reset
             } else if (llGetListLength(names) == 1 && roundStarted && perilPlayer != "" && perilPlayer != "NONE") {
                 // Only declare victory if the game has actually started (round active and peril player assigned)
                 string winner = llList2String(names, 0);
                 llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
                 // Notify Main Controller of victory
-                llMessageLinked(LINK_SET, 998, "GAME_WON|" + winner, NULL_KEY);
+                llMessageLinked(LINK_SET, MSG_CONTINUE_GAME, "GAME_WON|" + winner, NULL_KEY);
             } else if (llGetListLength(names) == 1) {
                 // Game not started yet, just inform but don't declare victory
                 string remainingPlayer = llList2String(names, 0);
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("📝 [Message Handler] Only " + remainingPlayer + " remains, but game hasn't started yet");
-                }
             }
         }
     }
@@ -229,9 +188,6 @@ syncGameState(string stateData) {
     
     // Handle special RESET sync message
     if (llGetListLength(syncParts) >= 5 && llList2String(syncParts, 0) == "RESET") {
-        if (VERBOSE_LOGGING) {
-            llOwnerSay("🔄 [Message Handler] Received reset sync - clearing all state");
-        }
         // Clear all state during reset
         players = [];
         names = [];
@@ -283,10 +239,6 @@ syncGameState(string stateData) {
         if (perilPlayer != "" && perilPlayer != "NONE") {
             integer perilIdx = llListFindList(names, [perilPlayer]);
             if (perilIdx == -1) {
-                // Only warn if we actually have players - during reset this is expected
-                if (llGetListLength(names) > 0 && VERBOSE_LOGGING) {
-                    llOwnerSay("⚠️ [Message Handler] WARNING: Peril player '" + perilPlayer + "' not found in names list - clearing peril status");
-                }
                 perilPlayer = "";
                 roundStarted = FALSE;
             }
@@ -302,27 +254,21 @@ handleOwnerMessage(string messageData) {
     list ownerParts = llParseString2List(messageData, ["|"], []);
     if (llGetListLength(ownerParts) == 1) {
         // Simple message
-        llOwnerSay(messageData);
     } else {
         // Formatted message
         string ownerMsgType = llList2String(ownerParts, 0);
         if (ownerMsgType == "JOIN") {
             string ownerPlayerName = llList2String(ownerParts, 1);
-            llOwnerSay("👋 " + ownerPlayerName + " joined the game!");
             llSay(0, "🔔 Added player: " + ownerPlayerName);
         } else if (ownerMsgType == "LEAVE") {
             string leavePlayerName = llList2String(ownerParts, 1);
-            llOwnerSay("👋 " + leavePlayerName + " left the game.");
         } else if (ownerMsgType == "ERROR") {
             string error = llList2String(ownerParts, 1);
-            llOwnerSay("⚠️ " + error);
         } else if (ownerMsgType == "SUCCESS") {
             string msg = llList2String(ownerParts, 1);
-            llOwnerSay("✅ " + msg);
         } else if (ownerMsgType == "DEBUG") {
             string component = llList2String(ownerParts, 1);
             string msg = llList2String(ownerParts, 2);
-            llOwnerSay("🔧 [" + component + "] " + msg);
         }
     }
 }
@@ -382,61 +328,59 @@ default {
     state_entry() {
         reportMemoryUsage("📨 Message Handler");
         
-        llOwnerSay("📨 [Message Handler] Helper script ready!");
         initializeChannels();
     }
     
+    on_rez(integer start_param) {
+        reportMemoryUsage("📨 Message Handler");
+        initializeChannels();
+        // Reset local state if needed (synced from Main)
+        players = [];
+        names = [];
+        lives = [];
+        picksData = [];
+        readyPlayers = [];
+    }
+    
     link_message(integer sender, integer num, string str, key id) {
-        // Handle verbose logging toggle
-        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
-            VERBOSE_LOGGING = !VERBOSE_LOGGING;
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("🔊 [Message Handler] Verbose logging ENABLED");
-            } else {
-                llOwnerSay("🔊 [Message Handler] Verbose logging DISABLED");
-            }
-            return;
-        }
-        
         // Handle player list requests (for pick management only)
-        if (num == 202 && str == "REQUEST_PLAYER_LIST") {
+        if (num == MSG_REQUEST_PLAYER_LIST_PICK && str == "REQUEST_PLAYER_LIST") {
+
             handlePlayerListRequest(id);
             return;
         }
         
         // Handle kick player list requests (separate message ID to avoid conflicts)
-        if (num == 8009 && str == "REQUEST_PLAYER_LIST_KICK") {
+        if (num == MSG_REQUEST_PLAYER_LIST_KICK && str == "REQUEST_PLAYER_LIST_KICK") {
             // Send back kick-specific message ID to avoid conflict with pick management
             string namesCSV = llList2CSV(names);
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("🔍 [Message Handler] Received request: '" + str + "'");
-                llOwnerSay("🔍 [Message Handler] Names list: " + llDumpList2String(names, ", "));
-                llOwnerSay("🔍 [Message Handler] Sending kick player list: '" + namesCSV + "'");
-            }
-            llMessageLinked(LINK_SET, 8009, namesCSV, id);
+            dbg("🧠 [Controller Message Handler] 🔍 Received request: '" + str + "'");
+            dbg("🧠 [Controller Message Handler] 🔍 Names list: " + llDumpList2String(names, ", "));
+            dbg("🧠 [Controller Message Handler] 🔍 Sending kick player list: '" + namesCSV + "'");
+            llMessageLinked(LINK_SET, MSG_REQUEST_PLAYER_LIST_KICK, namesCSV, id);
             return;
         }
         
         // Handle pick data requests  
-        if (num == 206) {
+        if (num == MSG_OWNER_PICK_MANAGER) {
             handlePickDataRequest(str, id);
             return;
         }
         
         // Handle life data requests
-        if (num == 208) {
+        if (num == MSG_LIFE_LOOKUP_REQUEST) {
             handleLifeDataRequest(str, id);
             return;
         }
         
         // Handle pick actions
-        if (num == 204) {
+        if (num == MSG_PICK_ACTION) {
             handlePickAction(str);
             return;
         }
         
         // Handle dice type requests
-        if (num == 996) {
+        if (num == MSG_GET_DICE_TYPE) {
             if (str == "GET_DICE_TYPE") {
                 handleDiceTypeRequest(id);
             }
@@ -444,7 +388,7 @@ default {
         }
         
         // Handle leave game requests (use proper message ID, not 107 which is for sync)
-        if (num == 8007) { // Different from MSG_SYNC_GAME_STATE = 107
+        if (num == MSG_LEAVE_GAME) { // Different from MSG_SYNC_GAME_STATE = 107
             handleLeaveGameRequest(str);
             return;
         }
@@ -483,7 +427,7 @@ default {
         }
         
         // Handle full reset
-        if (num == -99999 && str == "FULL_RESET") {
+        if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             players = [];
             names = [];
             lives = [];
@@ -492,7 +436,7 @@ default {
             diceType = 6;
             perilPlayer = "";
             roundStarted = FALSE;
-            llOwnerSay("📨 [Message Handler] Reset complete");
+            dbg("🧠 [Controller Message Handler] Reset complete");
         }
     }
 }

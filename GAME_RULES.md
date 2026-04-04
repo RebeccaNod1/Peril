@@ -183,8 +183,11 @@ The game features thematic messaging for maximum immersion:
 - **Professional Status Actions** - Large status prim shows current game events
 - **Color-Coded Glow System** - Green (winner), Yellow (peril), Red X (eliminated)
 
-### **Technical Rules:**
-- Game supports up to **10 players maximum**
+### **Technical Rules (UPDATED in v3.1.0):**
+- **Dynamic Link Discovery** - Scripts find their targets by name; reordering prims won't break the game 🔍
+- **FURWARE Text Mesh Integration** - Professional mesh-based displays for dice and leaderboard 🎨
+- **Centralized Constants** - System-wide settings managed in `Peril_Constants.lsl` 🧩
+- **Game supports up to 10 players maximum**
 - **Owner kick functionality** for managing disruptive players
 - **Automatic game reset** on startup (preserves leaderboard)
 - **Single linkset architecture** (74 prims total) for reliable operation
@@ -293,7 +296,7 @@ While the core rules remain the same, consider these optional variations:
 
 ---
 
-**Version:** 2.8.1  
-**Last Updated:** August 14, 2025  
-**Game System:** Production Ready - Display & Elimination Fixes  
+**Version:** 3.1.0  
+**Last Updated:** April 04, 2026  
+**Game System:** Production Ready - Linkset Stability Release  
 **Credits:** Original concept by Noose the Bunny (djmusica28), Automated system implementation by Rebecca Nod

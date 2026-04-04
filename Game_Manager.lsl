@@ -1,3 +1,5 @@
+#include "Peril_Constants.lsl"
+
 // === Game Manager - Game Flow Logic ===
 
 // Helper function to get display name with fallback to username
@@ -15,7 +17,6 @@ string getPlayerName(key id) {
 #define HUMAN_PICK_DELAY 1.0
 #define DIALOG_DELAY 1.5
 #define STATUS_DISPLAY_TIME 8.0
-
 // Game state - synced from Main Controller
 list players = [];
 list names = [];
@@ -79,42 +80,22 @@ list buildCompleteAvoidanceList() {
 }
 
 // Memory reporting function
-reportMemoryUsage(string scriptName) {
+integer reportMemoryUsage(string scriptName) {
     integer used = llGetUsedMemory();
     integer free = llGetFreeMemory();
     integer total = used + free;
     float percentUsed = ((float)used / (float)total) * 100.0;
     
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+    dbg("🧠 [" + scriptName + "] Memory: " + 
                (string)used + " used, " + 
                (string)free + " free (" + 
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
+    return 0;
 }
 
-// Verbose logging control - toggled by owner
-#define DEBUG_LOGS 0  // Set to 1 to enable logs, 0 to STRIP from memory completely
-#if DEBUG_LOGS
-#define dbg(msg) dbg(msg)
-integer VERBOSE_LOGGING = FALSE;
-#else
-#define dbg(msg)
-#define VERBOSE_LOGGING 0
-#endif
-// Original VERBOSE_LOGGING definition removed
+// Build complete avoidance list from all current picks
 
-// Message constants
-#define MSG_SHOW_DIALOG 101
-#define MSG_SHOW_ROLL_DIALOG 301
-#define MSG_GET_DICE_TYPE 1001
-#define MSG_DICE_TYPE_RESULT 1005
-#define MSG_SYNC_GAME_STATE 107
-#define MSG_SYNC_PICKQUEUE 2001
-#define MSG_PLAYER_WON 551
-#define MSG_UPDATE_FLOAT 2010
-#define MSG_DIALOG_FORWARD_REQUEST 9060 // Request dialog forwarding from Player_RegistrationManager
-#define MSG_CONTINUE_ROUND 998 // Continue round after roll processing
-
-continueCurrentRound() {
+integer continueCurrentRound() {
     // MEMORY OPTIMIZED: Skip complex validation - trust game state
     // Main Controller handles all game ending validation
     
@@ -127,30 +108,30 @@ continueCurrentRound() {
             integer continuePlayerLives = llList2Integer(lives, continuePlayerIdx);
             if (continuePlayerLives <= 0) {
                 dbg("🛑 [Game Manager] continueCurrentRound: Found eliminated player " + continueName + " with " + (string)continuePlayerLives + " lives - aborting round start");
-                return;
+                return 0;
             }
         }
     }
     
     if (perilPlayer == "" || perilPlayer == "NONE") {
         dbg("🛑 [Game Manager] continueCurrentRound: Invalid peril player (" + perilPlayer + ") - aborting round start");
-        return;
+        return 0;
     }
     
     // Verify peril player exists and has lives
     integer perilIdx = llListFindList(names, [perilPlayer]);
     if (perilIdx == -1) {
         dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " not found in names list - aborting round start");
-        return;
+        return 0;
     }
     if (perilIdx >= llGetListLength(lives)) {
         dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " index out of bounds - aborting round start");
-        return;
+        return 0;
     }
     integer perilLives = llList2Integer(lives, perilIdx);
     if (perilLives <= 0) {
         dbg("🛑 [Game Manager] continueCurrentRound: Peril player " + perilPlayer + " has " + (string)perilLives + " lives - aborting round start");
-        return;
+        return 0;
     }
     
     // Start fresh for a new round - clear picks data
@@ -179,18 +160,19 @@ continueCurrentRound() {
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
     
     // Note: showNextPickerDialog() will be called when dice type result is received
+    return 0;
 }
 
-startNextRound() {
+integer startNextRound() {
     // Prevent multiple calls to start round
     if (roundStarted) {
         dbg("⚠️ Round already started, ignoring duplicate start request");
-        return;
+        return 0;
     }
     
     if (llGetListLength(names) < 2) {
         dbg("⚠️ Need at least 2 players to start the game.");
-        return;
+        return 0;
     }
     
     if (llGetListLength(names) == 1) {
@@ -198,14 +180,14 @@ startNextRound() {
         llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
         
         // Send winner glow update to scoreboard
-        llMessageLinked(12, 3006, winner, NULL_KEY);  // MSG_UPDATE_WINNER
+        llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, winner, NULL_KEY);  // MSG_UPDATE_WINNER
         
         llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
-        llMessageLinked(LINK_SET, 995, "VICTORY_CONFETTI", NULL_KEY);
+        llMessageLinked(LINK_SET, MSG_EFFECT_CONFETTI, "VICTORY_CONFETTI", NULL_KEY);
                 // Don't use hardcoded channel here - let Main Controller handle scoreboard updates
                 // Main Controller will send the proper GAME_WON message to scoreboard
         // Let main controller handle reset
-        return;
+        return 0;
     }
     
     dbg("🎯 Game Manager starting new round...");
@@ -221,7 +203,7 @@ startNextRound() {
         llSay(0, "🎯 " + perilPlayer + " has been randomly selected and is now in peril!");
         
         // Send peril player update to scoreboard for glow effect
-        llMessageLinked(12, 3005, perilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
+        llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, perilPlayer, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
         
         // Sync state to floater manager first, then update floaters to show new peril player immediately
         dbg("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
@@ -253,9 +235,10 @@ startNextRound() {
     // Request dice type for this round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
     dbg("🎯 Game Manager round setup complete, requesting dice type...");
+    return 0;
 }
 
-showNextPickerDialog() {
+integer showNextPickerDialog() {
     // MEMORY OPTIMIZED: Skip complex validation - trust that game is active
     // Main Controller handles all game ending logic
     
@@ -267,36 +250,36 @@ showNextPickerDialog() {
     
     if (diceType <= 0) {
         dbg("❌ Cannot show picker dialog: diceType not set (" + (string)diceType + ")");
-        return;
+        return 0;
     }
     
     if (currentPickerIdx >= llGetListLength(pickQueue)) {
         dbg("❌ Cannot show picker dialog: currentPickerIdx (" + (string)currentPickerIdx + ") >= pickQueue length (" + (string)llGetListLength(pickQueue) + ")");
-        return;
+        return 0;
     }
     
     string firstName = llList2String(pickQueue, currentPickerIdx);
     if (firstName == "") {
         dbg("❌ Cannot show picker dialog: empty player name at index " + (string)currentPickerIdx);
-        return;
+        return 0;
     }
     
     // CRITICAL: Verify this player is still alive and in the game
     integer showPlayerIdx = llListFindList(names, [firstName]);
     if (showPlayerIdx == -1) {
         dbg("❌ Cannot show picker dialog: player " + firstName + " not found in current game");
-        return;
+        return 0;
     }
     
     if (showPlayerIdx >= llGetListLength(lives)) {
         dbg("❌ Cannot show picker dialog: player " + firstName + " index out of bounds for lives list");
-        return;
+        return 0;
     }
     
     integer showPlayerLives = llList2Integer(lives, showPlayerIdx);
     if (showPlayerLives <= 0) {
         dbg("❌ Cannot show picker dialog: player " + firstName + " has been eliminated (" + (string)showPlayerLives + " lives)");
-        return;
+        return 0;
     }
     
     // CHECK: Don't show dialog if this player already has picks to prevent loops
@@ -312,23 +295,23 @@ showNextPickerDialog() {
         }
     }
     
-    if (alreadyHasPicks) {
-        // Skip to next player to prevent infinite loops
-        currentPickerIdx++;
-        if (currentPickerIdx < llGetListLength(pickQueue)) {
-            showNextPickerDialog();
-        } else {
-        // All picked, show roll dialog through Player_RegistrationManager
-        string firstRollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
-        llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, firstRollRequest, NULL_KEY);
+        if (alreadyHasPicks) {
+            // Skip to next player to prevent infinite loops
+            currentPickerIdx++;
+            if (currentPickerIdx < llGetListLength(pickQueue)) {
+                showNextPickerDialog();
+            } else {
+            // All picked, show roll dialog through Player_RegistrationManager
+            string firstRollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+            llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, firstRollRequest, NULL_KEY);
+            }
+            return 0;
         }
-        return;
-    }
     
     integer nameIdx = llListFindList(names, [firstName]);
     if (nameIdx == -1) {
         dbg("❌ Cannot show picker dialog: player " + firstName + " not found in names list");
-        return;
+        return 0;
     }
     
         // SIMPLE FIX: Send dialog request to Main Controller with player name
@@ -363,7 +346,7 @@ showNextPickerDialog() {
             string showAvoidListStr = llList2CSV(showCompleteAvoidList);
             string botCommand = "BOT_PICK:" + firstName + ":" + (string)showPicksNeeded + ":" + (string)diceType + ":" + showAvoidListStr;
             dbg("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(showCompleteAvoidList) + " numbers): " + showAvoidListStr);
-            llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_BOT_COMMAND, botCommand, NULL_KEY);
             dbg("🤖 " + firstName + " is automatically picking " + (string)showPicksNeeded + " numbers...");
         } else {
             // Bot already has picks, advance to next player immediately
@@ -397,21 +380,23 @@ showNextPickerDialog() {
         string dialogRequest = "SHOW_DIALOG|" + firstName + "|" + dialogPayload;
         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
     }
+    return 0;
 }
 
 // requestDiceType() removed - Game Manager no longer requests dice type directly
 // This prevents loops. Main Controller handles all dice type requests.
 
-syncStateToMain() {
+integer syncStateToMain() {
     // MEMORY OPTIMIZED: Skip ALL sync operations to prevent corrupting Main Controller's data
     // Main Controller is the master - Game Manager should not send sync messages
-    return;
+    return 0;
 }
 
 default {
     state_entry() {
+        DISCOVER_CORE_LINKS();
         reportMemoryUsage("Game Manager");
-        dbg("🎯 Game Manager initializing...");
+        dbg("🎯 Game Manager ready - discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);
         
         // Initialize/reset all game state variables
         players = [];
@@ -436,8 +421,9 @@ default {
     }
     
     on_rez(integer start_param) {
+        DISCOVER_CORE_LINKS();
         reportMemoryUsage("Game Manager");
-        dbg("🔄 Game Manager rezzed - reinitializing...");
+        dbg("🔄 Game Manager reset via rez...");
         
         // Reset all game state variables on rez
         players = [];
@@ -522,7 +508,7 @@ default {
                     if (perilChanged && perilPlayer != "" && perilPlayer != "NONE") {
                         integer currentPlayerCount = llGetListLength(newNames);  // Use the updated count
                         string lightUpdate = "PERIL_UPDATE|" + perilPlayer + "|" + (string)currentPlayerCount;
-                        llMessageLinked(LINK_SET, 9070, lightUpdate, NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_SYNC_LIGHTWEIGHT, lightUpdate, NULL_KEY);
                     }
                     
                     integer allPicksEmpty = TRUE;
@@ -545,7 +531,7 @@ default {
         }
         
         // Receive legacy game state updates from main controller (simplified version)
-        if (num == 9071) {
+        if (num == MSG_SYNC_LEGACY) {
             dbg("🔧 [Game Manager] Received sync: " + str);
             list parts = llParseString2List(str, ["~"], []);
             dbg("🔧 [Game Manager] Parsed into " + (string)llGetListLength(parts) + " parts");
@@ -681,7 +667,7 @@ default {
         // Legacy 997 message handler removed - now using direct MSG_CONTINUE_ROUND (998) communication
         
         // Handle human picks
-        if (num == -9998 && llSubStringIndex(str, "HUMAN_PICKED:") == 0) {
+        if (num == MSG_HUMAN_PICKED && llSubStringIndex(str, "HUMAN_PICKED:") == 0) {
             list parts = llParseString2List(str, [":"], []);
             if (llGetListLength(parts) >= 3) {
                 string playerName = llList2String(parts, 1);
@@ -827,7 +813,7 @@ default {
         }
         
 // Handle bot picks
-        if (num == -9997 && llSubStringIndex(str, "BOT_PICKED:") == 0) {
+        if (num == MSG_BOT_PICKED && llSubStringIndex(str, "BOT_PICKED:") == 0) {
             dbg("🔍 [Game Manager] BOT_PICKED message received: " + str);
             list parts = llParseString2List(str, [":"], []);
             if (llGetListLength(parts) >= 3) {
@@ -874,7 +860,7 @@ default {
                         
                         // Force close any active number picker dialogs
                         dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
-                        llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_BOT_COMMAND, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
                         string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
@@ -905,7 +891,7 @@ default {
                     string avoidListStr = llList2CSV(completeAvoidList);
                     string botCommand = "BOT_PICK:" + playerName + ":" + (string)picksNeeded + ":" + (string)diceType + ":" + avoidListStr;
                     dbg("🎯 [Game Manager] Sending retry bot command with complete avoid list (" + (string)llGetListLength(completeAvoidList) + " numbers): " + avoidListStr);
-                    llMessageLinked(LINK_SET, -9999, botCommand, NULL_KEY);
+                    llMessageLinked(LINK_SET, MSG_BOT_COMMAND, botCommand, NULL_KEY);
                     return; // Don't save this pick
                 }
                 
@@ -984,7 +970,7 @@ default {
                         
                         // Force close any active number picker dialogs
                         dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
-                        llMessageLinked(LINK_SET, -9999, "CLOSE_ALL_DIALOGS", NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_BOT_COMMAND, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
                         string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
@@ -1034,24 +1020,9 @@ default {
             return;
         }
         
-        // Handle verbose logging toggle from Main Controller
-        if (num == 9011 && llSubStringIndex(str, "VERBOSE_LOGGING|") == 0) {
-            list parts = llParseString2List(str, ["|"], []);
-            if (llGetListLength(parts) >= 2) {
-                #if DEBUG_LOGS
-                VERBOSE_LOGGING = (integer)llList2String(parts, 1);
-#endif
-                if (VERBOSE_LOGGING) {
-                    dbg("🔍 [Game Manager] Verbose logging ON");
-                } else {
-                    dbg("🔍 [Game Manager] Verbose logging OFF");
-                }
-            }
-            return;
-        }
         
         // Handle reset
-        if (num == -99999 && str == "FULL_RESET") {
+        if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             players = names = lives = picksData = globalPickedNumbers = pickQueue = [];
             perilPlayer = "";
             currentPickerIdx = 0;
@@ -1066,7 +1037,7 @@ default {
         }
         
         // Handle emergency state reset (for when game gets stuck)
-        if (num == -99998 && str == "EMERGENCY_RESET") {
+        if (num == MSG_EMERGENCY_RESET && str == "EMERGENCY_RESET") {
             dbg("🚨 [Game Manager] Emergency reset triggered!");
             roundStarted = FALSE;
             perilPlayer = "";

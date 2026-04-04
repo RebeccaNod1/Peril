@@ -1,11 +1,9 @@
+#include "Peril_Constants.lsl"
+
 // === Game Calculator Module (Max 10 players) ===
 // Calculates dice types, pick requirements, and other game mechanics
 // This version chooses a dice size based on the number of players,
 // ensuring at least three numbers are available per player.
-
-// Verbose logging control
-integer VERBOSE_LOGGING = TRUE;  // Global flag for verbose debug logs
-#define MSG_TOGGLE_VERBOSE_LOGS 9998  // Message to toggle verbose logging
 
 // Memory reporting function
 reportMemoryUsage(string scriptName) {
@@ -14,19 +12,11 @@ reportMemoryUsage(string scriptName) {
     integer total = used + free;
     float percentUsed = ((float)used / (float)total) * 100.0;
     
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+    dbg("🧠 [" + scriptName + "] Memory: " + 
                (string)used + " used, " + 
                (string)free + " free (" + 
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
 }
-
-#define MSG_GET_DICE_TYPE 1001
-#define MSG_DICE_TYPE_RESULT 1005
-#define MSG_GET_PICKS_REQUIRED 1002
-#define MSG_GET_PICKER_INDEX 1003
-#define MSG_SERIALIZE_GAME_STATE 1004
-#define MSG_SYNC_GAME_STATE 107
-#define MSG_SYNC_PICKQUEUE 2001
 
 list lives;
 list picksData;
@@ -97,16 +87,10 @@ integer showPickManager(string player, key id) {
             string matchName = llList2String(names, k);
             if (llSubStringIndex(matchName, searchName) != -1) {
                 searchIdx = k;
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("✅ Matched pick list for: " + matchName);
-                }
                 k = llGetListLength(names);
             }
         }
         if (searchIdx == -1) {
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("⚠️ Could not find player: " + player);
-            }
             return 0;
         }
     }
@@ -131,13 +115,6 @@ integer showPickManager(string player, key id) {
         }
     }
 
-    // Don't show hardcoded dialog - let the Owner Dialog Handler manage this
-    if (VERBOSE_LOGGING) {
-        llOwnerSay("🧮 Calculator delegating pick management to dialog handler for: " + (string)id);
-    }
-    // Return without showing dialog - this should be handled by the proper dialog handler
-
-    // Return dummy value since LSL does not have a void return type
     return 0;
 }
 
@@ -151,15 +128,11 @@ default {
         perilPlayer = "";
         names = [];
         pickQueue = [];
-        llOwnerSay("🧮 Game Calculator ready!");
+        dbg("🧮 [Calculator] Game Calculator ready!");
     }
     
     on_rez(integer start_param) {
         reportMemoryUsage("🧮 Game Calculator");
-        
-        if (VERBOSE_LOGGING) {
-            llOwnerSay("🔄 Game Calculator rezzed - reinitializing...");
-        }
         
         // Reset all state variables on rez
         lives = [];
@@ -167,33 +140,19 @@ default {
         perilPlayer = "";
         names = [];
         pickQueue = [];
-        
-        if (VERBOSE_LOGGING) {
-            llOwnerSay("✅ Game Calculator reset complete after rez!");
-        }
     }
     
     link_message(integer sender, integer num, string str, key id) {
-        // Handle verbose logging toggle
-        if (num == MSG_TOGGLE_VERBOSE_LOGS) {
-            VERBOSE_LOGGING = !VERBOSE_LOGGING;
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("🔊 [Game Calculator] Verbose logging ENABLED");
-            } else {
-                llOwnerSay("🔊 [Game Calculator] Verbose logging DISABLED");
-            }
-            return;
-        }
         
         // Handle full reset from main controller
-        if (num == -99999 && str == "FULL_RESET") {
+        if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             // Reset helper state
             lives = [];
             picksData = [];
             perilPlayer = "";
             names = [];
             pickQueue = [];
-            llOwnerSay("🧮 Calculator Module reset!");
+            dbg("🧮 [Calculator] Calculator Module reset!");
             return;
         }
         
@@ -202,17 +161,13 @@ default {
             
             // Handle special RESET sync message
             if (llGetListLength(parts) >= 5 && llList2String(parts, 0) == "RESET") {
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("🔄 [Game Calculator] Received reset sync - ignoring during reset");
-                }
+                dbg("🧮 [Calculator] 🔄 Received reset sync - ignoring during reset");
                 return;
             }
             
             if (llGetListLength(parts) < 4) {
-                if (VERBOSE_LOGGING) {
-                    llOwnerSay("⚠️ Game Calculator: Incomplete sync message received, parts: " + (string)llGetListLength(parts));
-                    llOwnerSay("⚠️ Incomplete game state received.");
-                }
+                dbg("🧮 [Calculator] ⚠️ Incomplete sync message received, parts: " + (string)llGetListLength(parts));
+                dbg("🧮 [Calculator] ⚠️ Incomplete game state received.");
                 return;
             }
             lives = llCSV2List(llList2String(parts, 0));
@@ -237,9 +192,7 @@ default {
         }
         else if (num == MSG_GET_DICE_TYPE) {
             integer playerCount = (integer)str;
-            if (VERBOSE_LOGGING) {
-                llOwnerSay("📈 Calculator: Calculating dice type for " + (string)playerCount + " players");
-            }
+            dbg("🧮 [Calculator] 📈 Calculating dice type for " + (string)playerCount + " players");
             integer result = getDiceType(playerCount);
             // Send result only to the requester (sender), not broadcast to everyone
             llMessageLinked(sender, MSG_DICE_TYPE_RESULT, (string)result, NULL_KEY);
@@ -255,8 +208,8 @@ default {
         else if (num == MSG_SERIALIZE_GAME_STATE) {
             llMessageLinked(LINK_THIS, MSG_SERIALIZE_GAME_STATE, serializeGameState(), NULL_KEY);
         }
-        else if (num == 206) {
-            llOwnerSay("📨 MSG 206 received for: " + str + " from: " + (string)id);
+        else if (num == MSG_OWNER_PICK_MANAGER) {
+            dbg("🧮 [Calculator] 📨 MSG 206 received for: " + str + " from: " + (string)id);
             showPickManager(str, id);
         }
     }

@@ -1,24 +1,8 @@
+#include "Peril_Constants.lsl"
+
 // === Player Registration Manager ===
 // Handles all player registration, join/leave operations to reduce Main Controller memory usage
 // This script takes over the memory-heavy player management operations
-
-// Message constants for communication
-#define MSG_REGISTER_PLAYER_REQUEST 9050  // Dedicated message from Main Controller for registration
-#define MSG_OWNER_MESSAGE 9030
-#define MSG_PUBLIC_MESSAGE 9031
-#define MSG_REGION_MESSAGE 9032
-#define MSG_SHOW_MENU 201
-#define MSG_UPDATE_MAIN_LISTS 9040  // Optimized message to update main controller lists
-#define MSG_SYNC_GAME_STATE 107
-
-// Scoreboard and display message constants
-#define SCOREBOARD_LINK 12
-#define MSG_PLAYER_UPDATE 3002
-
-// Dialog forwarding constants
-#define MSG_SHOW_DIALOG 101
-#define MSG_SHOW_ROLL_DIALOG 301
-#define MSG_DIALOG_FORWARD_REQUEST 9060 // New message for dialog forwarding requests
 
 // Game state tracking (synced from Main Controller)
 list players = [];
@@ -37,7 +21,7 @@ reportMemoryUsage(string scriptName) {
     integer total = used + free;
     float percentUsed = ((float)used / (float)total) * 100.0;
     
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+    dbg("🧠 [" + scriptName + "] Memory: " + 
                (string)used + " used, " + 
                (string)free + " free (" + 
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
@@ -68,7 +52,7 @@ regionMsg(key player, string msg) {
 handlePlayerRegistration(string regData, key requesterId) {
     // MEMORY DEBUG: Check memory at start
     integer memStart = llGetFreeMemory();
-    llOwnerSay("🧠 [RegMgr] Memory at start: " + (string)memStart + " free");
+    dbg("🔍 [RegMgr] Memory at start: " + (string)memStart + " free");
     
     list parts = llParseString2List(regData, ["|"], []);
     string newName = llList2String(parts, 0);
@@ -102,7 +86,7 @@ handlePlayerRegistration(string regData, key requesterId) {
     
     // MEMORY DEBUG: Check memory after adding to lists
     integer memAfterLists = llGetFreeMemory();
-    llOwnerSay("🧠 [RegMgr] Memory after adding to lists: " + (string)memAfterLists + " free (used " + (string)(memStart - memAfterLists) + ")");
+    dbg("🔍 [RegMgr] Memory after adding to lists: " + (string)memAfterLists + " free (used " + (string)(memStart - memAfterLists) + ")");
     
     // Count human players to determine if this is the starter (needed for both bot and human logic)
     integer humanCount = 0;
@@ -133,7 +117,7 @@ handlePlayerRegistration(string regData, key requesterId) {
     // OPTIMIZED: Handle all heavy processing here to minimize Main Controller work
     
     // Send direct scoreboard update (Main Controller doesn't need to do this)
-    llMessageLinked(SCOREBOARD_LINK, MSG_PLAYER_UPDATE, newName + "|3|" + (string)newKey, NULL_KEY);
+    llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, newName + "|3|" + (string)newKey, NULL_KEY);
     
     // Prepare sync message (Main Controller doesn't need to build this)
     string syncMessage = "";
@@ -154,7 +138,7 @@ handlePlayerRegistration(string regData, key requesterId) {
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
     
     // CRITICAL FIX: Send floater rez message to Floater Manager
-    llMessageLinked(LINK_SET, 106, newName + "|" + (string)newKey, newKey);
+    llMessageLinked(LINK_SET, MSG_REZ_FLOATER, newName + "|" + (string)newKey, newKey);
     
     // Send minimal update to Main Controller - just the essential data it needs
     string updateData = (string)ch + "~" + newName;
@@ -171,13 +155,13 @@ handlePlayerRegistration(string regData, key requesterId) {
 
 default {
     state_entry() {
-        reportMemoryUsage("Player Registration Manager");
-        llOwnerSay("🎯 Player Registration Manager ready - handling player join/leave operations");
+        DISCOVER_CORE_LINKS();
+        dbg("🎯 [RegMgr] Player Registration Manager ready - discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("Player Registration Manager");
-        llOwnerSay("🎯 Player Registration Manager rezzed - ready for player management");
+        DISCOVER_CORE_LINKS();
+        dbg("🎯 [RegMgr] Player Registration Manager rezzed - resetting state...");
         // Reset local state
         players = [];
         names = [];
@@ -215,7 +199,7 @@ default {
                 }
                 
                 // KEEP our player keys - they are authoritative
-                llOwnerSay("🔄 [RegMgr] Synced game state, preserving " + (string)llGetListLength(players) + " player keys");
+                dbg("🔄 [RegMgr] Synced game state, preserving " + (string)llGetListLength(players) + " player keys");
             }
             return;
         }
@@ -242,30 +226,30 @@ default {
                     if (playerKey != NULL_KEY) {
                         if (dialogType == "SHOW_DIALOG") {
                             llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, playerKey);
-                            llOwnerSay("📋 [RegMgr] Forwarded dialog to " + targetPlayerName + ": " + dialogPayload);
+                            dbg("📋 [RegMgr] Forwarded dialog to " + targetPlayerName + ": " + dialogPayload);
                         } else if (dialogType == "SHOW_ROLL_DIALOG") {
                             llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, dialogPayload, playerKey);
-                            llOwnerSay("🎲 [RegMgr] Forwarded roll dialog to " + targetPlayerName);
+                            dbg("🎲 [RegMgr] Forwarded roll dialog to " + targetPlayerName);
                         }
                     } else {
-                        llOwnerSay("⚠️ [RegMgr] Player " + targetPlayerName + " has NULL_KEY");
+                        dbg("⚠️ [RegMgr] Player " + targetPlayerName + " has NULL_KEY");
                     }
                 } else {
-                    llOwnerSay("⚠️ [RegMgr] Player " + targetPlayerName + " not found in registry");
+                    dbg("⚠️ [RegMgr] Player " + targetPlayerName + " not found in registry");
                 }
             }
             return;
         }
         
-        // Handle reset
-        if (num == -99999 && str == "FULL_RESET") {
+        if (num == MSG_RESET_ALL && str == "FULL_RESET") {
+
             players = [];
             names = [];
             lives = [];
             readyPlayers = [];
             roundStarted = FALSE;
             gameStarting = FALSE;
-            llOwnerSay("🎯 Player Registration Manager reset complete");
+            dbg("🎯 [RegMgr] Player Registration Manager reset complete");
             return;
         }
     }
