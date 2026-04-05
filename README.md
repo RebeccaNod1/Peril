@@ -1,11 +1,13 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 3.2.0 - The "Sync Sanctity" Update**
+**Current Version: 3.2.6 - The "Hybrid HUD" Update**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+**🎯 NEW in v3.2.6**: **HYBRID HUD EVOLUTION** - Revolutionary dual-mode status display. Humans receive a personal, Experience-authorized HUD (ATTACH_HUD_CENTER_2) for clutter-free gameplay. Bots maintain in-world floaters for public visibility. Features laser-targeted `llRegionSayTo` signaling for guaranteed auto-detach and cleanup.
 
 **🧪 NEW in v3.2.0**: **SYNC SANCTITY & SCOREBOARD VIRTUALIZATION** - Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a 3-column layout (Rank, Name, WL) and dynamic Alpha 0.0 hiding for unused slots. 
 
@@ -29,7 +31,15 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
-## Major v3.2.0 Improvements (Current) 🚀
+## Major v3.2.6 Improvements (Current) 🎯
+
+### 🎰 **Hybrid HUD Evolution**
+- **Personalized Gaming UI**: Human players automatically receive a temporary, Experience-authorized HUD snapping to **Center 2**.
+- **Spectator AI Visibility**: Bots continue to rez in-world floaters, ensuring spectators can follow along with the AI's performance.
+- **Direct-Target Signaling**: Switched to `llRegionSayTo(avKey, ...)` for cleanup pulses, ensuring HUDs reliably hear their "Self-Destruct" command.
+- **Auto-Cleanup Handshake**: Uses `llDetachFromAvatar()` to instantly purge temporary HUDs upon game end or reset without inventory clutter.
+
+## Major v3.2.0 Improvements 🚀
 
 ### 🛡️ **Sync Sanctity Protocol**
 - **Unified Master Ledger**: Eliminated parallel heart-count logic. The `Roll_ConfettiModule` now reports hits to the `Main_Controller` via the new `MSG_UPDATE_LIFE` (80) channel. 

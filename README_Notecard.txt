@@ -2,11 +2,13 @@ PERIL DICE - README
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY (djmusica28)
-CURRENT VERSION: 3.2.0 - THE "SYNC SANCTITY" UPDATE
+CURRENT VERSION: 3.2.6 - THE "HYBRID HUD" UPDATE
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V3.2.6: HYBRID HUD EVOLUTION! A revolutionary dual-mode status system. Humans now receive a personal, Experience-authorized HUD (ATTACH_HUD_CENTER_2) for immersive, non-obstructive gameplay. Bots maintain traditional in-world floaters for spectator visibility. Laser-targeted cleanup signaling ensuring 100% reliable HUD detachment via llDetachFromAvatar().
 
 NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
 
@@ -45,7 +47,7 @@ KEY FEATURES
 🎮 CORE GAME FEATURES
 - 🎯 Dynamic Player Management: Players can join at runtime (owner and other avatars)
 - 🤖 Bot Support: Add AI bots for testing and gameplay variety  
-- 📱 Floating HUD Display: Real-time stats for each player
+- 📱 Hybrid HUD Display: Experience-attached personal HUD for humans / In-world floaters for bots
 - 🎮 Intelligent Dice Sizing: Automatic dice size based on player count
 - 🔄 Ready State System: Players must be ready before games start
 - 🎭 Dramatic Messaging: Immersive thematic announcements visible to all players

@@ -2,11 +2,13 @@
 ========================================================
 
 CREATED BY REBECCA NOD AND NOOSE THE BUNNY (djmusica28)
-CURRENT VERSION: 3.2.0 - THE "SYNC SANCTITY" UPDATE
+CURRENT VERSION: 3.2.6 - THE "HYBRID HUD" UPDATE
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V3.2.6: HYBRID HUD EVOLUTION! A revolutionary dual-mode status system. Humans now receive a personal, Experience-authorized HUD (ATTACH_HUD_CENTER_2) for immersive, non-obstructive gameplay. Bots maintain traditional in-world floaters for spectator visibility. Laser-targeted cleanup signaling ensuring 100% reliable HUD detachment. 
 
 NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
 
@@ -21,9 +23,8 @@ KEY FEATURES:
 - Color-Coded Glow System: Green (winner), Yellow (peril), Red X (eliminated)
 - Experience Leaderboard: Persistent win tracking via Experience KVP with FURWARE Text Mesh display
 - Bot Support: AI players for testing and gameplay variety
-- Floating HUD Display: Real-time stats for each player with victory text
-- Intelligent Dice Sizing: d6/d12/d20/d30 based on player count
-- Security Features: Owner lockout system, kick player functionality
+- Hybrid HUD Display: Personal HUD for humans (Experience-attached) vs. in-world floaters for bots
+- Direct-Target Cleanup: Reliable HUD detachment using targeted messaging (no more "ghost" HUDs)
 - Single Linkset: Complete consolidated system for instant deployment
 
 GAME RULES:
@@ -60,6 +61,8 @@ EXPERIENCE: Required for KVP Leaderboard functionality
 Perfect for nightclubs, venues, casinos, private parties, group entertainment, community gatherings.
 
 VERSION HISTORY:
+v3.2.6: Hybrid HUD Evolution - Experience-based personal HUDs with direct-target detachment
+v3.2.0: Sync Sanctity Release - Master Ledger Sync & Scoreboard Virtualization
 v3.1.0: Dynamic Link Discovery, FURWARE Text Mesh, and Centralized Constants
 v3.0.0: Commercial CasperVend Release, memory optimizations, and Z-fighting fixes
 v2.8.7: Linkset Analysis Tools and structure verification
