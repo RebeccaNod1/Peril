@@ -13,11 +13,10 @@ All notable changes to Peril Dice are documented in this file.
 - Auto-Cleanup Handshake: Uses llDetachFromAvatar() for instantaneous HUD removal without inventory clutter.
 - Root-Key Unification: All channel calculations now use the Root Link Key (llGetLinkKey(1)).
 
-🛡️ EXPERIENCE SENTINEL (v7.3)
-- Professional Polish: Silenced redundant diagnostic alerts to provide a clean, single-source verification experience on blocked land.
-- Key-Scoped Diagnostic: Replaced unreliable agent-probes with definitive llAgentInExperience(llGetOwner()) logic, providing instantaneous land-readiness results for the "Final Girlz I.N.C." experience.
-- Direct-Denial Capture: Integrated the experience_permissions_denied event handler as a silent watchdog to catch and report XP_ERROR_NOT_PERMITTED_LAND error codes.
-- Touch-to-Diagnose: Owners can touch the board to trigger a fresh Sentinel check, bypassing inventory rez-lag.
+🛡️ EXPERIENCE SENTINEL (v7.9.2)
+- Auto-Pilot Diagnostic: Operates automatically on rez and reset—no manual touch-trigger required.
+- Logically Sequenced Status: Reordered diagnostic messages for a professional chronological flow.
+- Definitive Denial Capture: Silent watchdog catches land blocks (Reason 17) without redundant chat spam.
 
 [3.2.0] - 2026-04-05
 ====================

@@ -8,7 +8,7 @@ OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-NEW IN V3.2.6: HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL! A revolutionary dual-mode status system. Humans now receive a personal HUD (Center 2), while bots maintain in-world floaters. Built-in **Experience Sentinel** (v7.3) automatically diagnoses and reports land connectivity for 'Final Girlz I.N.C.' with clear "To-Fix" instructions for misconfigured land. 
+NEW IN V3.2.6: HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL! A revolutionary dual-mode status system. Humans now receive a personal HUD (Center 2), while bots maintain in-world floaters. Built-in **Experience Sentinel** (v7.9.2) automatically diagnoses and reports land connectivity for 'Final Girlz I.N.C.' on every rez and reset with zero owner interaction required. 
 
 NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
 
@@ -24,7 +24,7 @@ KEY FEATURES:
 - Experience Leaderboard: Persistent win tracking via Experience KVP with FURWARE Text Mesh display
 - Bot Support: AI players for testing and gameplay variety
 - 🎰 Hybrid HUD System: Human players get a personal HUD (Center 2), Bots get in-world floaters!
-- 🛡️ **Experience Sentinel**: Built-in land-diagnostic tool (v7.3) for 'Final Girlz I.N.C.' verification.
+- 🛡️ **Experience Sentinel**: Built-in "Auto-Pilot" land-diagnostic tool (v7.9.2) for 'Final Girlz I.N.C.' verification.
 - 🔗 Experience Integrated: Auto-attachment requires the "Final Girlz I.N.C." Experience on land.
 - 🎯 Direct-Target Cleanup: 100% reliable HUD removal via llRegionSayTo signaling.
 - Single Linkset: Complete consolidated system for instant deployment

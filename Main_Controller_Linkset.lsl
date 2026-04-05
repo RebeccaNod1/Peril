@@ -185,10 +185,10 @@ checkMemoryUsage(string context) {
 // Experience Sentinel - Functional probe to check if Experience is allowed on land
 checkExperience() {
     dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
+    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
     
     // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
     if (!llAgentInExperience(llGetOwner())) {
-        llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
         llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
         llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
         

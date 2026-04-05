@@ -116,8 +116,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
   - **Script Placement Guide**: Shows which scripts belong on which links with verification
   - **XyzzyText Mapping**: Detailed analysis of all 48 leaderboard prims (Links 35-82)
   - **Update Deployment Guide**: Generates precise instructions for Update_Checker placement
-- **Real-Time Validation**: Touch to scan and verify current linkset matches expected architecture
-- **Professional Output**: Categorized analysis with deployment recommendations
+- **Real-Time Validation**: Automated "Invisible Guardian" scans land permissions and verifies if the "Final Girlz I.N.C." experience is correctly configured on every rez and reset.
 
 ### 🎯 **Smart File Classification**
 - **Essential Game Files Only**: Update system intelligently filters files for end users

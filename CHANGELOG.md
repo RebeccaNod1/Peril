@@ -14,10 +14,9 @@ All notable changes to Peril Dice will be documented in this file.
 - **Root-Key Unification**: All channel calculations now use the **Root Link Key** (`llGetLinkKey(1)`), preventing "Signal Drift" between scripts in different prims.
 
 ### 🛡️ **Experience Sentinel (Diag Prototype v7.3)**
-- **Professional Polish (v7.3)**: Silenced redundant diagnostic alerts to provide a clean, single-source verification experience on blocked land.
-- **Key-Scoped Diagnostic (v6.1)**: Replaced unreliable agent-probes with definitive **`llAgentInExperience(llGetOwner())`** logic, providing instantaneous land-readiness results for the "Final Girlz I.N.C." experience.
-- **Direct-Denial Capture**: Integrated the `experience_permissions_denied` event handler as a silent watchdog to catch and report `XP_ERROR_NOT_PERMITTED_LAND` error codes.
-- **Touch-to-Diagnose**: Owners can touch the board to trigger a fresh Sentinel check, bypassing inventory rez-lag.
+- **Auto-Pilot Diagnostic (v7.9.2)**: Operates automatically on rez and reset—no manual touch-trigger required.
+- **Logically Sequenced Status**: Reordered the diagnostic header to appear before the result, ensuring a professional chronological flow.
+- **Definitive Denial Capture**: Silent watchdog catches land blocks (Reason 17) and reports them only when necessary.
 
 ## [3.2.0] - 2026-04-05
 
