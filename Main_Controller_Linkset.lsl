@@ -180,6 +180,17 @@ checkMemoryUsage(string context) {
 // REMOVED: emergencyMemoryCleanup() - delegated to Controller_Memory.lsl
 // REMOVED: reportMemoryStats() - delegated to Controller_Memory.lsl
 
+// Experience Sentinel - Checks if the required experience is enabled on the parcel
+checkExperience() {
+    list parcelXps = llGetParcelDetails(llGetPos(), [PARCEL_DETAILS_EXPERIENCE_LIST]);
+    if (llListFindList(parcelXps, [EXPERIENCE_ID]) == -1) {
+        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: The 'Final Girlz I.N.C.' Experience is NOT active on this parcel!");
+        llOwnerSay("🛡️ [Peril Dice] Auto-HUD attachment will FAIL. To fix: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+    } else {
+        dbg("✅ [Peril Dice] Experience Sentinel: Land is ready for Final Girlz I.N.C. features.");
+    }
+}
+
 // Send status message to scoreboard using link messages
 sendStatusMessage(string status) {
     // LOCKOUT: If victory is in progress, only allow "Victory" or "Title" statuses
@@ -333,6 +344,9 @@ default {
         // Initialize channels for external communication
         initializeChannels();
         
+        // Experience Sentinel check
+        checkExperience();
+        
         // Reset the game on startup to ensure clean state
         resetGame();
         
@@ -350,6 +364,9 @@ default {
         
         // Re-initialize channels for external communication
         initializeChannels();
+        
+        // Experience Sentinel check
+        checkExperience();
         
         // Reset the game to ensure clean state when rezzed
         resetGame();
