@@ -188,13 +188,16 @@ checkExperience() {
     
     // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
     if (!llAgentInExperience(llGetOwner())) {
-        llOwnerSay("⚠️ Experience Features are BLOCKED on this parcel.");
-        // Diagnostic probe initiated
+        llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
+        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
+        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+        
+        // Final probe check
         llReadKeyValue("_SENTINEL_");
         llSetTimerEvent(3.0);
         currentTimerMode = TIMER_XP_CHECK;
     } else {
-        llOwnerSay("✅ Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
     }
 }
 
@@ -894,9 +897,7 @@ default {
             string ownerName;
             integer requestID = 0;
             
-            if (id == gameOwner) {
-                // Owner status check (Menu access) - sentinel check removed (now auto-only)
-            }
+            // Owner status check (Now fully automated via on_rez / reset)
             
             if (llGetListLength(queryParts) >= 2) {
                 ownerName = llList2String(queryParts, 0);
