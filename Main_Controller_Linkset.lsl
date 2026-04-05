@@ -1281,19 +1281,11 @@ default {
             }
         }
         else if (currentTimerMode == TIMER_XP_CHECK) {
-            // If the timer hits in XP_CHECK mode, it means llReadKeyValue FAILED to respond
-            // THE "KEY" CHECK: Using the Experience Key directly to verify land permissions.
-            // This is the definitive check to see if the Experience is allowed on this parcel.
-            if (!llAgentInExperience(EXPERIENCE_ID)) {
-                llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience features are BLOCKED on this land.");
-                llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
-                return; 
-            }
+            // Timer fired - it means llReadKeyValue FAILED to respond (Land block or non-associated script)
+            // checkExperience() and experience_permissions_denied() already handle the public warnings.
+            dbg("⚠️ [Peril Dice] Experience Sentinel: KVP Probe timed out. Land/Script block confirmed.");
             llSetTimerEvent(0);
             currentTimerMode = TIMER_IDLE;
-            
-            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: The 'Final Girlz I.N.C.' Experience is NOT active on this parcel!");
-            llOwnerSay("🛡️ [Peril Dice] Auto-HUD attachment will FAIL. To fix: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
         }
         else if (currentTimerMode == TIMER_VICTORY_DELAY) {
             if (victoryDelayTimer > 0) {
