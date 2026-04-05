@@ -44,6 +44,7 @@ integer DEBUG_PICKS = FALSE;
 
 // ALL REGISTERED PLAYERS (for channel mapping - order never changes)
 list allPlayerNames = [];   // Names in registration order
+list allPlayerKeys = [];    // Keys in registration order (for direct signaling)
 
 // CURRENT GAME STATE (Synced from Main Controller)
 list names = [];        // Current player names in game
@@ -148,6 +149,7 @@ default {
                 if (llGetListLength(allPlayerNames) >= MAX_PLAYERS) return;
                 
                 allPlayerNames += [name];
+                allPlayerKeys += [avKey];
                 channelIdx = llGetListLength(allPlayerNames) - 1;
                 
                 // --- AUTHENTIC REZ BLOCK ---
@@ -245,9 +247,19 @@ default {
         }
         else if (num == MSG_CLEANUP_FLOAT) {
             integer ch = (integer)str;
-            llRegionSay(ch, "CLEANUP");
-            
             integer foundIdx = ch - FLOATER_BASE_CHANNEL;
+            key playerToClean = NULL_KEY;
+            
+            if (foundIdx >= 0 && foundIdx < llGetListLength(allPlayerKeys)) {
+                playerToClean = llList2Key(allPlayerKeys, foundIdx);
+            }
+            
+            if (playerToClean != NULL_KEY) {
+                llRegionSayTo(playerToClean, ch, "CLEANUP");
+            } else {
+                llRegionSay(ch, "CLEANUP"); // Fallback for bots/unknowns
+            }
+            
             if (foundIdx >= 0 && foundIdx < llGetListLength(allPlayerNames)) {
                 string removedPlayer = llList2String(allPlayerNames, foundIdx);
                 
@@ -283,8 +295,14 @@ default {
             if (chanIdx != -1) {
                 // Remove their floater and clear the slot for re-entry
                 dbg("🚮 [Floater Manager] Player " + leaveName + " left - cleaning up floater.");
-                llRegionSay(FLOATER_BASE_CHANNEL + chanIdx, "CLEANUP");
+                key leaveKey = llList2Key(allPlayerKeys, chanIdx);
+                if (leaveKey != NULL_KEY) {
+                    llRegionSayTo(leaveKey, FLOATER_BASE_CHANNEL + chanIdx, "CLEANUP");
+                } else {
+                    llRegionSay(FLOATER_BASE_CHANNEL + chanIdx, "CLEANUP");
+                }
                 allPlayerNames = llListReplaceList(allPlayerNames, [""], chanIdx, chanIdx);
+                allPlayerKeys = llListReplaceList(allPlayerKeys, [NULL_KEY], chanIdx, chanIdx);
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
@@ -329,15 +347,23 @@ default {
             }
         }
         else if (num == MSG_CLEANUP_ALL_FLOATERS) {
-            dbg("🧹 [Floater Manager] Universal Cleanup Triggered - Clearing all " + (string)MAX_PLAYERS + " possible channels.");
+            dbg("🧹 [Floater Manager] Universal Cleanup Triggered - Clearing " + (string)MAX_PLAYERS + " channels via llRegionSayTo.");
             integer i;
             for (i = 0; i < MAX_PLAYERS; i++) {
-                // Ensure we hit EVERY possible channel, even if they aren't in our current memory
-                llRegionSay(FLOATER_BASE_CHANNEL + i, "CLEANUP");
-                llSleep(0.05); // Tiny sleep to ensure Sim processes every pulse reliably
+                key targetAv = NULL_KEY;
+                if (i < llGetListLength(allPlayerKeys)) targetAv = llList2Key(allPlayerKeys, i);
+                
+                integer chTarget = FLOATER_BASE_CHANNEL + i;
+                if (targetAv != NULL_KEY) {
+                    llRegionSayTo(targetAv, chTarget, "CLEANUP");
+                } else {
+                    llRegionSay(chTarget, "CLEANUP");
+                }
+                llSleep(0.05); 
             }
             // Clear ALL registries to allow fresh re-registration via Rez Guard
             allPlayerNames = [];
+            allPlayerKeys = [];
             players = []; 
             names = []; 
             lives = []; 

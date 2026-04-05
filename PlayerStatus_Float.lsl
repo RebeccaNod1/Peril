@@ -23,6 +23,7 @@ default {
         listenHandle = llListen(start_param, "", NULL_KEY, "");
         myName = "";
         llSetRemoteScriptAccessPin(1337); 
+        dbg("📊 [Status Float] Listener active on channel: " + (string)start_param);
     }
 
     attach(key id) {
@@ -30,20 +31,14 @@ default {
             // HUD MODE: Stop following target in-world
             llSetTimerEvent(0.0);
             
-            // Re-initialize listener for HUD space robustness
-            // This ensures the HUD remains responsive to CLEANUP signals after attachment
-            string currentDesc = llGetObjectDesc(); 
-            // The channel is stored in the script by on_rez, but we don't have start_param here.
-            // If the listener is already active, we don't strictly need to redo it, 
-            // but we'll add a debug whisper to confirm it's alive.
-            dbg("📊 [Status Float] HUD Attached to " + llKey2Name(id) + ". Listener active.");
-            
             // HUD Scaling & Rotation (Center 2 focus)
             llSetLinkPrimitiveParamsFast(LINK_THIS, [
-                PRIM_SIZE, <0.01, 0.01, 0.01>, // Super tiny to not block view
+                PRIM_SIZE, <0.05, 0.05, 0.05>,
                 PRIM_ROTATION, ZERO_ROTATION,
                 PRIM_POSITION, <0.0, 0.0, 0.0> 
             ]);
+            
+            dbg("📊 [Status Float] HUD Attached to " + llKey2Name(id));
         } else {
             // BACK TO WORLD: Restore size and follow logic
             llSetLinkPrimitiveParamsFast(LINK_THIS, [PRIM_SIZE, <0.2, 0.2, 0.2>]);
