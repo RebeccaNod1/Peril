@@ -10,22 +10,28 @@ list names = [];
 list lives = [];
 list readyPlayers = [];
 #define MAX_PLAYERS 10
-#define FLOATER_BASE_CHANNEL -86000
+
+// Dynamic channel system
+#define CHANNEL_BASE -77000
+integer FLOATER_BASE_CHANNEL;
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
+integer calculateChannel(integer offset) {
+    string ownerStr = (string)llGetOwner();
+    string objectStr = (string)llGetLinkKey(1);
+    string combinedStr = ownerStr + objectStr;
+    string hashStr = llMD5String(combinedStr, 0);
+    integer hash1 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 0, 0));
+    integer hash2 = llSubStringIndex("0123456789abcdef", llGetSubString(hashStr, 1, 1));
+    integer combinedHash = hash1 * 16 + hash2;
+    return CHANNEL_BASE - (offset * 1000) - combinedHash;
 }
+
+initializeChannels() {
+    FLOATER_BASE_CHANNEL = calculateChannel(9);
+}
+
 
 // Helper functions
 string getPlayerName(key id) {
@@ -134,11 +140,11 @@ handlePlayerRegistration(string regData, key requesterId) {
         syncMessage = livesStr + "~EMPTY~NONE~" + llList2CSV(names);
     }
     
-    // Send pre-built sync message
-    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
-    
-    // CRITICAL FIX: Send floater rez message to Floater Manager
+    // CRITICAL FIX: Send floater rez message to Floater Manager first
     llMessageLinked(LINK_SET, MSG_REZ_FLOATER, newName + "|" + (string)newKey, newKey);
+    
+    // Then send the sync message to update everyone on the new state
+    llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMessage, NULL_KEY);
     
     // Send minimal update to Main Controller - just the essential data it needs
     string updateData = (string)ch + "~" + newName;
@@ -156,11 +162,15 @@ handlePlayerRegistration(string regData, key requesterId) {
 default {
     state_entry() {
         DISCOVER_CORE_LINKS();
+        initializeChannels();
+        REPORT_MEMORY();
         dbg("🎯 [RegMgr] Player Registration Manager ready - discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);
     }
     
     on_rez(integer start_param) {
         DISCOVER_CORE_LINKS();
+        initializeChannels();
+        REPORT_MEMORY();
         dbg("🎯 [RegMgr] Player Registration Manager rezzed - resetting state...");
         // Reset local state
         players = [];

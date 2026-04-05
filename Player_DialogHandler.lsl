@@ -99,18 +99,6 @@ float pendingMenuTimestamp = 0.0;       // Timeout for pending requests
 integer isLocked = FALSE;
 key gameOwner;
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 // Display the main categorized owner menu with lock/unlock controls
 showOwnerMenu(key id) {
@@ -313,7 +301,7 @@ showUnregisteredOwnerMenu(key id, integer canStartGame) {
 
 default {
     state_entry() {
-        reportMemoryUsage("🎭 Player Dialog");
+        REPORT_MEMORY();
         
         // Initialize dynamic channels
         initializeChannels();
@@ -356,7 +344,7 @@ default {
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("🎭 Player Dialog");
+        REPORT_MEMORY();
         
         dbg("🔄 Player Dialog Handler rezzed - reinitializing...");
         

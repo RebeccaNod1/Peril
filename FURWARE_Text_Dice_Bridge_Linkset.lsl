@@ -19,6 +19,7 @@ default {
     }
     state_entry() {
         DISCOVER_CORE_LINKS();
+        REPORT_MEMORY();
         dbg("🎲 [Dice Bridge] Dice Display Bridge ready! (FURWARE Version)");
         dbg("🎲 [Dice Bridge] ✅ Discovery complete! Controller: " + (string)LINK_CONTROLLER);
         

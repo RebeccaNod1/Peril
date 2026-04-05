@@ -610,7 +610,12 @@ integer setDirty(integer action, integer first, integer last, integer isConf,
 ////////// STATES //////////////////////////////////////////
 
 default {
+    on_rez(integer start_param) {
+        REPORT_MEMORY();
+    }
+    
     state_entry() {
+        REPORT_MEMORY();
         llOwnerSay("FURWARE text is starting...");
         
         CHARS = llBase64ToString(

@@ -7,31 +7,18 @@ string displayText;
 string myName;
 integer listenHandle = -1;
 
-// Memory reporting function - defined before use
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 default {
     state_entry() {
+        REPORT_MEMORY();
         string currentDesc = llGetObjectDesc();
-        if (currentDesc == "" || currentDesc == "(No Description)") currentDesc = "Unknown";
-        
-        reportMemoryUsage("📱 Player Float (" + currentDesc + ")");
         
         llSetText("⏳ Waiting...", <1,1,1>, 1.0);
         llSetTimerEvent(1.0);
     }
 
     on_rez(integer start_param) {
+        REPORT_MEMORY();
         if (listenHandle != -1) llListenRemove(listenHandle);
         listenHandle = llListen(start_param, "", NULL_KEY, "");
         myName = "";
@@ -83,7 +70,6 @@ default {
         else if (llSubStringIndex(message, "SET_NAME:") == 0) {
             myName = llGetSubString(message, 9, -1);
             llSetObjectDesc(myName);
-            reportMemoryUsage("📱 " + myName);
         }
     }
 

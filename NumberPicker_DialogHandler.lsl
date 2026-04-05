@@ -56,18 +56,6 @@ list globallyPickedNumbers = []; // Numbers already picked by other players
 integer currentPage = 0;
 #define NUMBERS_PER_PAGE 9 // Leave room for navigation buttons
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 list getNumbersForPage(integer page, integer diceType) {
     // Build list of available numbers (not picked by others OR by current player)
@@ -177,7 +165,7 @@ showPickDialog(string name, key id, integer diceType, integer picks) {
 
 default {
     state_entry() {
-        reportMemoryUsage("🎮 NumberPicker Dialog");
+        REPORT_MEMORY();
         
         // Initialize dynamic channels
         initializeChannels();
@@ -203,7 +191,7 @@ default {
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("🎮 NumberPicker Dialog");
+        REPORT_MEMORY();
         
         dbg("🎮 [NumberPicker] 🔄 Number Picker rezzed - reinitializing...");
         

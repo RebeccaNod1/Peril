@@ -8,20 +8,22 @@
 integer BACKGROUND_PRIM = -1;
 integer ACTIONS_PRIM = -1;
 
-// Link mappings for player grid (Rows 0-4, Columns 0-1)
-list profileLinks = [0,0,0,0,0,0,0,0,0,0];
-list heartsLinks = [0,0,0,0,0,0,0,0,0,0];
-list overlayLinks = [0,0,0,0,0,0,0,0,0,0];
+// Grid link mappings for player grid (Stride 3: Profile, Hearts, Overlay)
+list gridLinks = [
+    0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0,
+    0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0
+];
 
 // Discover all relevant prims by name at startup
 discoverLinks() {
     integer i;
     integer total = llGetNumberOfPrims();
     
-    // Reset lists
-    profileLinks = [0,0,0,0,0,0,0,0,0,0];
-    heartsLinks = [0,0,0,0,0,0,0,0,0,0];
-    overlayLinks = [0,0,0,0,0,0,0,0,0,0];
+    // Reset list (30 elements for 10 slots * 3 prims)
+    gridLinks = [
+        0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0,
+        0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0
+    ];
     
     for (i = 1; i <= total; i++) {
         string name = llGetLinkName(i);
@@ -39,16 +41,17 @@ discoverLinks() {
                 integer index = (row * 2) + col;
                 
                 if (index >= 0 && index < 10) {
-                    if (type == "profile") profileLinks = llListReplaceList(profileLinks, [i], index, index);
-                    else if (type == "life") heartsLinks = llListReplaceList(heartsLinks, [i], index, index);
-                    else if (type == "overlay") overlayLinks = llListReplaceList(overlayLinks, [i], index, index);
+                    integer gridBase = index * 3;
+                    if (type == "profile") gridLinks = llListReplaceList(gridLinks, [i], gridBase, gridBase);
+                    else if (type == "life") gridLinks = llListReplaceList(gridLinks, [i], gridBase + 1, gridBase + 1);
+                    else if (type == "overlay") gridLinks = llListReplaceList(gridLinks, [i], gridBase + 2, gridBase + 2);
                 }
             }
         }
     }
     
-    dbg("📈 [Scoreboard Manager] 🔍 Dynamic Discovery complete!");
-    if (BACKGROUND_PRIM == -1) dbg("⚠️ WARNING: Background prim ('backboard:0:0') not found!");
+    dbg("Discovery done");
+    if (BACKGROUND_PRIM == -1) dbg("No backboard");
 }
 
 // --- Leaderboard Configuration ---
@@ -80,18 +83,14 @@ discoverLinks() {
 #define TEXTURE_ELIMINATED_X "90524092-03b0-1b3c-bcea-3ea5118c6dba" // Red X overlay for eliminated players
 
 // Player data - used for BOTH current game display AND leaderboard
-list playerNames = []; // Current game players for display
-list playerLives = []; // Current game player lives
-list playerProfiles = []; // Maps to profile texture UUIDs
+list activePlayers = []; // Current game state (Stride 3: Name, Lives, UUID)
 
 // Peril player tracking
 string currentPerilPlayer = ""; // Track current peril player for glow effects
 string currentWinner = ""; // Track current winner for green glow effects
 
-// Leaderboard data (persistent - stored in linkset data)
-list leaderboardNames = []; // Loaded from linkset data at startup
-list leaderboardWins = []; // Loaded from linkset data at startup
-list leaderboardLosses = []; // Loaded from linkset data at startup
+// Leaderboard data (persistent - stored in linkset data) - Stride of 3 [Name, Wins, Losses]
+list leaderboardData = []; 
 
 // HTTP tracking
 list profileRequests = []; // Track which profile requests belong to which player
@@ -102,25 +101,13 @@ key kvpReadReq;
 key kvpWriteReq;
 string pendingSerialize;
 
-// Memory reporting function
-integer reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-    return 0;
-}
 
 // Profile picture extraction constants
-string profile_key_prefix = "<meta name=\"imageid\" content=\"";
-string profile_img_prefix = "<img alt=\"profile image\" src=\"http://secondlife.com/app/image/";
-integer profile_key_prefix_length;
-integer profile_img_prefix_length;
+// Profile picture extraction constants
+#define PROFILE_KEY_PREFIX "<meta name=\"imageid\" content=\""
+#define PROFILE_IMG_PREFIX "<img alt=\"profile image\" src=\"http://secondlife.com/app/image/"
+#define PROFILE_KEY_PREFIX_LENGTH 30
+#define PROFILE_IMG_PREFIX_LENGTH 59
 
 // Reset background prim to proper black background
 integer resetBackgroundPrim() {
@@ -131,7 +118,7 @@ integer resetBackgroundPrim() {
         PRIM_TEXT, "", <0,0,0>, 0.0 // Remove any text
     ]);
     
-    dbg("📈 [Scoreboard Manager] 🖤 Reset background prim " + (string)BACKGROUND_PRIM + " to black");
+    dbg("Backboard Reset");
     return 0;
 }
 
@@ -143,7 +130,7 @@ integer resetManagerCube() {
         PRIM_TEXT, "", <0,0,0>, 0.0 // Remove any text
     ]);
     
-    dbg("📈 [Scoreboard Manager] 📦 Reset manager cube (link 12) to black");
+    dbg("Manager Reset");
     return 0;
 }
 
@@ -184,21 +171,26 @@ integer updateActionsPrim(string status) {
 // Load leaderboard data from Experience KVP database
 integer loadLeaderboardData() {
     kvpReadReq = llReadKeyValue("Peril_LB_Top50");
-    dbg("📈 [Scoreboard Manager] 🔍 Requesting global scoreboard from Experience database...");
+    dbg("LB Requesting");
     return 0;
 }
 
 // Save leaderboard data to Experience KVP database
 integer saveLeaderboardData() {
     string serialized = "";
-    integer saveCount = llGetListLength(leaderboardNames);
-    if (saveCount > 50) saveCount = 50; // Cap at Top 50 to fit safely in KVP 4Kb limit
+    integer totalEntries = llGetListLength(leaderboardData) / 3;
+    integer saveCount = totalEntries;
+    integer saveI = 0;
+    integer base = 0;
+    string save_entry = "";
     
-    integer saveI;
+    if (saveCount > 50) saveCount = 50; // Cap at Top 50 
+    
     for (saveI = 0; saveI < saveCount; saveI++) {
-        string save_entry = llList2String(leaderboardNames, saveI) + ":" + 
-                       (string)llList2Integer(leaderboardWins, saveI) + ":" + 
-                       (string)llList2Integer(leaderboardLosses, saveI);
+        base = saveI * 3;
+        save_entry = llList2String(leaderboardData, base) + ":" + 
+                       (string)llList2Integer(leaderboardData, base + 1) + ":" + 
+                       (string)llList2Integer(leaderboardData, base + 2);
         if (serialized != "") serialized += "|";
         serialized += save_entry;
     }
@@ -206,22 +198,20 @@ integer saveLeaderboardData() {
     pendingSerialize = serialized;
     kvpWriteReq = llUpdateKeyValue("Peril_LB_Top50", serialized, FALSE, "");
     
-    dbg("📈 [Scoreboard Manager] 💾 Synced " + (string)saveCount + " players to global scoreboard database.");
+    dbg("LB Saving");
     return 0;
 }
 
 // Handle game won - update leaderboard
 integer handleGameWon(string winnerName) {
-    integer idx = llListFindList(leaderboardNames, [winnerName]);
+    integer idx = llListFindList(leaderboardData, [winnerName]);
     if (idx == -1) {
         // New player
-        leaderboardNames += [winnerName];
-        leaderboardWins += [1];
-        leaderboardLosses += [0];
+        leaderboardData += [winnerName, 1, 0];
     } else {
         // Existing player
-        integer currentWins = llList2Integer(leaderboardWins, idx);
-        leaderboardWins = llListReplaceList(leaderboardWins, [currentWins + 1], idx, idx);
+        integer currentWins = llList2Integer(leaderboardData, idx + 1);
+        leaderboardData = llListReplaceList(leaderboardData, [currentWins + 1], idx + 1, idx + 1);
     }
     
     saveLeaderboardData();
@@ -231,16 +221,14 @@ integer handleGameWon(string winnerName) {
 
 // Handle game lost - update leaderboard
 integer handleGameLost(string loserName) {
-    integer lostIdx = llListFindList(leaderboardNames, [loserName]);
+    integer lostIdx = llListFindList(leaderboardData, [loserName]);
     if (lostIdx == -1) {
         // New player
-        leaderboardNames += [loserName];
-        leaderboardWins += [0];
-        leaderboardLosses += [1];
+        leaderboardData += [loserName, 0, 1];
     } else {
         // Existing player
-        integer currentLosses = llList2Integer(leaderboardLosses, lostIdx);
-        leaderboardLosses = llListReplaceList(leaderboardLosses, [currentLosses + 1], lostIdx, lostIdx);
+        integer currentLosses = llList2Integer(leaderboardData, lostIdx + 2);
+        leaderboardData = llListReplaceList(leaderboardData, [currentLosses + 1], lostIdx + 2, lostIdx + 2);
     }
     
     saveLeaderboardData();
@@ -248,159 +236,112 @@ integer handleGameLost(string loserName) {
     return 0;
 }
 
-// Get sorted leaderboard data
 list getSortedLeaderboard() {
-    list sortedLbData = [];
-    integer sortI;
-    string sortName;
-    integer sortWins;
-    integer sortLosses;
-    string paddedWins;
-    string paddedLosses;
-    integer invertedLosses;
-    string sortKey;
-    string sorted_entry;
-    list parts;
-    list cleanedData = [];
-    string winsStr;
-    string lossesStr;
+    list sortList = [];
+    integer i = 0;
+    integer totalEntries = llGetListLength(leaderboardData) / 3;
+    integer base = 0;
+    integer wins = 0;
+    integer losses = 0;
+    integer sortKey = 0;
+    list sortedData = [];
+    integer origIdx = 0;
     
-    // Create combined data for sorting with padded wins and losses for proper multi-level sorting
-    for (sortI = 0; sortI < llGetListLength(leaderboardNames); sortI++) {
-        sortName = llList2String(leaderboardNames, sortI);
-        sortWins = llList2Integer(leaderboardWins, sortI);
-        sortLosses = llList2Integer(leaderboardLosses, sortI);
+    for (i = 0; i < totalEntries; i++) {
+        base = i * 3;
+        wins = llList2Integer(leaderboardData, base + 1);
+        losses = llList2Integer(leaderboardData, base + 2);
         
-        // Pad wins to 4 digits (higher wins = better rank)
-        paddedWins = (string)(10000 + sortWins);
-        paddedWins = llGetSubString(paddedWins, 1, -1);  // Remove the "1" prefix
+        if (wins > 65535) wins = 65535;
+        if (losses > 65535) losses = 65535;
         
-        // Pad losses to 4 digits, but INVERTED for tiebreaker (lower losses = better rank)
-        // Use 9999 - losses so lower losses get higher sort value
-        invertedLosses = 9999 - sortLosses;
-        paddedLosses = (string)(10000 + invertedLosses);
-        paddedLosses = llGetSubString(paddedLosses, 1, -1);  // Remove the "1" prefix
-        
-        // Format: "PaddedWins-PaddedInvertedLosses:Name:ActualWins:ActualLosses"
-        // This sorts first by wins (descending), then by losses (ascending) for tiebreaker
-        sortKey = paddedWins + "-" + paddedLosses;
-        sorted_entry = sortKey + ":" + sortName + ":" + (string)sortWins + ":" + (string)sortLosses;
-        sortedLbData += [sorted_entry];
+        sortKey = (wins << 16) | (65535 - losses);
+        sortList += [sortKey, i];
     }
     
-    // Sort by combined key (wins descending, losses ascending) - FALSE = descending order
-    sortedLbData = llListSort(sortedLbData, 1, FALSE);
+    // 2. Sort by key (stride of 2) in descending order (highest score first)
+    sortList = llListSort(sortList, 2, FALSE);
     
-    // Clean up the format back to "Name:Wins:Losses" (skip padded wins in position 0)
-    cleanedData = [];
-    for (sortI = 0; sortI < llGetListLength(sortedLbData); sortI++) {
-        sorted_entry = llList2String(sortedLbData, sortI);
-        parts = llParseString2List(sorted_entry, [":"], []);
-        if (llGetListLength(parts) >= 4) {
-            // parts[0] = paddedWins (skip), parts[1] = name, parts[2] = actualWins, parts[3] = losses
-            sortName = llList2String(parts, 1);
-            winsStr = llList2String(parts, 2);
-            lossesStr = llList2String(parts, 3);
-            cleanedData += [sortName + ":" + winsStr + ":" + lossesStr];
-        }
+    // 3. Rebuild the leaderboard data in sorted order (Stided list: Name, Wins, Losses)
+    for (i = 0; i < llGetListLength(sortList); i += 2) {
+        origIdx = llList2Integer(sortList, i + 1);
+        base = origIdx * 3;
+        sortedData += [
+            llList2String(leaderboardData, base),
+            llList2Integer(leaderboardData, base + 1),
+            llList2Integer(leaderboardData, base + 2)
+        ];
     }
     
-    return cleanedData;
+    return sortedData;
 }
 
 // Generate leaderboard text and send to separate leaderboard object
 integer generateLeaderboardText() {
     list sortedData = getSortedLeaderboard();
+    string SPACES = "                                "; 
+    string title = "TOP BATTLE RECORDS";
+    integer titleMargin = 0;
+    string leaderboardText = "";
+    integer genI = 0;
+    string playerName = "";
+    integer genWins = 0;
+    integer genLosses = 0;
+    string rank = "";
+    string leftPart = "";
+    string rightPart = "";
+    integer spaceNeeded = 0;
+    integer numSorted = llGetListLength(sortedData) / 3;
+    integer base = 0;
+    string sWins = "";
+    string sLosses = "";
     
     // 1. Build Title Row (Centered)
-    string title = "TOP BATTLE RECORDS";
-    integer titleLen = llStringLength(title);
-    integer titleMargin = (LEADERBOARD_WIDTH - titleLen) / 2;
+    titleMargin = (LEADERBOARD_WIDTH - llStringLength(title)) / 2;
     if (titleMargin < 0) titleMargin = 0;
     
-    string titleSpaces = "";
-    integer ts;
-    for (ts = 0; ts < titleMargin; ts++) titleSpaces += " ";
-    
-    string leaderboardText = titleSpaces + title + "\n";
-    
-    integer genI;
-    string playerData;
-    list playerParts;
-    string playerName;
-    string genWins;
-    string genLosses;
-    integer rankNumber;
-    string rank;
-    string leftPart;
-    string rightPart;
-    integer spaceNeeded;
-    string spacer;
-    integer s;
-    string line;
-    integer actualPlayers;
+    leaderboardText = llGetSubString(SPACES, 0, titleMargin - 1) + title + "\n";
     
     // Add actual player data (up to MAX_LEADERBOARD_ENTRIES)
-    for (genI = 0; genI < llGetListLength(sortedData) && genI < MAX_LEADERBOARD_ENTRIES; genI++) {
-        playerData = llList2String(sortedData, genI);
-        playerParts = llParseString2List(playerData, [":"], []);
+    for (genI = 0; genI < numSorted && genI < MAX_LEADERBOARD_ENTRIES; genI++) {
+        base = genI * 3;
+        playerName = llList2String(sortedData, base);
+        genWins = llList2Integer(sortedData, base + 1);
+        genLosses = llList2Integer(sortedData, base + 2);
         
-        if (llGetListLength(playerParts) >= 3) {
-            playerName = llList2String(playerParts, 0);
-            genWins = llList2String(playerParts, 1);
-            genLosses = llList2String(playerParts, 2);
-            
-            // [Rank(4) + Name(14) + Gaps + Stats(10) = 32 chars total]
-            if (llStringLength(playerName) > 12) {
-                playerName = llGetSubString(playerName, 0, 9) + "...";
-            }
-            
-            // Format rank string: "01. " through "10. " (always 4 chars)
-            rankNumber = genI + 1;
-            rank = (string)rankNumber + ". ";
-            if (rankNumber < 10) rank = "0" + rank;
-            
-            // Format stats with fixed-width padding to align columns
-            // Standardizing to 10 characters: "W: 99/L: 9"
-            string sWins = (string)genWins;
-            while (llStringLength(sWins) < 3) sWins = " " + sWins;
-            string sLosses = (string)genLosses;
-            while (llStringLength(sLosses) < 2) sLosses = " " + sLosses;
-            
-            leftPart = rank + playerName;
-            rightPart = "W:" + sWins + "/L:" + sLosses; // Exactly 10 characters
-            
-            // Push rightPart to column 32
-            spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - llStringLength(rightPart);
-            if (spaceNeeded < 1) spaceNeeded = 1;
-            
-            spacer = "";
-            for (s = 0; s < spaceNeeded; s++) spacer += " ";
-            
-            line = leftPart + spacer + rightPart;
-            leaderboardText += line + "\n";
+        if (llStringLength(playerName) > 12) {
+            playerName = llGetSubString(playerName, 0, 9) + "...";
         }
+        
+        // Format rank: "01. " through "10. "
+        rank = (string)(genI + 1) + ". ";
+        if (genI < 9) rank = "0" + rank;
+        
+        // Format stats 10-char width: "W: 99/L: 9"
+        sWins = (string)genWins;
+        if (llStringLength(sWins) < 3) sWins = llGetSubString("  ", 0, 2 - llStringLength(sWins)) + sWins;
+        sLosses = (string)genLosses;
+        if (llStringLength(sLosses) < 2) sLosses = llGetSubString(" ", 0, 1 - llStringLength(sLosses)) + sLosses;
+        
+        leftPart = rank + playerName;
+        rightPart = "W:" + sWins + "/L:" + sLosses;
+        
+        spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - 10;
+        if (spaceNeeded < 1) spaceNeeded = 1;
+        
+        leaderboardText += leftPart + llGetSubString(SPACES, 0, spaceNeeded - 1) + rightPart + "\n";
     }
     
     // Fill remaining positions with placeholders
-    actualPlayers = llGetListLength(sortedData);
-    for (genI = actualPlayers; genI < MAX_LEADERBOARD_ENTRIES; genI++) {
-        rankNumber = genI + 1;
-        rank = (string)rankNumber + ". ";
-        if (rankNumber < 10) rank = "0" + rank;
+    for (genI = numSorted; genI < MAX_LEADERBOARD_ENTRIES; genI++) {
+        rank = (string)(genI + 1) + ". ";
+        if (genI < 9) rank = "0" + rank;
         
-        // Use EXACT same formatting as players so columns align!
         leftPart = rank + "----------";
-        rightPart = "W:  0/L: 0"; // Matches 10-char fixed width
+        rightPart = "W:  0/L: 0";
+        spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - 10;
         
-        spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - llStringLength(rightPart);
-        if (spaceNeeded < 1) spaceNeeded = 1;
-        
-        spacer = "";
-        for (s = 0; s < spaceNeeded; s++) spacer += " ";
-        
-        line = leftPart + spacer + rightPart;
-        leaderboardText += line + "\n";
+        leaderboardText += leftPart + llGetSubString(SPACES, 0, spaceNeeded - 1) + rightPart + "\n";
     }
     
     // Send formatted text to leaderboard bridge
@@ -416,9 +357,7 @@ integer resetLeaderboard() {
         return 0;
     }
     
-    leaderboardNames = [];
-    leaderboardWins = [];
-    leaderboardLosses = [];
+    leaderboardData = [];
     pendingSerialize = "";
     kvpWriteReq = llUpdateKeyValue("Peril_LB_Top50", "", FALSE, "");
     generateLeaderboardText(); // Send empty leaderboard immediately
@@ -427,10 +366,7 @@ integer resetLeaderboard() {
 
 // Clear all current players from the scoreboard
 integer clearAllPlayers() {
-    // Clear ONLY current game player data lists (NOT leaderboard data)
-    playerNames = [];
-    playerLives = [];
-    playerProfiles = [];
+    activePlayers = [];
     
     // Clear any pending HTTP requests
     httpRequests = [];
@@ -444,9 +380,9 @@ integer clearAllPlayers() {
     
     // Reset all player prims to default state
     for (clearI = 0; clearI < 10; clearI++) {
-        clearProfilePrimIndex = llList2Integer(profileLinks, clearI);
-        clearHeartsPrimIndex = llList2Integer(heartsLinks, clearI);
-        clearOverlayPrimIndex = llList2Integer(overlayLinks, clearI);
+        clearProfilePrimIndex = getProfilePrimLink(clearI);
+        clearHeartsPrimIndex = getHeartsPrimLink(clearI);
+        clearOverlayPrimIndex = getOverlayPrimLink(clearI);
         
         // SAFETY CHECK - use if block instead of continue for maximum compatibility
         if (clearProfilePrimIndex > 0) {
@@ -479,24 +415,17 @@ integer clearAllPlayers() {
 
 // Remove a single player from the scoreboard display
 integer removePlayer(string playerName) {
-    integer removeIdx = llListFindList(playerNames, [playerName]);
-    if (removeIdx != -1) {
-        // Remove player from internal lists
-        playerNames = llDeleteSubList(playerNames, removeIdx, removeIdx);
-        playerLives = llDeleteSubList(playerLives, removeIdx, removeIdx);
-        playerProfiles = llDeleteSubList(playerProfiles, removeIdx, removeIdx);
-        
-        // Refresh the entire display to shift remaining players up
+    integer idx = llListFindList(activePlayers, [playerName]);
+    if (idx != -1) {
+        activePlayers = llDeleteSubList(activePlayers, idx, idx + 2);
         refreshPlayerDisplay();
-        
-        dbg("📈 [Scoreboard Manager] 📊 Removed " + playerName + " from the scoreboard and shifted remaining players.");
+        dbg("📈 Player removed: " + playerName);
     }
     return 0;
 }
 
-// Refresh the entire player display - shows all current players in order
 integer refreshPlayerDisplay() {
-    integer numActivePlayers = llGetListLength(playerNames);
+    integer numActivePlayers = llGetListLength(activePlayers) / 3;
     integer refreshI;
     integer refreshProfilePrimIndex = 0;
     integer refreshHeartsPrimIndex = 0;
@@ -512,9 +441,9 @@ integer refreshPlayerDisplay() {
     
     // Only reset prims for unused slots (avoid flickering for active players)
     for (refreshI = numActivePlayers; refreshI < 10; refreshI++) {
-        refreshProfilePrimIndex = llList2Integer(profileLinks, refreshI);
-        refreshHeartsPrimIndex = llList2Integer(heartsLinks, refreshI);
-        refreshOverlayPrimIndex = llList2Integer(overlayLinks, refreshI);
+        refreshProfilePrimIndex = getProfilePrimLink(refreshI);
+        refreshHeartsPrimIndex = getHeartsPrimLink(refreshI);
+        refreshOverlayPrimIndex = getOverlayPrimLink(refreshI);
         
         if (refreshProfilePrimIndex > 0) {
             // Reset to default only for unused slots
@@ -541,14 +470,15 @@ integer refreshPlayerDisplay() {
     
     // Now display all current players in their new positions
     for (refreshI = 0; refreshI < numActivePlayers; refreshI++) {
-        r_name = llList2String(playerNames, refreshI);
-        r_lives = llList2Integer(playerLives, refreshI);
-        r_profileTexture = llList2String(playerProfiles, refreshI);
+        integer base = refreshI * 3;
+        r_name = llList2String(activePlayers, base);
+        r_lives = llList2Integer(activePlayers, base + 1);
+        r_profileTexture = llList2String(activePlayers, base + 2);
         
         // Calculate prim indices for this position
-        r_profileIdx = llList2Integer(profileLinks, refreshI);
-        r_heartsIdx = llList2Integer(heartsLinks, refreshI);
-        r_overlayIdx = llList2Integer(overlayLinks, refreshI);
+        r_profileIdx = getProfilePrimLink(refreshI);
+        r_heartsIdx = getHeartsPrimLink(refreshI);
+        r_overlayIdx = getOverlayPrimLink(refreshI);
         
         if (r_profileIdx > 0) {
             // Determine profile texture to use
@@ -602,9 +532,9 @@ integer isBot(string playerName) {
 
 // Map player index to profile prim link number
 // Functions relocated to avoid hardcoded math
-integer getProfilePrimLink(integer playerIndex) { return llList2Integer(profileLinks, playerIndex); }
-integer getHeartsPrimLink(integer playerIndex) { return llList2Integer(heartsLinks, playerIndex); }
-integer getOverlayPrimLink(integer playerIndex) { return llList2Integer(overlayLinks, playerIndex); }
+integer getProfilePrimLink(integer playerIndex) { return llList2Integer(gridLinks, playerIndex * 3); }
+integer getHeartsPrimLink(integer playerIndex) { return llList2Integer(gridLinks, (playerIndex * 3) + 1); }
+integer getOverlayPrimLink(integer playerIndex) { return llList2Integer(gridLinks, (playerIndex * 3) + 2); }
 
 string getHeartTexture(integer lives) {
     if (lives <= 0) return TEXTURE_0_HEARTS;
@@ -613,84 +543,37 @@ string getHeartTexture(integer lives) {
     else return TEXTURE_3_HEARTS; // 3 or more
 }
 
+// Helper to set glow and color on a prim
+setGlow(integer link, float glow, vector color) {
+    if (link > 0) {
+        llSetLinkPrimitiveParamsFast(link, [PRIM_GLOW, ALL_SIDES, glow, PRIM_COLOR, ALL_SIDES, color, 1.0]);
+    }
+}
+
 // Update all glow effects (peril and winner)
 integer updatePlayerGlowEffects() {
-    // First, remove glow and reset tint from all players
+    integer numPlayers = llGetListLength(activePlayers) / 3;
     integer glowI;
-    integer glowProfilePrimIndex;
-    integer glowHeartsPrimIndex;
-    
-    for (glowI = 0; glowI < llGetListLength(playerNames); glowI++) {
-        glowProfilePrimIndex = llList2Integer(profileLinks, glowI);
-        glowHeartsPrimIndex = llList2Integer(heartsLinks, glowI);
-        
-        if (glowProfilePrimIndex > 0) {
-            llSetLinkPrimitiveParamsFast(glowProfilePrimIndex, [
-                PRIM_GLOW, ALL_SIDES, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
-            ]);
-        }
-        if (glowHeartsPrimIndex > 0) {
-            llSetLinkPrimitiveParamsFast(glowHeartsPrimIndex, [
-                PRIM_GLOW, ALL_SIDES, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
-            ]);
-        }
+    for (glowI = 0; glowI < numPlayers; glowI++) {
+        setGlow(getProfilePrimLink(glowI), 0.0, <1,1,1>);
+        setGlow(getHeartsPrimLink(glowI), 0.0, <1,1,1>);
     }
     
-    // Priority 1: Green glow for winner (overrides peril glow)
+    integer idx = -1;
+    vector col = <1,1,1>;
+    float glow = 0.0;
+    
     if (currentWinner != "" && currentWinner != "NONE") {
-        integer winnerIndex = llListFindList(playerNames, [currentWinner]);
-        if (winnerIndex != -1) {
-            integer winnerProfilePrimIndex = getProfilePrimLink(winnerIndex);
-            integer winnerHeartsPrimIndex = getHeartsPrimLink(winnerIndex);
-            
-            // Check if the prim exists (discovered index > 0)
-            if (winnerProfilePrimIndex > 0) {
-                // Add green glow + green tint to winner
-                llSetLinkPrimitiveParamsFast(winnerProfilePrimIndex, [
-                    PRIM_GLOW, ALL_SIDES, 0.3,
-                    PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0
-                ]);
-                
-                // Also add glow to hearts if found
-                if (winnerHeartsPrimIndex > 0) {
-                    llSetLinkPrimitiveParamsFast(winnerHeartsPrimIndex, [
-                        PRIM_GLOW, ALL_SIDES, 0.3,
-                        PRIM_COLOR, ALL_SIDES, <0.0, 1.0, 0.0>, 1.0
-                    ]);
-                }
-                
-                dbg("📈 [Scoreboard Manager] 🏆 Added green glow to winner: " + currentWinner);
-            }
-        }
+        idx = llListFindList(activePlayers, [currentWinner]);
+        if (idx != -1) { idx = idx / 3; col = <0,1,0>; glow = 0.3; }
+    } else if (currentPerilPlayer != "" && currentPerilPlayer != "NONE") {
+        idx = llListFindList(activePlayers, [currentPerilPlayer]);
+        if (idx != -1) { idx = idx / 3; col = <1,1,0>; glow = 0.2; }
     }
-    // Priority 2: Yellow glow for peril player (only if not the winner)
-    else if (currentPerilPlayer != "" && currentPerilPlayer != "NONE") {
-        integer perilIndex = llListFindList(playerNames, [currentPerilPlayer]);
-        if (perilIndex != -1) {
-            integer perilProfilePrimIndex = getProfilePrimLink(perilIndex);
-            integer perilHeartsPrimIndex = getHeartsPrimLink(perilIndex);
-            
-            // Check if the prim exists (discovered index > 0)
-            if (perilProfilePrimIndex > 0) {
-                // Add yellow glow + yellow tint to peril player
-                llSetLinkPrimitiveParamsFast(perilProfilePrimIndex, [
-                    PRIM_GLOW, ALL_SIDES, 0.2,
-                    PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0
-                ]);
-                
-                // Also add glow to hearts if found
-                if (perilHeartsPrimIndex > 0) {
-                    llSetLinkPrimitiveParamsFast(perilHeartsPrimIndex, [
-                        PRIM_GLOW, ALL_SIDES, 0.2,
-                        PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 0.0>, 1.0
-                    ]);
-                }
-                
-                dbg("📈 [Scoreboard Manager] ✨ Added yellow glow to peril player: " + currentPerilPlayer);
-            }
-        }
+    
+    if (idx != -1) {
+        setGlow(getProfilePrimLink(idx), glow, col);
+        setGlow(getHeartsPrimLink(idx), glow, col);
     }
     return 0;
 }
@@ -703,26 +586,19 @@ integer updatePerilPlayerGlow() {
 
 // Update player display on the grid
 integer updatePlayerDisplay(string playerName, integer lives, string profileUUID) {
-    // Find existing player or add new one
-    integer playerIndex = llListFindList(playerNames, [playerName]);
+    integer playerIndex = llListFindList(activePlayers, [playerName]);
+    if (playerIndex != -1) playerIndex = playerIndex / 3;
     
     if (playerIndex == -1) {
-        // New player - find next available slot
-        playerIndex = llGetListLength(playerNames);
+        playerIndex = llGetListLength(activePlayers) / 3;
         if (playerIndex >= 10) {
-            dbg("📈 [Scoreboard Manager] ⚠️ WARNING: Maximum 10 players supported, ignoring: " + playerName);
+            dbg("📈 MAX players reached: " + playerName);
             return 0;
         }
         
-        // Add to tracking lists
-        playerNames += [playerName];
-        playerLives += [lives];
-        // For bots, always store the bot texture UUID to prevent HTTP requests
-        if (isBot(playerName)) {
-            playerProfiles += [TEXTURE_BOT_PROFILE];
-        } else {
-            playerProfiles += [profileUUID];
-        }
+        string activeUUID = profileUUID;
+        if (isBot(playerName)) activeUUID = TEXTURE_BOT_PROFILE;
+        activePlayers += [playerName, lives, activeUUID];
         
         // DEBUG: Show prim mapping - DISABLED to save memory
         // if (VERBOSE_LOGGING) {
@@ -739,15 +615,13 @@ integer updatePlayerDisplay(string playerName, integer lives, string profileUUID
         // }
         
     } else {
-        // Update existing player
-        playerLives = llListReplaceList(playerLives, [lives], playerIndex, playerIndex);
-        // Don't overwrite cached profile texture with original UUID on updates
+        activePlayers = llListReplaceList(activePlayers, [lives], (playerIndex * 3) + 1, (playerIndex * 3) + 1);
     }
     
     // Update the physical prims for this player
-    integer updateProfilePrimIndex = llList2Integer(profileLinks, playerIndex);
-    integer updateHeartsPrimIndex = llList2Integer(heartsLinks, playerIndex);
-    integer updateOverlayPrimIndex = llList2Integer(overlayLinks, playerIndex);
+    integer updateProfilePrimIndex = getProfilePrimLink(playerIndex);
+    integer updateHeartsPrimIndex = getHeartsPrimLink(playerIndex);
+    integer updateOverlayPrimIndex = getOverlayPrimLink(playerIndex);
     
     if (updateProfilePrimIndex <= 0) return 0;
     
@@ -761,32 +635,26 @@ integer updatePlayerDisplay(string playerName, integer lives, string profileUUID
         // CRITICAL: Still need to set updateProfileTexture for eliminated players
         if (isBot(playerName)) {
             updateProfileTexture = TEXTURE_BOT_PROFILE;
-        } else if (playerIndex < llGetListLength(playerProfiles)) {
-            string updateCachedTexture = llList2String(playerProfiles, playerIndex);
+        } else {
+            string updateCachedTexture = llList2String(activePlayers, (playerIndex * 3) + 2);
             if (updateCachedTexture != "" && updateCachedTexture != profileUUID && 
                 updateCachedTexture != TEXTURE_DEFAULT_PROFILE && updateCachedTexture != TEXTURE_BOT_PROFILE &&
                 updateCachedTexture != TEXTURE_ELIMINATED_X) {
-                // We have a previously fetched profile picture, use it
                 updateProfileTexture = updateCachedTexture;
             } else {
                 updateProfileTexture = TEXTURE_DEFAULT_PROFILE;
             }
-        } else {
-            updateProfileTexture = TEXTURE_DEFAULT_PROFILE;
         }
     } else {
         // Player is alive - determine profile texture to use
         updateProfileTexture = profileUUID;
         
         // Check if we already have a cached profile texture for this player
-        if (playerIndex < llGetListLength(playerProfiles)) {
-            string liveCachedTexture = llList2String(playerProfiles, playerIndex);
-            if (liveCachedTexture != "" && liveCachedTexture != profileUUID && 
-                liveCachedTexture != TEXTURE_DEFAULT_PROFILE && liveCachedTexture != TEXTURE_BOT_PROFILE &&
-                liveCachedTexture != TEXTURE_ELIMINATED_X) {
-                // We have a previously fetched profile picture, use it
-                updateProfileTexture = liveCachedTexture;
-            }
+        string liveCachedTexture = llList2String(activePlayers, (playerIndex * 3) + 2);
+        if (liveCachedTexture != "" && liveCachedTexture != profileUUID && 
+            liveCachedTexture != TEXTURE_DEFAULT_PROFILE && liveCachedTexture != TEXTURE_BOT_PROFILE &&
+            liveCachedTexture != TEXTURE_ELIMINATED_X) {
+            updateProfileTexture = liveCachedTexture;
         }
         
         // If no cached texture or using original UUID, determine what to use
@@ -802,7 +670,7 @@ integer updatePlayerDisplay(string playerName, integer lives, string profileUUID
                 // }
             } else if (updateProfileTexture == "" || updateProfileTexture == "00000000-0000-0000-0000-000000000000") {
                 updateProfileTexture = TEXTURE_DEFAULT_PROFILE;
-                dbg("📈 [Scoreboard Manager] ❓ [DEBUG] " + playerName + " has empty/null UUID, using default texture");
+                dbg("Default texture");
             } else {
                 // CRITICAL: Set default texture FIRST, then request profile picture
                 updateProfileTexture = TEXTURE_DEFAULT_PROFILE;
@@ -817,10 +685,6 @@ integer updatePlayerDisplay(string playerName, integer lives, string profileUUID
                 
                 // Store the HTTP request mapping: requestID -> playerIndex
                 httpRequests += [httpRequestID, playerIndex];
-                
-                // if (VERBOSE_LOGGING) {
-                //     llOwnerSay("🔄 [Scoreboard] Requesting profile pic for " + playerName + ", showing default for now");
-                // }
             }
         }
     }
@@ -891,12 +755,8 @@ default {
     state_entry() {
         discoverLinks();
         llListen(1, "", llGetOwner(), ""); 
-        reportMemoryUsage("Scoreboard Manager");
-        dbg("📈 [Scoreboard Manager] 📈 Managing profile and heart prims via dynamic discovery.");
-        
-        // Initialize profile picture extraction constants
-        profile_key_prefix_length = llStringLength(profile_key_prefix);
-        profile_img_prefix_length = llStringLength(profile_img_prefix);
+        REPORT_MEMORY();
+        dbg("Ready");
         
         // Reset background prim to proper state
         resetBackgroundPrim();
@@ -916,8 +776,7 @@ default {
         currentWinner = "";
         updatePlayerGlowEffects();
         
-        dbg("📈 [Scoreboard Manager] ✅ Linkset communication active - no discovery needed!");
-        dbg("📈 [Scoreboard Manager] 📊 Loaded " + (string)llGetListLength(leaderboardNames) + " players from leaderboard data");
+        dbg("Init complete");
     }
     
     link_message(integer sender, integer num, string str, key id) {
@@ -935,7 +794,7 @@ default {
                 string profileUUID = llList2String(parts, 2);
                 
                 // Debug: Show what data scoreboard received - DISABLED to save memory
-                dbg("📈 Scoreboard received update: " + playerName + " has " + (string)lives + " hearts");
+                dbg("Update: " + playerName);
                 // }
                 
                 updatePlayerDisplay(playerName, lives, profileUUID);
@@ -975,7 +834,7 @@ default {
                 currentPerilPlayer = "";
             }
             
-            dbg("📈 [Scoreboard Manager] 🎯 Peril player changed from '" + oldPeril + "' to '" + currentPerilPlayer + "'");
+            dbg("Peril: " + currentPerilPlayer);
             
             // Update glow effects
             updatePlayerGlowEffects();
@@ -988,7 +847,7 @@ default {
                 currentWinner = "";
             }
             
-            dbg("📈 [Scoreboard Manager] 🏆 Winner changed from '" + oldWinner + "' to '" + currentWinner + "'");
+            dbg("Winner: " + currentWinner);
             
             // Update glow effects - winner glow overrides peril glow
             updatePlayerGlowEffects();
@@ -1004,14 +863,14 @@ default {
             // Remove this request from tracking
             httpRequests = llDeleteSubList(httpRequests, requestIndex, requestIndex + 1);
             
-            if (status == 200 && playerIndex < llGetListLength(playerNames)) {
+            if (status == 200 && playerIndex < llGetListLength(activePlayers) / 3) {
                 // Parse the HTML to extract profile image UUID
                 string profileUUID = "";
                 
                 // Try the meta tag method first
-                integer metaStart = llSubStringIndex(body, profile_key_prefix);
+                integer metaStart = llSubStringIndex(body, PROFILE_KEY_PREFIX);
                 if (metaStart != -1) {
-                    metaStart += profile_key_prefix_length;
+                    metaStart += PROFILE_KEY_PREFIX_LENGTH;
                     string remainingBody = llGetSubString(body, metaStart, -1);
                     integer metaEnd = llSubStringIndex(remainingBody, "\"");
                     if (metaEnd != -1) {
@@ -1021,9 +880,9 @@ default {
                 
                 // If meta tag failed, try img src method
                 if (profileUUID == "") {
-                    integer imgStart = llSubStringIndex(body, profile_img_prefix);
+                    integer imgStart = llSubStringIndex(body, PROFILE_IMG_PREFIX);
                     if (imgStart != -1) {
-                        imgStart += profile_img_prefix_length;
+                        imgStart += PROFILE_IMG_PREFIX_LENGTH;
                         string remainingBody = llGetSubString(body, imgStart, -1);
                         integer imgEnd = llSubStringIndex(remainingBody, "/");
                         if (imgEnd != -1) {
@@ -1034,8 +893,8 @@ default {
                 
                 // If we got a valid UUID, update the profile prim and cache it
                 if (profileUUID != "" && profileUUID != "00000000-0000-0000-0000-000000000000") {
-                    // Update the cached profile texture
-                    playerProfiles = llListReplaceList(playerProfiles, [profileUUID], playerIndex, playerIndex);
+                    // Update the cached profile texture in stride
+                    activePlayers = llListReplaceList(activePlayers, [profileUUID], (playerIndex * 3) + 2, (playerIndex * 3) + 2);
                     
                     // Update the physical prim using correct mapping
                     integer profilePrimIndex = getProfilePrimLink(playerIndex);
@@ -1055,10 +914,10 @@ default {
                             PRIM_GLOW, ALL_SIDES, 0.0 // Remove glow
                         ]);
                         
-                        string playerName = llList2String(playerNames, playerIndex);
-                        dbg("📈 [Scoreboard Manager] 🖼️ Updated profile picture for " + playerName + " on prim " + (string)profilePrimIndex + " with forced refresh");
+                        string playerName = llList2String(activePlayers, playerIndex * 3);
+                        dbg("Profile updated: " + playerName);
                     } else {
-                        dbg("📈 [Scoreboard Manager] ❌ ERROR: HTTP response tried to update invalid prim " + (string)profilePrimIndex + " for player " + (string)playerIndex);
+                        dbg("Invalid prim: " + (string)profilePrimIndex);
                     }
                 }
             }
@@ -1074,9 +933,7 @@ default {
                 string val = llGetSubString(data, comma + 1, -1);
                 
                 if (status == "1") {
-                    leaderboardNames = [];
-                    leaderboardWins = [];
-                    leaderboardLosses = [];
+                    leaderboardData = [];
                     
                     list entries = llParseString2List(val, ["|"], []);
                     integer i;
@@ -1084,19 +941,19 @@ default {
                         string data_entry = llList2String(entries, i);
                         list parts = llParseString2List(data_entry, [":"], []);
                         if (llGetListLength(parts) >= 3) {
-                            leaderboardNames += [llList2String(parts, 0)];
-                            leaderboardWins += [(integer)llList2String(parts, 1)];
-                            leaderboardLosses += [(integer)llList2String(parts, 2)];
+                            leaderboardData += [
+                                llList2String(parts, 0),
+                                (integer)llList2String(parts, 1),
+                                (integer)llList2String(parts, 2)
+                            ];
                         }
                     }
-                    dbg("📈 [Scoreboard Manager] ✅ Loaded global scoreboard containing " + (string)llGetListLength(leaderboardNames) + " players!");
-                } else if (status == "3") { // XP_ERROR_KEY_NOT_FOUND
-                    leaderboardNames = [];
-                    leaderboardWins = [];
-                    leaderboardLosses = [];
-                    dbg("📈 [Scoreboard Manager] ℹ️ Global scoreboard is currently empty (database fresh).");
+                    dbg("LB Loaded");
+                } else if (status == "3") { 
+                    leaderboardData = [];
+                    dbg("LB Empty");
                 } else {
-                    dbg("📈 [Scoreboard Manager] ⚠️ Failed to load global scoreboard (Status: " + status + ")");
+                    dbg("LB Error: " + status);
                 }
             }
             // Generate board with downloaded or empty data
@@ -1108,8 +965,8 @@ default {
                 if (status == "3") {
                     // Update failed because key didn't exist yet! Create it.
                     llCreateKeyValue("Peril_LB_Top50", pendingSerialize);
-                } else if (status == "1") {
-                    dbg("📈 [Scoreboard Manager] ✅ Global scoreboard synced successfully.");
+                    dbg("LB Saved");
+                    pendingSerialize = ""; 
                 }
             }
         }
@@ -1117,7 +974,7 @@ default {
     
     
     timer() {
-        dbg("📈 [Scoreboard Manager] ⏱️ Auto-refreshing Global Scoreboard Data...");
+        dbg("Timer");
         loadLeaderboardData();
     }
     
@@ -1138,7 +995,6 @@ default {
             }
         }
         else if (msg == "clearx") {
-            dbg("Refreshing display to clear test X overlays...");
             refreshPlayerDisplay();
         }
     }

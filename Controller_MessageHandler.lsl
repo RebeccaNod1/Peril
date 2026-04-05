@@ -40,18 +40,6 @@ integer calculateChannel(integer offset) {
     return CHANNEL_BASE - (offset * 1000) - combinedHash;
 }
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 initializeChannels() {
     SCOREBOARD_CHANNEL_1 = calculateChannel(6);   // ~-77600 range
@@ -326,13 +314,13 @@ handleDialogRequest(string dialogData) {
 
 default {
     state_entry() {
-        reportMemoryUsage("📨 Message Handler");
+        REPORT_MEMORY();
         
         initializeChannels();
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("📨 Message Handler");
+        REPORT_MEMORY();
         initializeChannels();
         // Reset local state if needed (synced from Main)
         players = [];

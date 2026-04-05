@@ -69,7 +69,12 @@ list validatePicksData(list picksData, list names) {
 
 default {
     state_entry() {
+        REPORT_MEMORY();
         dbg("🔍 [System Debugger] 🔍 System Debugger ready!");
+    }
+    
+    on_rez(integer start_param) {
+        REPORT_MEMORY();
     }
     
     link_message(integer sender, integer num, string str, key id) {

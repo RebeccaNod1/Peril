@@ -113,10 +113,15 @@ processMainControllerStats(string statsData) {
 
 default {
     state_entry() {
+        REPORT_MEMORY();
         dbg("📊 [Memory Monitor] Memory Monitor ready!");
         
         // Start periodic memory monitoring
         llSetTimerEvent(MEMORY_CHECK_INTERVAL);
+    }
+    
+    on_rez(integer start_param) {
+        REPORT_MEMORY();
     }
     
     timer() {

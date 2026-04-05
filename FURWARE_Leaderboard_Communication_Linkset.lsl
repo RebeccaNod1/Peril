@@ -16,6 +16,7 @@ default {
 
     state_entry() {
         DISCOVER_CORE_LINKS();
+        REPORT_MEMORY();
         dbg("📋 [Leaderboard] Leaderboard Communication Script ready! (FURWARE Version)");
         dbg("📋 [Leaderboard] Managing 'Leaderboard' FURWARE box");
         dbg("📋 [Leaderboard] ✅ Discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);

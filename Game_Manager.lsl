@@ -395,7 +395,7 @@ integer syncStateToMain() {
 default {
     state_entry() {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Game Manager");
+        REPORT_MEMORY();
         dbg("🎯 Game Manager ready - discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);
         
         // Initialize/reset all game state variables
@@ -422,7 +422,7 @@ default {
     
     on_rez(integer start_param) {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Game Manager");
+        REPORT_MEMORY();
         dbg("🔄 Game Manager reset via rez...");
         
         // Reset all game state variables on rez

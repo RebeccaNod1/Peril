@@ -41,18 +41,6 @@ initializeChannels() {
 // Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
 integer DEBUG_PICKS = FALSE;
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 // ALL REGISTERED PLAYERS (for channel mapping - order never changes)
 list allPlayerNames = [];   // Names in registration order
@@ -90,7 +78,7 @@ list getPicksFor(string nameInput) {
 // Main event handler
 default {
     state_entry() {
-        reportMemoryUsage("💬 Floater Manager");
+        REPORT_MEMORY();
         
         initializeChannels();
         
@@ -106,7 +94,7 @@ default {
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("💬 Floater Manager");
+        REPORT_MEMORY();
         dbg("💬 [Floater Manager] 🔄 Floater Manager rezzed - reinitializing...");
         
         initializeChannels();
@@ -133,47 +121,56 @@ default {
             return;
         }
         
-        if (num == MSG_REGISTER_PLAYER) {
-            if (llGetListLength(allPlayerNames) >= MAX_PLAYERS) {
-                dbg("💬 [Floater Manager] ⚠️ Game is full (max " + (string)MAX_PLAYERS + ").");
-                return;
-            }
-            list info = llParseString2List(str, ["|"], []);
-            string name = llList2String(info, 0);
-            key avKey = llList2Key(info, 1);
-            
-            if (llListFindList(allPlayerNames, [name]) != -1) return;
-            
-            allPlayerNames += [name]; // Permanent map
-            llSay(0, "💀 " + name + " has entered the deadly game! 💀");
-            llMessageLinked(LINK_SET, MSG_REZ_FLOAT, name, avKey);
-        }
-        else if (num == MSG_REZ_FLOAT) {
+        // MSG_REGISTER_PLAYER (106) is now handled by Player_RegistrationManager.lsl
+        // which then sends MSG_REZ_FLOAT (105) here. Legacy handler removed to prevent double-rezzing.
+        
+        else if (num == MSG_REZ_FLOAT) { // 105
             string name = str;
-            integer channelIdx = llListFindList(allPlayerNames, [name]);
-            if (channelIdx == -1) return;
+            key avKey = id;
             
-            key avKey = id; // Passed from MSG_REGISTER_PLAYER or MSG_REZ_FLOAT
-            
-            list details = llGetObjectDetails(avKey, [OBJECT_POS]);
-            vector basePos = llGetPos();
-            if (llGetListLength(details) > 0) basePos = llList2Vector(details, 0);
-
-            vector pos;
-            if (llGetListLength(details) > 0) {
-                pos = basePos + <1, 0, 1>; // Avatar relative
-            } else {
-                // Test players: grid layout
-                integer row = channelIdx / 5;
-                integer col = channelIdx % 5;
-                pos = basePos + <-3.0 - (float)col * 1.5, 2.0 + (float)row * 2.0, 1>;
+            // Handle name|key format if sent
+            integer pipeIdx = llSubStringIndex(str, "|");
+            if (pipeIdx != -1) {
+                name = llGetSubString(str, 0, pipeIdx - 1);
+                if (avKey == NULL_KEY) avKey = (key)llGetSubString(str, pipeIdx + 1, -1);
             }
             
-            integer ch = FLOATER_BASE_CHANNEL + channelIdx;
-            llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
-            llSleep(0.2);
-            llRegionSay(ch, "SET_NAME:" + name);
-            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, name, avKey);
+            // Ensure player is in our permanent map
+            integer channelIdx = llListFindList(allPlayerNames, [name]);
+            if (channelIdx == -1) {
+                if (llGetListLength(allPlayerNames) >= MAX_PLAYERS) return;
+                
+                allPlayerNames += [name];
+                channelIdx = llGetListLength(allPlayerNames) - 1;
+                
+                // --- AUTHENTIC REZ BLOCK ---
+                // Only rez if we had to add them to the list (first time seeing them)
+                list details = llGetObjectDetails(avKey, [OBJECT_POS]);
+                vector basePos = llGetPos();
+                if (llGetListLength(details) > 0) basePos = llList2Vector(details, 0);
+
+                vector pos;
+                if (llGetListLength(details) > 0) {
+                    pos = basePos + <1, 0, 1>; // Avatar relative
+                } else {
+                    // Test players: grid layout
+                    integer row = channelIdx / 5;
+                    integer col = channelIdx % 5;
+                    pos = basePos + <-3.0 - (float)col * 1.5, 2.0 + (float)row * 2.0, 1>;
+                }
+                
+                integer ch = FLOATER_BASE_CHANNEL + channelIdx;
+                llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
+                llSleep(0.2);
+                llRegionSay(ch, "SET_NAME:" + name);
+                
+                // Initial update to populate text/life display
+                llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, name, avKey);
+            } else {
+                // Already in list - just trigger an update in case it was a re-registration
+                dbg("🛡️ [Rez Guard] " + name + " is already rezzed. Skipping redundant creation.");
+                llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, name, avKey);
+            }
         }
         else if (num == MSG_UPDATE_FLOAT) {
             string name = str;
@@ -240,6 +237,12 @@ default {
             integer foundIdx = ch - FLOATER_BASE_CHANNEL;
             if (foundIdx >= 0 && foundIdx < llGetListLength(allPlayerNames)) {
                 string removedPlayer = llList2String(allPlayerNames, foundIdx);
+                
+                // --- CRITICAL FIX: Clear from Rez Guard registry ---
+                // We don't remove from allPlayerNames (to maintain channel indices)
+                // BUT we replace it with an empty string so the slot is 'available' again
+                allPlayerNames = llListReplaceList(allPlayerNames, [""], foundIdx, foundIdx);
+                
                 integer currentIdx = llListFindList(names, [removedPlayer]);
                 if (currentIdx != -1) {
                     if (currentIdx < llGetListLength(players)) players = llDeleteSubList(players, currentIdx, currentIdx);
@@ -256,6 +259,19 @@ default {
                     }
                 }
                 if (pickIdx != -1) picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
+            }
+        }
+        else if (num == MSG_LEAVE_GAME) { // 8007
+            // Format: LEAVE_GAME|NAME|KEY
+            list parts = llParseString2List(str, ["|"], []);
+            string leaveName = llList2String(parts, 1);
+            integer chanIdx = llListFindList(allPlayerNames, [leaveName]);
+            
+            if (chanIdx != -1) {
+                // Remove their floater and clear the slot for re-entry
+                dbg("🚮 [Floater Manager] Player " + leaveName + " left - cleaning up floater.");
+                llRegionSay(FLOATER_BASE_CHANNEL + chanIdx, "CLEANUP");
+                allPlayerNames = llListReplaceList(allPlayerNames, [""], chanIdx, chanIdx);
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
@@ -278,7 +294,16 @@ default {
             }
             names = llCSV2List(llList2String(parts, 3));
             
-            if (llGetListLength(allPlayerNames) == 0 && llGetListLength(names) > 0) allPlayerNames = names;
+            // Robustly update permanent map from sync names
+            integer nIdx;
+            for (nIdx = 0; nIdx < llGetListLength(names); nIdx++) {
+                string nName = llList2String(names, nIdx);
+                if (llListFindList(allPlayerNames, [nName]) == -1) {
+                    if (llGetListLength(allPlayerNames) < MAX_PLAYERS) {
+                        allPlayerNames += [nName];
+                    }
+                }
+            }
             if (llGetListLength(parts) >= 5) players = llCSV2List(llList2String(parts, 4));
 
             integer idx;
@@ -291,11 +316,20 @@ default {
             }
         }
         else if (num == MSG_CLEANUP_ALL_FLOATERS) {
+            dbg("🧹 [Floater Manager] Universal Cleanup Triggered - Clearing all " + (string)MAX_PLAYERS + " possible channels.");
             integer i;
-            for (i = 0; i < llGetListLength(allPlayerNames); i++) {
+            for (i = 0; i < MAX_PLAYERS; i++) {
+                // Ensure we hit EVERY possible channel, even if they aren't in our current memory
                 llRegionSay(FLOATER_BASE_CHANNEL + i, "CLEANUP");
             }
-            players = []; names = []; lives = []; picksData = []; perilPlayer = "";
+            // Clear ALL registries to allow fresh re-registration via Rez Guard
+            allPlayerNames = [];
+            players = []; 
+            names = []; 
+            lives = []; 
+            picksData = []; 
+            perilPlayer = "";
+            dbg("✅ [Floater Manager] All player registries wiped.");
         }
         else if (num == MSG_DEBUG_PICKS_ON) DEBUG_PICKS = TRUE;
         else if (num == MSG_DEBUG_PICKS_OFF) DEBUG_PICKS = FALSE;

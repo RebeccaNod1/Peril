@@ -60,18 +60,6 @@ integer lastRollTime = 0; // Track when last roll happened
 integer diceTypeProcessed = FALSE; // Confetti particle system for winner celebrations
 #define PARTICLE_TEXTURE "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b"
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 list getPicksFor(string nameInput) {
     integer i;
@@ -131,8 +119,12 @@ confetti() {
 default {
     state_entry() {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Roll Module");
+        REPORT_MEMORY();
         dbg("🎲 [Roll Module] ready - discovery complete! Bridge: " + (string)LINK_DICE_BRIDGE);
+        
+        // Re-initialize dynamic channels
+        initializeChannels();
+        rollDialogChannel = ROLLDIALOG_CHANNEL;
         
         // Clean up any existing listeners
         if (listenHandle != -1) {
@@ -157,7 +149,7 @@ default {
     
     on_rez(integer start_param) {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Roll Module");
+        REPORT_MEMORY();
         dbg("🎲 [Roll Module] reset via rez...");
         
         // Re-initialize dynamic channels

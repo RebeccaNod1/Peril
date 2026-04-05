@@ -299,7 +299,7 @@ resetGame() {
 default {
     state_entry() {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Main Controller");
+        REPORT_MEMORY();
         dbg("🎮 Main Controller ready! (Discovery Mode)");
         
         // Initialize lockout system
@@ -317,7 +317,7 @@ default {
     
     on_rez(integer start_param) {
         DISCOVER_CORE_LINKS();
-        reportMemoryUsage("Main Controller");
+        REPORT_MEMORY();
         dbg("🔄 Main Controller reset via rez...");
         
         // Re-initialize lockout system
@@ -472,14 +472,6 @@ default {
 
     link_message(integer sender, integer num, string str, key id) {
         // Dialog forwarding now handled by Player_RegistrationManager
-        
-        // Handle player registration from other scripts (NOT delegated, this is for other internal communication)
-        if (num == MSG_REGISTER_PLAYER) {
-            // This is for other scripts that might still use the old MSG_REGISTER_PLAYER message
-            // Convert it to the new message for the Player_RegistrationManager
-            llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, str, id);
-            return;
-        }
         
         // Handle registration updates from Player_RegistrationManager
         if (num == MSG_UPDATE_MAIN_LISTS) { // MSG_UPDATE_MAIN_LISTS

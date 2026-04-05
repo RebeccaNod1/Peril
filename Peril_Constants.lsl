@@ -28,7 +28,7 @@ integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 #define FW_DONE "fw_done"
 
 // --- System/Debug (9000-9999) ---
-#define DEBUG_LOGS 1           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
+#define DEBUG_LOGS 0           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
 #if DEBUG_LOGS
 #define dbg(msg) llOwnerSay(msg)
 #else
@@ -113,6 +113,17 @@ integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 #define MSG_QUERY_OWNER_STATUS 213
 
 // --- Memory Management (6000-6099) ---
+#define SHOW_MEMORY 1           // Toggle this to 1 to see memory usage on rez/reset
+
+#define REPORT_MEMORY() { \
+    if (SHOW_MEMORY) { \
+        integer used = llGetUsedMemory(); \
+        integer free = llGetFreeMemory(); \
+        float percent = ((float)used / (float)(used + free)) * 100.0; \
+        llOwnerSay("🧠 [" + llGetScriptName() + "] Memory: " + (string)used + " used, " + (string)free + " free (" + llGetSubString((string)percent, 0, 4) + "% used)."); \
+    } \
+}
+
 #define MSG_MEMORY_CHECK 6001
 #define MSG_MEMORY_STATS 6002
 #define MSG_MEMORY_CLEANUP 6003

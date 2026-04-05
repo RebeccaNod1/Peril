@@ -5,18 +5,6 @@
 // This version chooses a dice size based on the number of players,
 // ensuring at least three numbers are available per player.
 
-// Memory reporting function
-reportMemoryUsage(string scriptName) {
-    integer used = llGetUsedMemory();
-    integer free = llGetFreeMemory();
-    integer total = used + free;
-    float percentUsed = ((float)used / (float)total) * 100.0;
-    
-    dbg("🧠 [" + scriptName + "] Memory: " + 
-               (string)used + " used, " + 
-               (string)free + " free (" + 
-               llGetSubString((string)percentUsed, 0, 4) + "% used)");
-}
 
 list lives;
 list picksData;
@@ -120,7 +108,7 @@ integer showPickManager(string player, key id) {
 
 default {
     state_entry() {
-        reportMemoryUsage("🧮 Game Calculator");
+        REPORT_MEMORY();
         
         // Initialize/reset all state variables
         lives = [];
@@ -132,7 +120,7 @@ default {
     }
     
     on_rez(integer start_param) {
-        reportMemoryUsage("🧮 Game Calculator");
+        REPORT_MEMORY();
         
         // Reset all state variables on rez
         lives = [];
