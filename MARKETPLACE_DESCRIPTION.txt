@@ -19,7 +19,7 @@ KEY FEATURES:
 - Visual Scoreboard: Real-time player grid with profile pictures and hearts
 - Enhanced Status Display: Custom textures for Direct Hit, No Shield, Plot Twist, Elimination, Victory
 - Color-Coded Glow System: Green (winner), Yellow (peril), Red X (eliminated)
-- Experience Leaderboard: Persistent win tracking via Experience KVP with XyzzyText display
+- Experience Leaderboard: Persistent win tracking via Experience KVP with FURWARE Text Mesh display
 - Bot Support: AI players for testing and gameplay variety
 - Floating HUD Display: Real-time stats for each player with victory text
 - Intelligent Dice Sizing: d6/d12/d20/d30 based on player count

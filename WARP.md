@@ -67,7 +67,7 @@ Link 1: Main Controller (Root Prim)
 │   ├── Link 3: Background Prim
 │   ├── Link 4: Actions/Status Prim  
 │   └── Links 5-24: Player Prims (20 slots with profile pics & hearts)
-├── Links 25-72: XyzzyText Leaderboard (48 prims across 4 banks)
+├── Links 25-72: FURWARE Text Mesh Leaderboard
 └── Links 73-74: Dice Display (2 prims for roll results)
 ```
 
@@ -97,8 +97,8 @@ Link 1: Main Controller (Root Prim)
 - `UpdateHelper.lsl` - Batch update processing for memory efficiency
 
 **External Communication:**
-- `Leaderboard_Communication_Linkset.lsl` - XyzzyText bridge (Link 35)
-- `XyzzyText_Dice_Bridge_Linkset.lsl` - Roll result display (Link 83)
+- `Leaderboard_Communication_Linkset.lsl` - FURWARE Text bridge (Link 35)
+- `FURWARE_Status_Bridge_Linkset.lsl` - Roll result display (Link 83)
 
 **Utilities:**
 - `System_Debugger.lsl` - Development debugging tools

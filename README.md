@@ -470,7 +470,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 ### 🎯 Comprehensive Leaderboard
 - **Persistent Win Tracking**: Player victories saved across sessions
-- **XyzzyText Display**: Professional 3-prim text system for leaderboard
+- **FURWARE Text Mesh Display**: Professional, mesh-based text system for leaderboard and dice
 - **Automatic Sorting**: Top players by win count
 
 ### 🎮 Core Game Features
@@ -532,7 +532,7 @@ Link 1: Main Controller (Root Prim)
 │   ├── Link 3: Background Prim
 │   ├── Link 4: Actions/Status Prim  
 │   └── Links 5-24: Player Prims (20 slots with profile pics & hearts)
-├── Links 25-72: XyzzyText Leaderboard (48 prims across 4 banks)
+├── Links 25-72: FURWARE Text Mesh Leaderboard
 └── Links 73-74: Dice Display (2 prims for roll results)
 ```
 
@@ -545,7 +545,7 @@ Link 1: Main Controller (Root Prim)
 - **Floater Manager**: Floating HUD display management for all players
 - **Game Calculator**: Dice type calculation and targeted responses
 - **Scoreboard Manager (Link 2)**: Visual player display with hearts and profile pictures
-- **Leaderboard Bridge (Link 25)**: XyzzyText distribution for win/loss tracking
+- **Leaderboard Bridge (Link 25)**: FURWARE Text distribution for win/loss tracking
 - **Dice Bridge (Link 73)**: Real-time dice roll result display
 
 ### **Communication Flow:**
@@ -627,7 +627,7 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ### 🎯 Comprehensive Leaderboard (v2.3.0)
 - **Persistent Win Tracking**: Player victories saved across game sessions using linkset data
-- **Professional Display**: XyzzyText 3-prim system for clean leaderboard presentation
+- **Professional Display**: FURWARE Text Mesh system for clean leaderboard presentation
 - **Flexible Reset Options**: Separate commands for game reset, leaderboard reset, or complete reset
 
 ### 🔧 Critical Fixes

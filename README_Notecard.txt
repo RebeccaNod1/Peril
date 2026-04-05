@@ -38,7 +38,7 @@ KEY FEATURES
 
 🎯 COMPREHENSIVE LEADERBOARD
 - Persistent Win Tracking: Player victories saved across sessions
-- XyzzyText Display: Professional 3-prim text system for leaderboard
+- FURWARE Text Mesh Display: Professional, mesh-based text system for leaderboard and dice
 - Smart Multi-Level Sorting: Primary by wins (descending), secondary by losses (ascending)
 - Fair Tie-Breaking: Players with same wins ranked by fewer losses for accurate competitive standings
 
