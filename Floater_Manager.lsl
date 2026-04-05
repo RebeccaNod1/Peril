@@ -171,6 +171,12 @@ default {
                 llSleep(0.2);
                 llRegionSay(ch, "SET_NAME:" + name);
                 
+                // --- HUD UPGRADE: Attach to Humans ---
+                // If it's a valid avatar key and NOT a bot name, signal the float to attach
+                if (avKey != NULL_KEY && llSubStringIndex(name, "(Bot)") == -1) {
+                    llRegionSay(ch, "ATTACH_TO:" + (string)avKey);
+                }
+                
                 // Initial update to populate text/life display
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, name, avKey);
             } else {

@@ -22,8 +22,32 @@ default {
         if (listenHandle != -1) llListenRemove(listenHandle);
         listenHandle = llListen(start_param, "", NULL_KEY, "");
         myName = "";
-        // Correct LSL function name is llSetRemoteScriptAccessPin
         llSetRemoteScriptAccessPin(1337); 
+    }
+
+    attach(key id) {
+        if (id != NULL_KEY) {
+            // HUD MODE: Stop following target in-world
+            llSetTimerEvent(0.0);
+            
+            // HUD Scaling & Rotation (Center 2 focus)
+            // Smaller scale, reset rotation to face screen
+            llSetLinkPrimitiveParamsFast(LINK_THIS, [
+                PRIM_SIZE, <0.05, 0.05, 0.05>,
+                PRIM_ROTATION, ZERO_ROTATION,
+                PRIM_POSITION, <0.0, 0.0, 0.0> 
+            ]);
+            
+            dbg("📊 [Status Float] HUD Mode Activated for " + llKey2Name(id));
+        } else {
+            // BACK TO WORLD: Restore size and follow logic
+            llSetLinkPrimitiveParamsFast(LINK_THIS, [PRIM_SIZE, <0.2, 0.2, 0.2>]);
+        }
+    }
+
+    experience_permissions(key av) {
+        // ATTACH_HUD_CENTER_2 = 31
+        llAttachToAvatarTemp(31); 
     }
 
     listen(integer channel, string name, key id, string message) {
@@ -66,6 +90,12 @@ default {
         }
         else if (message == "CLEANUP") {
             llDie();
+        }
+        else if (llSubStringIndex(message, "ATTACH_TO:") == 0) {
+            key avKey = (key)llGetSubString(message, 10, -1);
+            if (avKey != NULL_KEY) {
+                llRequestExperiencePermissions(avKey, "");
+            }
         }
         else if (llSubStringIndex(message, "SET_NAME:") == 0) {
             myName = llGetSubString(message, 9, -1);
