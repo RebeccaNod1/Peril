@@ -334,6 +334,7 @@ default {
             for (i = 0; i < MAX_PLAYERS; i++) {
                 // Ensure we hit EVERY possible channel, even if they aren't in our current memory
                 llRegionSay(FLOATER_BASE_CHANNEL + i, "CLEANUP");
+                llSleep(0.05); // Tiny sleep to ensure Sim processes every pulse reliably
             }
             // Clear ALL registries to allow fresh re-registration via Rez Guard
             allPlayerNames = [];
