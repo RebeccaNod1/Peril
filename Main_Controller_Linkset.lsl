@@ -187,21 +187,14 @@ checkExperience() {
     dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
     
     // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
-    if (llAgentInExperience(llGetOwner())) {
-        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+    if (!llAgentInExperience(llGetOwner())) {
+        llOwnerSay("⚠️ [Peril Dice] Experience Features are BLOCKED on this parcel.");
+        // Diagnostic probe initiated
+        llReadKeyValue("_SENTINEL_");
+        llSetTimerEvent(3.0);
+        currentTimerMode = TIMER_XP_CHECK;
     } else {
-        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
-        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
-    }
-
-    // PROBE 2: Functional Handshake (KVP Read)
-    currentTimerMode = TIMER_XP_CHECK;
-    llSetTimerEvent(3.0); 
-    sentinelQueryID = llReadKeyValue("_SENTINEL_PING_");
-    
-    if (sentinelQueryID == NULL_KEY) {
-        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: This script is NOT associated with an Experience.");
-        llOwnerSay("🛡️ [Peril Dice] TO FIX: Edit Board -> Scripts -> Experiences... -> Select 'Final Girlz I.N.C.'");
+        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
     }
 }
 
