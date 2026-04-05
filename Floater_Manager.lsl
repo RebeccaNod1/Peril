@@ -15,7 +15,8 @@ integer calculateChannel(integer offset) {
     // Use BOTH owner's key AND object's key to make channels unique per game instance
     // This prevents interference when same owner has multiple game tables
     string ownerStr = (string)llGetOwner();
-    string objectStr = (string)llGetKey();
+    // CRITICAL: Always use root prim (1) for channel calculation so scripts in child prims match
+    string objectStr = (string)llGetLinkKey(1);
     string combinedStr = ownerStr + objectStr;
     
     // Create a more unique hash using both keys
@@ -36,6 +37,8 @@ initializeChannels() {
 }
 
 // Maximum number of players allowed in the game
+// v3.2.5: Forced Sync for Debug Transparency
+#define SCRIPT_ID_FLOATER 1
 #define MAX_PLAYERS 10
 
 // Debug control - set to TRUE for verbose pick debugging, FALSE for normal operation
@@ -356,9 +359,10 @@ default {
                 integer chTarget = FLOATER_BASE_CHANNEL + i;
                 if (targetAv != NULL_KEY) {
                     llRegionSayTo(targetAv, chTarget, "CLEANUP");
-                } else {
-                    llRegionSay(chTarget, "CLEANUP");
                 }
+                
+                // Redundant broadcast for total coverage
+                llRegionSay(chTarget, "CLEANUP");
                 llSleep(0.05); 
             }
             // Clear ALL registries to allow fresh re-registration via Rez Guard

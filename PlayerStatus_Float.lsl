@@ -23,6 +23,7 @@ default {
         listenHandle = llListen(start_param, "", NULL_KEY, "");
         myName = "";
         llSetRemoteScriptAccessPin(1337); 
+        // Forced sync for v3.2.5 diagnostic
         dbg("📊 [Status Float] Listener active on channel: " + (string)start_param);
     }
 
@@ -89,7 +90,10 @@ default {
             }
         }
         else if (message == "CLEANUP") {
-            dbg("🧹 [Status Float] CLEANUP signal received. Detaching and dying...");
+            dbg("🧹 [Status Float] CLEANUP signal received. Detaching from avatar...");
+            llDetachFromAvatar();
+            // Fallback for non-attachments
+            llSleep(0.1);
             llDie();
         }
         else if (llSubStringIndex(message, "ATTACH_TO:") == 0) {
