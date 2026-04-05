@@ -4,6 +4,23 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [3.2.0] - 2026-04-05
+
+### 🛡️ **Sync Sanctity (Engine Core)**
+- **Master Ledger Protocol**: Refactored the core synchronization engine to use the `Main_Controller` as the single source of truth for all player data.
+- **Ghost Heal Elimination**: Permanently resolved the life-count desync between the `Roll_ConfettiModule` and the Controller by implementing a unified damage reporting system.
+- **Victory Status Lock**: Added a `victoryInProgress` semaphore to protect the "Ultimate Victory" banner from being overwritten by final elimination messages.
+- **Furware Compatibility Patch**: Switched to high-reliability ASCII `===` banners for status displays to ensure 100% rendering across all SL viewers.
+
+### 🎰 **Virtualized Scoreboard**
+- **3-Column Grid Management**: Re-organized Rank, Name, and Win/Loss records into a professional multi-column leaderboard format.
+- **Dynamic Slot Hiding**: Implemented automatic **Alpha 0.0** (Invisibility) for unused player slots (Slots 7-10 in a 6-player session) to maintain a clean aesthetic.
+- **Diagnostic Toolset**: Added `/1 testx` (Show All) and `/1 clearx` (Reset Alpha) for linkset layout verification.
+
+### 🏹 **Human-Bot Parity (Shield Patch)**
+- **Multi-Delimiter Parser**: Refactored pick-string analysis to support `,`, `;`, `|`, and spaces, ensuring human dialog picks are matched as accurately as automated bot picks.
+- **Reconnect Resilience**: Enhanced `MSG_SYNC_GAME_STATE` listeners in all secondary modules to support immediate state recovery for crashed or reconnected players.
+
 ## [3.1.0] - 2026-04-04
 
 ### 🔍 **Dynamic Link Discovery System**

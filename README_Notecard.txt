@@ -1,12 +1,14 @@
-🎲 PERIL DICE — PROFESSIONAL SINGLE LINKSET GAME SYSTEM FOR SECOND LIFE
+PERIL DICE - README
 ========================================================
 
-CREATED BY REBECCA NOD AND NOOSE THE BUNNY
-CURRENT VERSION: 3.1.0 - THE "LINKSET STABILITY" UPDATE
+CREATED BY REBECCA NOD AND NOOSE THE BUNNY (djmusica28)
+CURRENT VERSION: 3.2.0 - THE "SYNC SANCTITY" UPDATE
 
 OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
 
 NEW IN V3.1.0: LINKSET STABILITY & DYNAMIC DISCOVERY! Complete architectural decentralization—scripts now find their linked prims by name, making the game board immune to link-order changes or region-side glitches. Full migration from legacy XYText to modern mesh-based FURWARE Text for dice and leaderboards. Centralized system constants in Peril_Constants.lsl for 100% project consistency.
 
@@ -547,9 +549,9 @@ PREVIOUS IMPROVEMENTS (V2.4.0)
 
 VERSION INFORMATION
 ===================
-Current Version: 3.1.0
-Last Updated: April 04, 2026
-Status: Production Ready - Linkset Stability Release
+Current Version: 3.2.0
+Last Updated: April 05, 2026
+Status: Production Ready - Sync Sanctity Release
 
 ORIGINAL GAME RULES CREDIT
 ==========================

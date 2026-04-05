@@ -68,28 +68,19 @@ list getPicksFor(string nameInput) {
         list parts = llParseString2List(entry, ["|"], []);
         if (llList2String(parts, 0) == nameInput) {
             // Convert semicolons back to commas, then parse
-            string picks = llList2String(parts, 1);
-            string originalPicks = picks;
+            string picks = llStringTrim(llList2String(parts, 1), STRING_TRIM);
             
-            // Check for corruption markers (^ symbols that shouldn't be in picks)
-            if (llSubStringIndex(picks, "^") != -1) {
-                return [];
-            }
+            // Check for corruption or empty
+            if (llSubStringIndex(picks, "^") != -1 || picks == "") return [];
             
-            if (picks == "") {
-                return [];
-            }
+            // NEW: Robust multi-delimiter parsing (handles ", " "; " "|" and " ")
+            list rawResult = llParseString2List(picks, [",", ";", "|", " "], []);
             
-            picks = llDumpList2String(llParseString2List(picks, [";"], []), ",");
-            list rawResult = llParseString2List(picks, [","], []);
-            // Trim whitespace from each number to handle "5, 6" vs "5,6" formats
             list result = [];
             integer j;
             for (j = 0; j < llGetListLength(rawResult); j++) {
                 string num = llStringTrim(llList2String(rawResult, j), STRING_TRIM);
-                if (num != "") {
-                    result += [num];
-                }
+                if (num != "") result += [num];
             }
             return result;
         }
@@ -260,17 +251,24 @@ default {
                 // Send continuation directly to Game Manager (more efficient than through Main Controller)
                 llMessageLinked(LINK_SET, MSG_CONTINUE_GAME, "", NULL_KEY); // Empty peril player - Game Manager will select one
             } else {
-                // Clear dice display directly (link 83)
-                llMessageLinked(LINK_DICE_BRIDGE, MSG_CLEAR_DICE, "", NULL_KEY);
+                // Clear dice display directly using LINK_SET since bridge moved to root
+                llMessageLinked(LINK_SET, MSG_CLEAR_DICE, "", NULL_KEY);
                 
                 // Update peril player from the roll dialog message
                 perilPlayer = str;
                 dbg("🎲 [Roll Module] 🎲 Prompting " + str + " to roll the dice. Setting perilPlayer to: " + perilPlayer);
                 
+                // NEW: Update status bar for rolling (for everyone, bots and humans)
+                llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DICE IN THE AIR!\n" + str + " is rolling...", NULL_KEY);
+                
                 // Check if this is a bot (Bot names)
                 if (llSubStringIndex(str, "Bot") == 0) {
                     // Auto-roll for bots - request dice type first
                     dbg("🎲 [Roll Module] 🤖 " + str + " (bot) is requesting dice type for auto-roll...");
+                    
+                    // Give a moment for "DICE IN THE AIR" message to be seen for bots
+                    llSleep(2.0);
+                    
                     rollInProgress = TRUE; // Set roll in progress for bot
                     shouldRoll = TRUE; // Set flag to perform roll when dice type is received
                     // Request current dice type from Calculator
@@ -338,8 +336,14 @@ default {
             lastRollTime = llGetUnixTime(); // Record roll time
             llSay(0, "🎲 THE D" + (string)diceType + " OF FATE! " + perilPlayer + " rolled a " + resultStr + " on the " + (string)diceType + "-sided die! 🎲");
 
-            // Send dice roll directly to dice display (link 83)
-            llMessageLinked(LINK_DICE_BRIDGE, MSG_DICE_ROLL, perilPlayer + "|" + resultStr, NULL_KEY);
+            // Send dice roll directly to dice display using LINK_SET
+            llMessageLinked(LINK_SET, MSG_DICE_ROLL, perilPlayer + "|" + resultStr, NULL_KEY);
+            
+            // NEW: Update status bar with result
+            llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DICE SETTLED!\n" + perilPlayer + " rolled a " + resultStr + "!", NULL_KEY);
+            
+            // Dramatic pause to let the roll result be seen before the win/loss outcome pops up
+            llSleep(4.0);
 
             string newPeril = "";
             integer matched = FALSE;
@@ -377,13 +381,15 @@ default {
                 perilPlayer = newPeril;
                 
                 // Direct scoreboard status update
+                // Direct scoreboard status update (texture and text)
                 llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Plot Twist", NULL_KEY);
+                llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PLOT TWIST!\n<!c=green>Shield Up!<!c=white> Target shifted!", NULL_KEY);
                 
                 // IMPORTANT: Send peril player update to scoreboard for glow effect
                 llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPeril, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
                 
                 // Add delay to let status display before next phase
-                llSleep(2.0);
+                llSleep(4.0);
                 
                 // Update floaters immediately to show correct peril player before sync
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
@@ -400,6 +406,10 @@ default {
                     llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, perilPlayer + "|" + (string)(currentLives - 1) + "|" + "NULL_KEY", NULL_KEY);
                     dbg("🎲 [Roll Module] 💗 Player lives updated: " + perilPlayer + " now has " + (string)(currentLives - 1) + " lives");
                     
+                    // NEW: REPORT LIFE REDUCTION to Main Controller (Source of Truth)
+                    // This replaces the unreliable self-syncing and allows the Controller to broadcast the official state.
+                    llMessageLinked(LINK_SET, MSG_UPDATE_LIFE, perilPlayer + "|" + (string)(currentLives - 1), NULL_KEY);
+                    
                     // Check if peril player picked the rolled number
                     list perilPicks = getPicksFor(perilPlayer);
                     integer perilPickedIt = (llListFindList(perilPicks, [resultStr]) != -1);
@@ -411,16 +421,18 @@ default {
                     
                     if (matched && perilPickedIt) {
                         llSay(0, "🩸 DIRECT HIT! " + perilPlayer + " picked their own doom - the d" + (string)diceType + " landed on " + resultStr + "! 🩸");
-                        // Direct scoreboard status update
+                        // Direct scoreboard status update (texture and text)
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Direct Hit", NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DIRECT HIT!\n<!c=red>" + perilPlayer + " matched!", NULL_KEY);
                         // Add delay to let status display before next phase
-                        llSleep(2.0);
+                        llSleep(4.0);
                     } else if (!matched) {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
-                        // Direct scoreboard status update
+                        // Direct scoreboard status update (texture and text)
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "No Shield", NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NO SHIELD!\n<!c=red>" + perilPlayer + " took the hit!", NULL_KEY);
                         // Add delay to let status display before next phase
-                        llSleep(2.0);
+                        llSleep(4.0);
                     } else {
                         // This should never happen in normal game flow since Plot Twist case is handled above
                         // But if it does, it means someone else picked it - this should have been Plot Twist

@@ -183,7 +183,7 @@ The game features thematic messaging for maximum immersion:
 - **Professional Status Actions** - Large status prim shows current game events
 - **Color-Coded Glow System** - Green (winner), Yellow (peril), Red X (eliminated)
 
-### **Technical Rules (UPDATED in v3.1.0):**
+### **Technical Rules (UPDATED in v3.2.0):**
 - **Dynamic Link Discovery** - Scripts find their targets by name; reordering prims won't break the game 🔍
 - **FURWARE Text Mesh Integration** - Professional mesh-based displays for dice and leaderboard 🎨
 - **Centralized Constants** - System-wide settings managed in `Peril_Constants.lsl` 🧩
@@ -296,7 +296,8 @@ While the core rules remain the same, consider these optional variations:
 
 ---
 
-**Version:** 3.1.0  
-**Last Updated:** April 04, 2026  
-**Game System:** Production Ready - Linkset Stability Release  
+**Version:** 3.2.0  
+**Last Updated:** April 05, 2026
+**Status:** Production Ready - Sync Sanctity Release
+  
 **Credits:** Original concept by Noose the Bunny (djmusica28), Automated system implementation by Rebecca Nod

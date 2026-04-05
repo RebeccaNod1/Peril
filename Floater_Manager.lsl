@@ -91,6 +91,13 @@ default {
         perilPlayer = "";
         
         dbg("💬 [Floater Manager] 📦 Floater Manager ready!");
+        
+        // GHOST SWEEP: Immediately attempt to clear any floaters on startup
+        // This clears orphans if the script was reset while players were active
+        integer ghostSweep;
+        for (ghostSweep = 0; ghostSweep < MAX_PLAYERS; ghostSweep++) {
+            llRegionSay(FLOATER_BASE_CHANNEL + ghostSweep, "CLEANUP");
+        }
     }
     
     on_rez(integer start_param) {

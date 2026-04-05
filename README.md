@@ -1,11 +1,13 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 3.1.0 - The "Linkset Stability" Update**
+**Current Version: 3.2.0 - The "Sync Sanctity" Update**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+**🧪 NEW in v3.2.0**: **SYNC SANCTITY & SCOREBOARD VIRTUALIZATION** - Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a 3-column layout (Rank, Name, WL) and dynamic Alpha 0.0 hiding for unused slots. 
 
 **🚀 NEW in v3.1.0**: **LINKSET STABILITY & DYNAMIC DISCOVERY** - Complete architectural decentralization. Scripts now discovery their linked prims by name at runtime (`Scoreboard:0:0`, `profile:R:C`), making the game board immune to link-order changes or region-side glitches. Full migration from legacy XYText to modern mesh-based **FURWARE Text** for dice and leaderboards.
 
@@ -27,7 +29,23 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
-## Major v3.1.0 Improvements (Current) 🚀
+## Major v3.2.0 Improvements (Current) 🚀
+
+### 🛡️ **Sync Sanctity Protocol**
+- **Unified Master Ledger**: Eliminated parallel heart-count logic. The `Roll_ConfettiModule` now reports hits to the `Main_Controller` via the new `MSG_UPDATE_LIFE` (80) channel. 
+- **Ghost Heal Exorcism**: The Controller now broadcasts the *only* official game state sync, ensuring all scripts (Roll, Scoreboard, Dialog) are perfectly aligned.
+- **Victory Status Lock**: Implemented a `victoryInProgress` lock to protect the "Ultimate Victory" status from being overwritten by late-arriving elimination messages.
+- **Emoji-Free Status Banners**: Switched to high-compatibility ASCII headers (`===`) for the Furware status bridge to ensure 100% rendering reliability across all viewer types.
+
+### 🎰 **Virtualized Scoreboard Grid**
+- **3-Column Data Layout**: Re-organized Rank, Name, and Win/Loss records into a sleek grid for the leaderboard display.
+- **Dynamic Slot Hiding**: Unused player slots now automatically use **Alpha 0.0** (invisible). A 2-player game now looks like a professional 2-player table, with no "ghost" slots for players 3-10 visible.
+- **Human-Bot Parity Patch**: Refactored the pick-parsing engine to be delimiter-agnostic. Supports human-dialog commas (`,`), bot semicolons (`;`), pipes (`|`), and even spaces.
+
+### 🌎 **Disconnect Resilience**
+- **Sync-Pulse Reception**: Added `MSG_SYNC_GAME_STATE` listeners to all core modules. A player rejoining a game now receives a full state-slam instantly, restoring their local board state to the latest master data.
+
+## Major v3.1.0 Improvements 🚀
 
 ### 🔍 **Dynamic Link Discovery System**
 - **Zero-Fixed Links**: Eliminated all hardcoded link indices. Each script now performs a "Dynamic Discovery" sweep on startup to find its sibling prims by name.
@@ -620,9 +638,17 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 3.1.0  
-**Last Updated**: April 04, 2026
-**Status**: Production Ready - Linkset Stability Release
+**Current Version**: 3.2.0
+**Last Updated**: April 05, 2026
+**Status**: Production Ready - Sync Sanctity Release
+
+### Key Achievements in v3.2.0:
+- ✅ **Sync Sanctity Protocol**: 100% unified life counting via the Main Controller.
+- ✅ **Ghost Heal Exorcism**: Permanently eliminated parallel sync pathways.
+- ✅ **Virtualized Scoreboard**: 3-column Rank/Name/WL grid for leaderboard.
+- ✅ **Dynamic Slot Hiding**: Alpha 0.0 invisibility for unused player slots.
+- ✅ **Human-Bot Parity**: Multi-delimiter picking logic (`,`, `;`, `|`, ` `).
+- ✅ **Victory Status Lock**: GameOver status protection and ASCII-safe banners.
 
 ### Key Achievements in v3.1.0:
 - ✅ **Architectural Decentralization**: Implemented Dynamic Link Discovery (no hardcoded links).

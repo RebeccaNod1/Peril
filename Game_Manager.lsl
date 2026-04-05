@@ -159,6 +159,18 @@ integer continueCurrentRound() {
     // Request dice type directly from Calculator for the new round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
     
+    // NEW: Update status bar for new round initialization
+    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
+    
+    // Dramatic pause to let the preparation message be read
+    llSleep(4.0);
+    
+    // NEW: Update status bar for new round with colored highlight
+    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NEW ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+    
+    // Dramatic pause to let the peril player be seen before the dice type is shown
+    llSleep(4.0);
+    
     // Note: showNextPickerDialog() will be called when dice type result is received
     return 0;
 }
@@ -184,6 +196,10 @@ integer startNextRound() {
         
         llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
         llMessageLinked(LINK_SET, MSG_EFFECT_CONFETTI, "VICTORY_CONFETTI", NULL_KEY);
+        
+        // NEW: Update status bar with 2-line victory message
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ULTIMATE VICTORY!\n" + winner + " is the survivor!", NULL_KEY);
+        
                 // Don't use hardcoded channel here - let Main Controller handle scoreboard updates
                 // Main Controller will send the proper GAME_WON message to scoreboard
         // Let main controller handle reset
@@ -214,6 +230,12 @@ integer startNextRound() {
             string startPlayerName = llList2String(names, startJ);
             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, startPlayerName, NULL_KEY);
         }
+        
+        // NEW: Update status bar with 2-line round start message and color highlight
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+
+        // Dramatic pause to let the first peril player be seen before round prep begins
+        llSleep(4.0);
     }
     
     picksData = [];
@@ -234,6 +256,13 @@ integer startNextRound() {
     
     // Request dice type for this round
     llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
+    
+    // NEW: Update status bar for new round initialization
+    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
+    
+    // Dramatic pause to let the preparation message be read
+    llSleep(4.0);
+    
     dbg("🎯 Game Manager round setup complete, requesting dice type...");
     return 0;
 }
@@ -348,6 +377,9 @@ integer showNextPickerDialog() {
             dbg("🎯 [Game Manager] Sending bot command with complete avoid list (" + (string)llGetListLength(showCompleteAvoidList) + " numbers): " + showAvoidListStr);
             llMessageLinked(LINK_SET, MSG_BOT_COMMAND, botCommand, NULL_KEY);
             dbg("🤖 " + firstName + " is automatically picking " + (string)showPicksNeeded + " numbers...");
+            
+            // NEW: Update status bar for bot picking
+            llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "BOTS CALCULATING...\n" + firstName + " is deciding...", NULL_KEY);
         } else {
             // Bot already has picks, advance to next player immediately
             currentPickerIdx++;
@@ -379,6 +411,9 @@ integer showNextPickerDialog() {
         // Send dialog request through Player_RegistrationManager (it has the correct player keys)
         string dialogRequest = "SHOW_DIALOG|" + firstName + "|" + dialogPayload;
         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
+        
+        // NEW: Update status bar for human picking
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PICKING NUMBERS...\n" + firstName + " is choosing...", NULL_KEY);
     }
     return 0;
 }
@@ -637,7 +672,12 @@ default {
             diceType = (integer)str;
             diceTypeProcessed = TRUE;
             dbg("🎲 Game Manager received dice type: d" + str + " from Calculator");
-            llSleep(0.3);  // Brief delay
+            
+            // NEW: Update status bar when dice is ready
+            llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DICE READY!\nRolling a d" + str + " this round", NULL_KEY);
+            
+            // Dramatic pause to let players see the dice type before picking starts
+            llSleep(4.0);
             
             // Start dialog if round has been started and we have a queue
             if (roundStarted && currentPickerIdx < llGetListLength(pickQueue) && llGetListLength(pickQueue) > 0 && diceType > 0) {

@@ -51,12 +51,15 @@ discoverLinks() {
     }
     
     dbg("Discovery done");
-    if (BACKGROUND_PRIM == -1) dbg("No backboard");
+    if (BACKGROUND_PRIM == -1) { dbg("No backboard"); }
+    
+    // Safety Fallback: Use Root if Scoreboard prim is missing
+    if (LINK_SCOREBOARD == -1) LINK_SCOREBOARD = 1;
 }
 
 // --- Leaderboard Configuration ---
 #define LEADERBOARD_WIDTH 32    // Standard width for 4x8 character Furware grids (4 columns of 8)
-#define MAX_LEADERBOARD_ENTRIES 11 // Fits within 12-row board (+1 for title)
+#define MAX_LEADERBOARD_ENTRIES 11 // Fits within 11 remaining rows (after 1-row header)
 
 // Heart texture UUIDs - REPLACE WITH YOUR ACTUAL TEXTURE UUIDs
 #define TEXTURE_0_HEARTS "7d8ae121-e171-12ae-f5b6-7cc3c0395c7b" // 0 hearts (dead)
@@ -281,71 +284,58 @@ integer generateLeaderboardText() {
     list sortedData = getSortedLeaderboard();
     string SPACES = "                                "; 
     string title = "TOP BATTLE RECORDS";
-    integer titleMargin = 0;
-    string leaderboardText = "";
-    integer genI = 0;
-    string playerName = "";
-    integer genWins = 0;
-    integer genLosses = 0;
-    string rank = "";
-    string leftPart = "";
-    string rightPart = "";
-    integer spaceNeeded = 0;
+    string rankCol = "";
+    string nameCol = "";
+    string statsCol = "";
+    
     integer numSorted = llGetListLength(sortedData) / 3;
-    integer base = 0;
-    string sWins = "";
-    string sLosses = "";
+    integer genI;
+    integer base;
+    string playerName;
+    integer genWins;
+    integer genLosses;
+    string rank;
+    string sWins;
+    string sLosses;
     
-    // 1. Build Title Row (Centered)
-    titleMargin = (LEADERBOARD_WIDTH - llStringLength(title)) / 2;
+    // 1. Send Title to Parent Box (Row 0)
+    integer titleMargin = (LEADERBOARD_WIDTH - llStringLength(title)) / 2;
     if (titleMargin < 0) titleMargin = 0;
+    string titleText = llGetSubString(SPACES, 0, titleMargin - 1) + title;
+    llMessageLinked(LINK_SET, MSG_DISPLAY_LEADERBOARD, "FORMATTED_TEXT|" + titleText, NULL_KEY);
     
-    leaderboardText = llGetSubString(SPACES, 0, titleMargin - 1) + title + "\n";
-    
-    // Add actual player data (up to MAX_LEADERBOARD_ENTRIES)
+    // Add actual player data column-by-column
     for (genI = 0; genI < numSorted && genI < MAX_LEADERBOARD_ENTRIES; genI++) {
         base = genI * 3;
         playerName = llList2String(sortedData, base);
         genWins = llList2Integer(sortedData, base + 1);
         genLosses = llList2Integer(sortedData, base + 2);
         
-        if (llStringLength(playerName) > 12) {
-            playerName = llGetSubString(playerName, 0, 9) + "...";
-        }
+        if (llStringLength(playerName) > 19) playerName = llGetSubString(playerName, 0, 16) + "...";
         
-        // Format rank: "01. " through "10. "
-        rank = (string)(genI + 1) + ". ";
+        rank = (string)(genI + 1) + ".";
         if (genI < 9) rank = "0" + rank;
         
-        // Format stats 10-char width: "W: 99/L: 9"
         sWins = (string)genWins;
-        if (llStringLength(sWins) < 3) sWins = llGetSubString("  ", 0, 2 - llStringLength(sWins)) + sWins;
         sLosses = (string)genLosses;
-        if (llStringLength(sLosses) < 2) sLosses = llGetSubString(" ", 0, 1 - llStringLength(sLosses)) + sLosses;
         
-        leftPart = rank + playerName;
-        rightPart = "W:" + sWins + "/L:" + sLosses;
-        
-        spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - 10;
-        if (spaceNeeded < 1) spaceNeeded = 1;
-        
-        leaderboardText += leftPart + llGetSubString(SPACES, 0, spaceNeeded - 1) + rightPart + "\n";
+        rankCol += rank + "\n";
+        nameCol += playerName + "\n";
+        statsCol += "W:" + sWins + "/L:" + sLosses + "\n";
     }
     
     // Fill remaining positions with placeholders
     for (genI = numSorted; genI < MAX_LEADERBOARD_ENTRIES; genI++) {
-        rank = (string)(genI + 1) + ". ";
+        rank = (string)(genI + 1) + ".";
         if (genI < 9) rank = "0" + rank;
         
-        leftPart = rank + "----------";
-        rightPart = "W:  0/L: 0";
-        spaceNeeded = LEADERBOARD_WIDTH - llStringLength(leftPart) - 10;
-        
-        leaderboardText += leftPart + llGetSubString(SPACES, 0, spaceNeeded - 1) + rightPart + "\n";
+        rankCol += rank + "\n";
+        nameCol += "----------\n";
+        statsCol += "W:0/L:0\n";
     }
     
-    // Send formatted text to leaderboard bridge
-    llMessageLinked(LINK_LEADERBOARD_BRIDGE, MSG_RESET_LEADERBOARD, "FORMATTED_TEXT|" + leaderboardText, NULL_KEY);
+    // Send 3-column data to bridge
+    llMessageLinked(LINK_SET, MSG_DISPLAY_LEADERBOARD, "COLUMNS|" + rankCol + "|" + nameCol + "|" + statsCol, NULL_KEY);
     return 0;
 }
 
@@ -386,20 +376,20 @@ integer clearAllPlayers() {
         
         // SAFETY CHECK - use if block instead of continue for maximum compatibility
         if (clearProfilePrimIndex > 0) {
-            // Reset profile prim to default and clear any glow
+            // Reset profile prim to default and hide it
             llSetLinkPrimitiveParamsFast(clearProfilePrimIndex, [
                 PRIM_TEXTURE, ALL_SIDES, TEXTURE_DEFAULT_PROFILE, <1,1,0>, <0,0,0>, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Hidden by default
                 PRIM_TEXT, "", <1,1,1>, 0.0,
-                PRIM_GLOW, ALL_SIDES, 0.0  // Explicitly clear glow
+                PRIM_GLOW, ALL_SIDES, 0.0
             ]);
             
-            // Reset hearts prim to 3 hearts and clear any glow
+            // Reset hearts prim to 3 hearts and hide it
             llSetLinkPrimitiveParamsFast(clearHeartsPrimIndex, [
                 PRIM_TEXTURE, ALL_SIDES, TEXTURE_3_HEARTS, <1,1,0>, <0,0,0>, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Hidden by default
                 PRIM_TEXT, "", <1,1,1>, 0.0,
-                PRIM_GLOW, ALL_SIDES, 0.0  // Explicitly clear glow
+                PRIM_GLOW, ALL_SIDES, 0.0
             ]);
             
             // Reset overlay prim to transparent
@@ -446,16 +436,16 @@ integer refreshPlayerDisplay() {
         refreshOverlayPrimIndex = getOverlayPrimLink(refreshI);
         
         if (refreshProfilePrimIndex > 0) {
-            // Reset to default only for unused slots
+            // Unused slots: Reset and HIDE
             llSetLinkPrimitiveParamsFast(refreshProfilePrimIndex, [
                 PRIM_TEXTURE, ALL_SIDES, TEXTURE_DEFAULT_PROFILE, <1,1,0>, <0,0,0>, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Invisible
                 PRIM_TEXT, "", <1,1,1>, 0.0
             ]);
             
             llSetLinkPrimitiveParamsFast(refreshHeartsPrimIndex, [
                 PRIM_TEXTURE, ALL_SIDES, TEXTURE_3_HEARTS, <1,1,0>, <0,0,0>, 0.0,
-                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0,
+                PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 0.0, // Invisible
                 PRIM_TEXT, "", <1,1,1>, 0.0
             ]);
             
@@ -780,8 +770,7 @@ default {
     }
     
     link_message(integer sender, integer num, string str, key id) {
-        // Only listen to messages from the main controller (link 1)
-        if (sender != LINK_CONTROLLER) return;
+        // Handle messages from the game logic and bridges
         
         if (num == MSG_GAME_STATUS) {
             updateActionsPrim(str);
@@ -851,6 +840,11 @@ default {
             
             // Update glow effects - winner glow overrides peril glow
             updatePlayerGlowEffects();
+        }
+        else if (num == MSG_DISPLAY_LEADERBOARD && str == "REFRESH_STARTUP") {
+            // Startup handshake from leaderboard bridge - re-send text now that boxes are ready
+            dbg("📋 [Scoreboard] Handshake received! Refreshing virtual columns...");
+            generateLeaderboardText();
         }
     }
     
@@ -981,13 +975,17 @@ default {
     listen(integer channel, string name, key id, string message) {
         string msg = llToLower(llStringTrim(message, STRING_TRIM));
         if (msg == "testx") {
-            llOwnerSay("Testing X overlays on all 10 player slots...");
+            llOwnerSay("🛠️ [Scoreboard] Testing FULL LAYOUT on all 10 slots (Forced Alpha Reveal)...");
             integer i;
-            integer overlayIdx;
             for (i = 0; i < 10; i++) {
-                overlayIdx = getOverlayPrimLink(i);
-                if (overlayIdx > 0) {
-                    llSetLinkPrimitiveParamsFast(overlayIdx, [
+                integer pIdx = getProfilePrimLink(i);
+                integer hIdx = getHeartsPrimLink(i);
+                integer oIdx = getOverlayPrimLink(i);
+                
+                if (pIdx > 0) {
+                    llSetLinkPrimitiveParamsFast(pIdx, [PRIM_COLOR, ALL_SIDES, <1,1,1>, 1.0]);
+                    llSetLinkPrimitiveParamsFast(hIdx, [PRIM_COLOR, ALL_SIDES, <1,1,1>, 1.0]);
+                    llSetLinkPrimitiveParamsFast(oIdx, [
                         PRIM_TEXTURE, ALL_SIDES, TEXTURE_ELIMINATED_X, <1,1,0>, <0,0,0>, 0.0,
                         PRIM_COLOR, ALL_SIDES, <1.0, 1.0, 1.0>, 1.0
                     ]);

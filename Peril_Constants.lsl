@@ -7,6 +7,7 @@ integer LINK_CONTROLLER = 1;         // Usually Root (link 1)
 integer LINK_SCOREBOARD = -1;       // "Scoreboard:0:0"
 integer LINK_DICE_BRIDGE = -1;      // "FURWARE text mesh:Dice:0:0"
 integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
+integer LINK_STATUS_BRIDGE = -1;      // "FURWARE text mesh:Status:0:0"
 
 // Macro to discover core links by name
 #define DISCOVER_CORE_LINKS() { \
@@ -17,8 +18,11 @@ integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
         if (_name == "Scoreboard:0:0") LINK_SCOREBOARD = _i; \
         else if (_name == "FURWARE text mesh:Dice:0:0") LINK_DICE_BRIDGE = _i; \
         else if (_name == "FURWARE text mesh:Leaderboard:0:0") LINK_LEADERBOARD_BRIDGE = _i; \
-        else if (LINK_CONTROLLER == 1 && _i == 1) { /* Default to root if not found */ } \
+        else if (_name == "FURWARE text mesh:Status:0:0") LINK_STATUS_BRIDGE = _i; \
+        else if (LINK_CONTROLLER == 1 && _i == 1) { ; /* Default to root if not found */ } \
     } \
+    /* Safety Fallback: Use Root if Scoreboard prim is missing */ \
+    if (LINK_SCOREBOARD == -1) LINK_SCOREBOARD = 1; \
 }
 
 // --- FURWARE Text Commands ---
@@ -43,6 +47,7 @@ integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 
 // --- Game Flow (3000-3099) ---
 #define MSG_GAME_STATUS 3001
+#define MSG_UPDATE_LIFE 80    // Unified damage reporting
 #define MSG_PLAYER_UPDATE 3002
 #define MSG_CLEAR_GAME 3003
 #define MSG_REMOVE_PLAYER 3004
@@ -51,6 +56,8 @@ integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 #define MSG_GAME_WON 3010
 #define MSG_GAME_LOST 3011
 #define MSG_RESET_LEADERBOARD 3012
+#define MSG_DISPLAY_LEADERBOARD 3013
+#define MSG_STATUS_TEXT 3007
 #define MSG_DICE_ROLL 3020
 #define MSG_CLEAR_DICE 3021
 #define MSG_DICE_CLEAR 3021 // Alias for consistency in dice bridge

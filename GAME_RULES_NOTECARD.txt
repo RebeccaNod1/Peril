@@ -1,7 +1,16 @@
 PERIL DICE GAME - OFFICIAL RULES
+========================================================
 
-Created by Rebecca Nod and Noose the Bunny
-Original concept by Noose the Bunny (djmusica28) in Second Life
+CREATED BY REBECCA NOD AND NOOSE THE BUNNY (djmusica28)
+CURRENT VERSION: 3.2.0 - THE "SYNC SANCTITY" UPDATE
+
+OVERVIEW
+--------
+Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
+
+NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
+
+NEW IN V3.1.0: LINKSET STABILITY & DYNAMIC DISCOVERY! Complete architectural decentralization—scripts now find their linked prims by name, making the game board immune to link-order changes or region-side glitches. Full migration from legacy XYText to modern mesh-based FURWARE Text for dice and leaderboards. Centralized system constants in Peril_Constants.lsl for 100% project consistency.
 
 ===============================================================================
 
@@ -188,10 +197,11 @@ Enhanced Display System (UPDATED in v2.8.6):
 - Professional Status Actions - Large status prim shows current events
 - Color-Coded Glow System - Green (winner), Yellow (peril), Red X (eliminated)
 
-Technical Rules (UPDATED in v3.1.0):
-- Dynamic Link Discovery - Scripts find their targets by name; reordering prims won't break the game 🔍
-- FURWARE Text Mesh Integration - Professional mesh-based displays for dice and leaderboard 🎨
-- Centralized Constants - System-wide settings managed in Peril_Constants.lsl 🧩
+Technical Rules (UPDATED in v3.2.0):
+- Sync Sanctity Protocol - 100% unified life counting via the Main Controller 🛡️
+- Scoreboard Virtualization - Dynamic slot hiding and multi-column Rank/Name/WL grid 🎰
+- Dynamic Link Discovery - Unified name-based mapping for Linkset Stability 🔍
+- Human-Bot Parity - Delimiter-agnostic picking logic for total shield consistency 🏹
 - Game supports up to 10 players maximum
 - Owner kick functionality for managing disruptive players
 - Automatic game reset on startup (preserves leaderboard)
@@ -302,9 +312,9 @@ Dice! May luck and strategy guide you to Ultimate Victory!
 
 ===============================================================================
 
-Version: 3.1.0
-Last Updated: April 04, 2026
-Game System: Production Ready - Linkset Stability Release
+Version: 3.2.0
+Last Updated: April 05, 2026
+Status: Production Ready - Sync Sanctity Release
 Credits: Original concept by Noose the Bunny (djmusica28), 
          Automated system implementation by Rebecca Nod
 
