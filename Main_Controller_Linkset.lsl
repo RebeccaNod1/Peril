@@ -184,9 +184,20 @@ checkMemoryUsage(string context) {
 
 // Experience Sentinel - Functional probe to check if Experience is allowed on land
 checkExperience() {
-    dbg("🔍 [Peril Dice] Experience Sentinel: Pinging KVP to verify land readiness...");
+    dbg("🔍 [Peril Dice] Experience Sentinel: Starting key-based diagnostic...");
+    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
+    
+    // THE "KEY" CHECK: Uses the Experience UUID directly to verify land readiness.
+    // This is the definitive check to see if the Experience is allowed on this parcel.
+    if (!llAgentInExperience(EXPERIENCE_ID)) {
+        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are BLOCKED on this land.");
+        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+        return; 
+    }
+
+    // Functional Handshake (KVP Read) to confirm secondary connectivity
     currentTimerMode = TIMER_XP_CHECK;
-    llSetTimerEvent(3.0); // 3-second window for KVP handshake
+    llSetTimerEvent(3.0); 
     sentinelQueryID = llReadKeyValue("_SENTINEL_PING_");
 }
 
@@ -886,6 +897,11 @@ default {
             string ownerName;
             integer requestID = 0;
             
+            if (id == gameOwner) {
+                // Owner touched board - allow menu access AND trigger sentinel re-check
+                checkExperience();
+            }
+            
             if (llGetListLength(queryParts) >= 2) {
                 ownerName = llList2String(queryParts, 0);
                 requestID = (integer)llList2String(queryParts, 1);
@@ -1262,7 +1278,13 @@ default {
         }
         else if (currentTimerMode == TIMER_XP_CHECK) {
             // If the timer hits in XP_CHECK mode, it means llReadKeyValue FAILED to respond
-            // This almost always means the Experience is not enabled on the land.
+            // THE "KEY" CHECK: Using the Experience Key directly to verify land permissions.
+            // This is the definitive check to see if the Experience is allowed on this parcel.
+            if (!llAgentInExperience(EXPERIENCE_ID)) {
+                llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience features are BLOCKED on this land.");
+                llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+                return; 
+            }
             llSetTimerEvent(0);
             currentTimerMode = TIMER_IDLE;
             
@@ -1285,12 +1307,31 @@ default {
     
     dataserver(key query_id, string data) {
         if (query_id == sentinelQueryID) {
-            // WE GOT A RESPONSE! This means the Experience IS enabled on the land.
-            // Even if data is "NOT_FOUND", the fact that we got an event is confirmation.
+            // WE GOT A RESPONSE! 
+            // If the land is not configured, data will often be an error string like "Error: XP_ERROR_NOT_EXPERIENCE"
+            if (llGetSubString(data, 0, 4) != "Error") {
+                sentinelQueryID = NULL_KEY;
+                llSetTimerEvent(0);
+                currentTimerMode = TIMER_IDLE;
+                dbg("✅ [Peril Dice] Experience Sentinel: KVP Handshake Successful. Land is ready!");
+            } else {
+                dbg("⚠️ [Peril Dice] Sentinel handshake returned error: " + data);
+            }
+        }
+    }
+    
+    experience_permissions_denied(key agent_id, integer reason) {
+        // This event fires if an Experience function fails (like our Sentinel Ping)
+        // Reason 17 = XP_ERROR_NOT_PERMITTED_LAND
+        if (reason == 17 || reason == 1) { // 1 = XP_ERROR_NOT_EXPERIENCE
             sentinelQueryID = NULL_KEY;
             llSetTimerEvent(0);
             currentTimerMode = TIMER_IDLE;
-            dbg("✅ [Peril Dice] Experience Sentinel: KVP Handshake Successful. Land is ready!");
+            
+            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are BLOCKED on this land.");
+            llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' -> 'Final Girlz I.N.C.'");
+        } else {
+            dbg("⚠️ [Peril Dice] Experience Denial (Code " + (string)reason + ") for agent " + (string)agent_id);
         }
     }
 }
