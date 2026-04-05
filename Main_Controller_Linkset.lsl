@@ -185,10 +185,14 @@ checkMemoryUsage(string context) {
 // Experience Sentinel - Functional probe to check if Experience is allowed on land
 checkExperience() {
     dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
-    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Pinging land connectivity for 'Final Girlz I.N.C.'...");
     
-    // THE "PING" PROBE: We attempt a KVP Read. If the land is not configured, 
-    // it will trigger the experience_permissions_denied event below.
+    // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
+    if (!llAgentInExperience(llGetOwner())) {
+        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
+        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+    }
+
+    // PROBE 2: Functional Handshake (KVP Read)
     currentTimerMode = TIMER_XP_CHECK;
     llSetTimerEvent(3.0); 
     sentinelQueryID = llReadKeyValue("_SENTINEL_PING_");
