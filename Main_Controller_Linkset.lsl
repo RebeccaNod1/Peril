@@ -20,6 +20,7 @@ string getPlayerName(key id) {
 #define TIMER_IDLE 0
 #define TIMER_STATUS 1
 #define TIMER_VICTORY_DELAY 2  // Timer mode for victory glow display
+#define TIMER_XP_CHECK 3       // Timer mode for Experience sentinel ping
 integer currentTimerMode = 0;    // Track what the timer is currently doing
 float timerInterval = 1.0;       // How often timer() is called for checks
 integer victoryDelayTimer = 0;   // Track victory delay timing
@@ -131,6 +132,7 @@ integer DIALOG_CHANNEL;
 integer dialogHandle = -1;
 integer botHandle = -1;
 integer rollHandle = -1;
+key sentinelQueryID = NULL_KEY; // Track the Experience Sentinel ping
 
 // Channel initialization function
 initializeChannels() {
@@ -180,15 +182,12 @@ checkMemoryUsage(string context) {
 // REMOVED: emergencyMemoryCleanup() - delegated to Controller_Memory.lsl
 // REMOVED: reportMemoryStats() - delegated to Controller_Memory.lsl
 
-// Experience Sentinel - Checks if the required experience is enabled on the parcel
+// Experience Sentinel - Functional probe to check if Experience is allowed on land
 checkExperience() {
-    list parcelXps = llGetParcelDetails(llGetPos(), [PARCEL_DETAILS_EXPERIENCE_LIST]);
-    if (llListFindList(parcelXps, [EXPERIENCE_ID]) == -1) {
-        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: The 'Final Girlz I.N.C.' Experience is NOT active on this parcel!");
-        llOwnerSay("🛡️ [Peril Dice] Auto-HUD attachment will FAIL. To fix: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
-    } else {
-        dbg("✅ [Peril Dice] Experience Sentinel: Land is ready for Final Girlz I.N.C. features.");
-    }
+    dbg("🔍 [Peril Dice] Experience Sentinel: Pinging KVP to verify land readiness...");
+    currentTimerMode = TIMER_XP_CHECK;
+    llSetTimerEvent(3.0); // 3-second window for KVP handshake
+    sentinelQueryID = llReadKeyValue("_SENTINEL_PING_");
 }
 
 // Send status message to scoreboard using link messages
@@ -1261,6 +1260,15 @@ default {
                 llSetTimerEvent(0);
             }
         }
+        else if (currentTimerMode == TIMER_XP_CHECK) {
+            // If the timer hits in XP_CHECK mode, it means llReadKeyValue FAILED to respond
+            // This almost always means the Experience is not enabled on the land.
+            llSetTimerEvent(0);
+            currentTimerMode = TIMER_IDLE;
+            
+            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: The 'Final Girlz I.N.C.' Experience is NOT active on this parcel!");
+            llOwnerSay("🛡️ [Peril Dice] Auto-HUD attachment will FAIL. To fix: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+        }
         else if (currentTimerMode == TIMER_VICTORY_DELAY) {
             if (victoryDelayTimer > 0) {
                 integer elapsed = llGetUnixTime() - victoryDelayTimer;
@@ -1272,6 +1280,17 @@ default {
                     resetGame();  // Now reset after the delay
                 }
             }
+        }
+    }
+    
+    dataserver(key query_id, string data) {
+        if (query_id == sentinelQueryID) {
+            // WE GOT A RESPONSE! This means the Experience IS enabled on the land.
+            // Even if data is "NOT_FOUND", the fact that we got an event is confirmation.
+            sentinelQueryID = NULL_KEY;
+            llSetTimerEvent(0);
+            currentTimerMode = TIMER_IDLE;
+            dbg("✅ [Peril Dice] Experience Sentinel: KVP Handshake Successful. Land is ready!");
         }
     }
 }
