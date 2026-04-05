@@ -9,6 +9,7 @@ integer LINK_DICE_BRIDGE = -1;      // "FURWARE text mesh:Dice:0:0"
 integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 integer LINK_STATUS_BRIDGE = -1;      // "FURWARE text mesh:Status:0:0"
 key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C.
+#define PARCEL_DETAILS_EXPERIENCE_LIST 18
 
 // Macro to discover core links by name
 #define DISCOVER_CORE_LINKS() { \
