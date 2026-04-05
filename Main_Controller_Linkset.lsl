@@ -188,13 +188,13 @@ checkExperience() {
     
     // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
     if (!llAgentInExperience(llGetOwner())) {
-        llOwnerSay("⚠️ [Peril Dice] Experience Features are BLOCKED on this parcel.");
+        llOwnerSay("⚠️ Experience Features are BLOCKED on this parcel.");
         // Diagnostic probe initiated
         llReadKeyValue("_SENTINEL_");
         llSetTimerEvent(3.0);
         currentTimerMode = TIMER_XP_CHECK;
     } else {
-        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+        llOwnerSay("✅ Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
     }
 }
 
