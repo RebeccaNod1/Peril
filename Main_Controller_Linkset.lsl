@@ -902,8 +902,7 @@ default {
             integer requestID = 0;
             
             if (id == gameOwner) {
-                // Owner touched board - allow menu access AND trigger sentinel re-check
-                checkExperience();
+                // Owner status check (Menu access) - sentinel check removed (now auto-only)
             }
             
             if (llGetListLength(queryParts) >= 2) {
