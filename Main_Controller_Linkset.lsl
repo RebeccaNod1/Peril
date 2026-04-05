@@ -184,21 +184,19 @@ checkMemoryUsage(string context) {
 
 // Experience Sentinel - Functional probe to check if Experience is allowed on land
 checkExperience() {
-    dbg("🔍 [Peril Dice] Experience Sentinel: Starting key-based diagnostic...");
-    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
+    dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
+    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Pinging land connectivity for 'Final Girlz I.N.C.'...");
     
-    // THE "KEY" CHECK: Uses the Experience UUID directly to verify land readiness.
-    // This is the definitive check to see if the Experience is allowed on this parcel.
-    if (!llAgentInExperience(EXPERIENCE_ID)) {
-        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are BLOCKED on this land.");
-        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
-        return; 
-    }
-
-    // Functional Handshake (KVP Read) to confirm secondary connectivity
+    // THE "PING" PROBE: We attempt a KVP Read. If the land is not configured, 
+    // it will trigger the experience_permissions_denied event below.
     currentTimerMode = TIMER_XP_CHECK;
     llSetTimerEvent(3.0); 
     sentinelQueryID = llReadKeyValue("_SENTINEL_PING_");
+    
+    if (sentinelQueryID == NULL_KEY) {
+        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: This script is NOT associated with an Experience.");
+        llOwnerSay("🛡️ [Peril Dice] TO FIX: Edit Board -> Scripts -> Experiences... -> Select 'Final Girlz I.N.C.'");
+    }
 }
 
 // Send status message to scoreboard using link messages
@@ -1322,14 +1320,15 @@ default {
     
     experience_permissions_denied(key agent_id, integer reason) {
         // This event fires if an Experience function fails (like our Sentinel Ping)
-        // Reason 17 = XP_ERROR_NOT_PERMITTED_LAND
-        if (reason == 17 || reason == 1) { // 1 = XP_ERROR_NOT_EXPERIENCE
+        // reason 17 = XP_ERROR_NOT_PERMITTED_LAND
+        // reason 1 = XP_ERROR_NOT_EXPERIENCE
+        if (reason == 17 || reason == 1) { 
             sentinelQueryID = NULL_KEY;
             llSetTimerEvent(0);
             currentTimerMode = TIMER_IDLE;
             
-            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are BLOCKED on this land.");
-            llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' -> 'Final Girlz I.N.C.'");
+            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience features are BLOCKED on this land.");
+            llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
         } else {
             dbg("⚠️ [Peril Dice] Experience Denial (Code " + (string)reason + ") for agent " + (string)agent_id);
         }
