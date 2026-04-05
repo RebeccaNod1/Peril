@@ -187,7 +187,9 @@ checkExperience() {
     dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
     
     // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
-    if (!llAgentInExperience(llGetOwner())) {
+    if (llAgentInExperience(llGetOwner())) {
+        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+    } else {
         llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
         llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
     }
