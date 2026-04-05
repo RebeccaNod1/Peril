@@ -343,11 +343,11 @@ default {
         // Initialize channels for external communication
         initializeChannels();
         
-        // Experience Sentinel check
-        checkExperience();
-        
         // Reset the game on startup to ensure clean state
         resetGame();
+        
+        // Experience Sentinel check - Moved after reset to protect timer
+        checkExperience();
         
         dbg("✅ Main Controller initialization complete!");
     }
@@ -364,11 +364,11 @@ default {
         // Re-initialize channels for external communication
         initializeChannels();
         
-        // Experience Sentinel check
-        checkExperience();
-        
         // Reset the game to ensure clean state when rezzed
         resetGame();
+        
+        // Experience Sentinel check - Moved after reset to protect timer
+        checkExperience();
         
         dbg("✅ Main Controller reset complete after rez!");
     }
