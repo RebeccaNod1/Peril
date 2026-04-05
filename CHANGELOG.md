@@ -4,6 +4,15 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [3.2.6] - 2026-04-05
+
+### 🎰 **Hybrid HUD Evolution**
+- **Personalized Gaming UI**: Human players now automatically receive a temporary, Experience-authorized HUD snapping to **Center 2**.
+- **Spectator AI Visibility**: Bots continue to rez in-world floaters, ensuring spectators can follow along with the AI's performance.
+- **Direct-Target Signaling**: Switched to `llRegionSayTo(avKey, ...)` for cleanup pulses, ensuring HUDs reliably hear their "Self-Destruct" command.
+- **Auto-Cleanup Handshake**: Uses `llDetachFromAvatar()` to instantly purge temporary HUDs upon game end or reset without inventory clutter.
+- **Root-Key Unification**: All channel calculations now use the **Root Link Key** (`llGetLinkKey(1)`), preventing "Signal Drift" between scripts in different prims.
+
 ## [3.2.0] - 2026-04-05
 
 ### 🛡️ **Sync Sanctity (Engine Core)**

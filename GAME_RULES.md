@@ -172,15 +172,17 @@ The game features thematic messaging for maximum immersion:
 - **Kick Player** functionality allows owners to remove disruptive players
 - **Leave Game** system properly cleans up all player data
 
-### **Enhanced Display System (UPDATED in v2.8.6):**
-- **Winner Glow Celebration** - Winners get bright green glow on both scoreboard and floaters 💚
+### **Enhanced Display System (UPDATED in v3.2.6):**
+- **Hybrid HUD System** - Humans get personal HUDs (Center 2), Bots get in-world floaters! 🎰🤖
+- **Experience Requirement** - Land must have **Peril Dice Experience** enabled for the automatic HUD feature. 🔗
+- **Winner Glow Celebration** - Winners get bright green glow on both scoreboard and floater 💚
 - **Visual Priority System** - Winner glow (green) overrides peril glow (yellow) during victory
 - **24-Second Victory Timer** - Extended celebration before game reset for proper recognition
-- **Real-Time Status Updates** - Peril status updates immediately on floating displays
-- **Enhanced Elimination** - Players see 0 hearts ❤️ → 💔💔💔 before removal with red X markers ❌
-- **Visual Scoreboard** - Shows all players with profile pictures and heart counts
+- **Real-Time Status Updates** - Peril status updates immediately on displays
+- **Enhanced Elimination** - Players see 0 hearts before removal with red X markers
+- **Visual Scoreboard** - Shows all players with profile pictures and hearts
 - **Floating HUD Displays** - Personal status displays for each player
-- **Professional Status Actions** - Large status prim shows current game events
+- **Professional Status Actions** - Large status prim shows current events
 - **Color-Coded Glow System** - Green (winner), Yellow (peril), Red X (eliminated)
 
 ### **Technical Rules (UPDATED in v3.2.0):**
@@ -296,8 +298,8 @@ While the core rules remain the same, consider these optional variations:
 
 ---
 
-**Version:** 3.2.0  
+**Version:** 3.2.6  
 **Last Updated:** April 05, 2026
-**Status:** Production Ready - Sync Sanctity Release
+**Status:** Production Ready - Hybrid HUD Release
   
 **Credits:** Original concept by Noose the Bunny (djmusica28), Automated system implementation by Rebecca Nod
