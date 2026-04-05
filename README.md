@@ -7,7 +7,7 @@
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**🎯 NEW in v3.2.6**: **HYBRID HUD EVOLUTION** - Revolutionary dual-mode status display. Humans receive a personal, Experience-authorized HUD (ATTACH_HUD_CENTER_2) for clutter-free gameplay. Bots maintain in-world floaters for public visibility. Features laser-targeted `llRegionSayTo` signaling for guaranteed auto-detach and cleanup.
+**🎯 NEW in v3.2.6**: **HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL** - Revolutionary dual-mode status display. Humans receive a personal, Experience-authorized HUD (Center 2), while bots maintain in-world floaters. Features a built-in **Experience Sentinel** (v7.3) that automatically diagnoses land-readiness for 'Final Girlz I.N.C.' and provides owner-facing fix instructions for blocked parcels.
 
 **🧪 NEW in v3.2.0**: **SYNC SANCTITY & SCOREBOARD VIRTUALIZATION** - Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a 3-column layout (Rank, Name, WL) and dynamic Alpha 0.0 hiding for unused slots. 
 
@@ -34,8 +34,9 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 ## Major v3.2.6 Improvements (Current) 🎯
 
 ### 🎰 **Hybrid HUD Evolution**
-- **Personalized Gaming UI**: Human players automatically receive a temporary, Experience-authorized HUD snapping to **Center 2**.
+- **Personalized Gaming UI**: Human players automatically receive a temporary, Experience-authorized HUD (Final Girlz I.N.C.) snapping to **Center 2**.
 - **Spectator AI Visibility**: Bots continue to rez in-world floaters, ensuring spectators can follow along with the AI's performance.
+- **Experience Sentinel (v7.3)**: Built-in land diagnostic tool automatically verifies the **Final Girlz I.N.C.** Experience on the parcel. If the land is blocked, the board whispers clear "To-Fix" instructions to the owner.
 - **Direct-Target Signaling**: Switched to `llRegionSayTo(avKey, ...)` for cleanup pulses, ensuring HUDs reliably hear their "Self-Destruct" command.
 - **Auto-Cleanup Handshake**: Uses `llDetachFromAvatar()` to instantly purge temporary HUDs upon game end or reset without inventory clutter.
 

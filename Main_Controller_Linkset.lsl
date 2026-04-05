@@ -1332,9 +1332,8 @@ default {
             sentinelQueryID = NULL_KEY;
             llSetTimerEvent(0);
             currentTimerMode = TIMER_IDLE;
-            
-            llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience features are BLOCKED on this land.");
-            llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+            // Removed redundant messaging - checkExperience() handles the OwnerSay
+            dbg("⚠️ [Peril Dice] Experience Denial (Reason " + (string)reason + ") detected land block.");
         } else {
             dbg("⚠️ [Peril Dice] Experience Denial (Code " + (string)reason + ") for agent " + (string)agent_id);
         }

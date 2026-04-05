@@ -187,6 +187,7 @@ Game Security (NEW in v2.8.0):
 
 Enhanced Display System (UPDATED in v3.2.6):
 - Hybrid HUD System - Personal HUD for humans / In-world floaters for Bots! 🎰🤖
+- Experience Sentinel (v7.3) - Built-in land-diagnostic tool automatically verifies 'Final Girlz I.N.C.' connectivity. 🛡️
 - Experience Requirement - Land must be "Final Girlz I.N.C." Experience enabled for the HUD! 🔗
 - Winner Glow Celebration - Winners get bright green glow on both 
   scoreboard and floaters

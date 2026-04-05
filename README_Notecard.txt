@@ -8,7 +8,7 @@ OVERVIEW
 --------
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-NEW IN V3.2.6: HYBRID HUD EVOLUTION! A revolutionary dual-mode status system. Humans now receive a personal, Experience-authorized HUD (ATTACH_HUD_CENTER_2) for immersive, non-obstructive gameplay. Bots maintain traditional in-world floaters for spectator visibility. Laser-targeted cleanup signaling ensuring 100% reliable HUD detachment via llDetachFromAvatar().
+NEW IN V3.2.6: HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL! A revolutionary dual-mode status system. Humans now receive a personal HUD (Center 2), while bots maintain in-world floaters. Built-in EXPERIENCE SENTINEL (v7.3) automatically diagnoses and reports land connectivity for 'Final Girlz I.N.C.' with clear owner instructions.
 
 NEW IN V3.2.0: SYNC SANCTITY & SCOREBOARD VIRTUALIZATION! Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a professional 3-column Rank/Name/Wins/Losses layout and dynamic Alpha 0.0 hiding for unused player slots.
 
@@ -48,6 +48,7 @@ KEY FEATURES
 - 🎯 Dynamic Player Management: Players can join at runtime (owner and other avatars)
 - 🤖 Bot Support: Add AI bots for testing and gameplay variety  
 - 📱 Hybrid HUD Display: Experience-attached personal HUD for humans / In-world floaters for bots
+- 🛡️ Experience Sentinel: Built-in land-diagnostic tool (v7.3) for 'Final Girlz I.N.C.' verification
 - 🎮 Intelligent Dice Sizing: Automatic dice size based on player count
 - 🔄 Ready State System: Players must be ready before games start
 - 🎭 Dramatic Messaging: Immersive thematic announcements visible to all players
@@ -144,6 +145,7 @@ RECENT IMPROVEMENTS (V3.0.0)
 🏆 EXPERIENCE-BASED LEADERBOARD
 - Persistent Storage: Leaderboard data is now stored in Second Life Experience: "Final Girlz I.N.C.".
 - Requirement: Ensure the "Final Girlz I.N.C." Experience is whitelisted on your parcel.
+- Experience Sentinel (v7.3): Built-in diagnostic tool automatically verifies land-readiness and provides clear owner instructions if the experience is blocked. 
 - Region Independence: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 🎨 Z-FIGHTING & ALIGNMENT FIXES

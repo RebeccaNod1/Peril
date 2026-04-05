@@ -13,10 +13,11 @@ All notable changes to Peril Dice will be documented in this file.
 - **Auto-Cleanup Handshake**: Uses `llDetachFromAvatar()` to instantly purge temporary HUDs upon game end or reset without inventory clutter.
 - **Root-Key Unification**: All channel calculations now use the **Root Link Key** (`llGetLinkKey(1)`), preventing "Signal Drift" between scripts in different prims.
 
-### 🛡️ **Experience Sentinel (Diag Prototype)**
-- **Key-Scoped Diagnostic (v6.1)**: Replaced agent-based probes with definitive **`llAgentInExperience(EXPERIENCE_ID)`** verification, ensuring the board detects land-readiness for 'Final Girlz I.N.C.' instantly.
-- **Direct-Denial Capture**: Implemented the `experience_permissions_denied` event handler to catch and report `XP_ERROR_NOT_PERMITTED_LAND` error codes with clear "To-Fix" instructions for owners.
-- **Touch-to-Diagnose**: Owners can now touch the board at any time to force a fresh Sentinel check, bypassing inventory rez-lag.
+### 🛡️ **Experience Sentinel (Diag Prototype v7.3)**
+- **Professional Polish (v7.3)**: Silenced redundant diagnostic alerts to provide a clean, single-source verification experience on blocked land.
+- **Key-Scoped Diagnostic (v6.1)**: Replaced unreliable agent-probes with definitive **`llAgentInExperience(llGetOwner())`** logic, providing instantaneous land-readiness results for the "Final Girlz I.N.C." experience.
+- **Direct-Denial Capture**: Integrated the `experience_permissions_denied` event handler as a silent watchdog to catch and report `XP_ERROR_NOT_PERMITTED_LAND` error codes.
+- **Touch-to-Diagnose**: Owners can touch the board to trigger a fresh Sentinel check, bypassing inventory rez-lag.
 
 ## [3.2.0] - 2026-04-05
 

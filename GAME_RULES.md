@@ -174,6 +174,7 @@ The game features thematic messaging for maximum immersion:
 
 ### **Enhanced Display System (UPDATED in v3.2.6):**
 - **Hybrid HUD System** - Humans get personal HUDs (Center 2), Bots get in-world floaters! 🎰🤖
+- **Experience Sentinel (v7.3)** - Built-in land-readiness diagnostic automatically verifies 'Final Girlz I.N.C.' connectivity. 🛡️
 - **Experience Requirement** - Land must have **"Final Girlz I.N.C."** Experience enabled for the automatic HUD feature. 🔗
 - **Winner Glow Celebration** - Winners get bright green glow on both scoreboard and floater 💚
 - **Visual Priority System** - Winner glow (green) overrides peril glow (yellow) during victory
