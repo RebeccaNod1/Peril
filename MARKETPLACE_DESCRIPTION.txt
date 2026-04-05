@@ -23,8 +23,9 @@ KEY FEATURES:
 - Color-Coded Glow System: Green (winner), Yellow (peril), Red X (eliminated)
 - Experience Leaderboard: Persistent win tracking via Experience KVP with FURWARE Text Mesh display
 - Bot Support: AI players for testing and gameplay variety
-- Hybrid HUD Display: Personal HUD for humans (Experience-attached) vs. in-world floaters for bots
-- Direct-Target Cleanup: Reliable HUD detachment using targeted messaging (no more "ghost" HUDs)
+- 🎰 Hybrid HUD System: Human players get a personal HUD (Center 2), Bots get in-world floaters!
+- 🔗 Experience Integrated: Auto-attachment requires the "Final Girlz I.N.C." Experience on land.
+- 🎯 Direct-Target Cleanup: 100% reliable HUD removal via llRegionSayTo signaling.
 - Single Linkset: Complete consolidated system for instant deployment
 
 GAME RULES:

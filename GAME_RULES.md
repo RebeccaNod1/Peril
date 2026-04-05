@@ -174,7 +174,7 @@ The game features thematic messaging for maximum immersion:
 
 ### **Enhanced Display System (UPDATED in v3.2.6):**
 - **Hybrid HUD System** - Humans get personal HUDs (Center 2), Bots get in-world floaters! 🎰🤖
-- **Experience Requirement** - Land must have **Peril Dice Experience** enabled for the automatic HUD feature. 🔗
+- **Experience Requirement** - Land must have **"Final Girlz I.N.C."** Experience enabled for the automatic HUD feature. 🔗
 - **Winner Glow Celebration** - Winners get bright green glow on both scoreboard and floater 💚
 - **Visual Priority System** - Winner glow (green) overrides peril glow (yellow) during victory
 - **24-Second Victory Timer** - Extended celebration before game reset for proper recognition

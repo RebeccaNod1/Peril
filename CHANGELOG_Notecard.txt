@@ -7,7 +7,7 @@ All notable changes to Peril Dice are documented in this file.
 ====================
 
 🎰 HYBRID HUD EVOLUTION
-- Personalized Gaming UI: Human players now automatically receive a temporary, Experience-authorized HUD snapping to Center 2.
+- Personalized Gaming UI: Human players now automatically receive a temporary, Experience-authorized HUD (Final Girlz I.N.C.) snapping to Center 2.
 - Spectator AI Visibility: Bots continue to rez in-world floaters for public visibility.
 - Direct-Target Signaling: Switched to llRegionSayTo(avKey, ...) for 100% reliable cleanup delivery.
 - Auto-Cleanup Handshake: Uses llDetachFromAvatar() for instantaneous HUD removal without inventory clutter.

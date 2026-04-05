@@ -89,6 +89,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 ### 🏆 **Experience-Based Leaderboard**
 - **Persistent Storage**: Leaderboard data is now stored in Second Life Experience Keys (KVP), ensuring lifetime persistence of player statistics.
+- **Experience Required**: Ensure the **"Final Girlz I.N.C."** Experience is whitelisted on your parcel for auto-HUD features.
 - **Region Independence**: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 ### 🎨 **Z-Fighting & Alignment Fixes**

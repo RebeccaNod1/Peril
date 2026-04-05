@@ -142,7 +142,8 @@ RECENT IMPROVEMENTS (V3.0.0)
 - Load Stability: Freed critical script memory in the Main Controller, Game Manager, and Dialog Handler to ensure rock-solid stability during 10-player stress tests.
 
 🏆 EXPERIENCE-BASED LEADERBOARD
-- Persistent Storage: Leaderboard data is now stored in Second Life Experience Keys (KVP), ensuring lifetime persistence of player statistics.
+- Persistent Storage: Leaderboard data is now stored in Second Life Experience: "Final Girlz I.N.C.".
+- Requirement: Ensure the "Final Girlz I.N.C." Experience is whitelisted on your parcel.
 - Region Independence: Player wins and losses are tracked globally, surviving object resets and region changes.
 
 🎨 Z-FIGHTING & ALIGNMENT FIXES
