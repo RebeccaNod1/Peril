@@ -129,6 +129,7 @@ integer dialogHandle = -1;
 integer botHandle = -1;
 integer rollHandle = -1;
 key sentinelQueryID = NULL_KEY; // Track the Experience Sentinel ping
+integer EX_READY = FALSE; // Track the Experience Sentinel ping
 
 // Channel initialization function
 initializeChannels() {
@@ -189,11 +190,12 @@ checkExperience() {
         llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
         
         // Final probe check
-        llReadKeyValue("_SENTINEL_");
-        llSetTimerEvent(3.0);
+        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
+        llSetTimerEvent(10.0); // Increased to 10s for reliability
         currentTimerMode = TIMER_XP_CHECK;
     } else {
         llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+        EX_READY = TRUE;
     }
 }
 
@@ -354,6 +356,7 @@ default {
         resetGame();
         
         // Experience Sentinel check - Moved after reset to protect timer
+        llSleep(2.0); 
         checkExperience();
         
         dbg("✅ Main Controller initialization complete!");
@@ -381,6 +384,18 @@ default {
     }
 
     touch_start(integer total_number) {
+        // IGNORE TOUCHES INTENDED FOR THE LEADERBOARD
+        string _rawNm = llGetLinkName(llDetectedLinkNumber(0));
+        string _linkNm = llToLower(_rawNm);
+        
+        // TEMPORARY DEBUG TO CATCH THE EXACT LINK NAME
+        dbg("🎯 [Touch Filter] Clicked Link Name: '" + _rawNm + "'");
+        
+        if (llSubStringIndex(_linkNm, "leaderboard") != -1 || llSubStringIndex(_linkNm, "furware") != -1 || llSubStringIndex(_linkNm, "lb_") != -1) {
+            dbg("🛑 [Touch Filter] Bypassing menu for Leaderboard element!");
+            return;
+        }
+        
         key toucher = llDetectedKey(0);
         integer idx = llListFindList(players, [toucher]);
         
@@ -1166,7 +1181,7 @@ default {
                     dbg("✅ Floater creation requests sent for all players!");
                     
                     // After forcing floaters, show appropriate menu based on owner registration status
-                    integer ownerIdx = llListFindList(players, [llGetOwner()]);
+                    integer ownerIdx = llGetListLength(players); // Simplified check
                     if (ownerIdx != -1) {
                         // Owner is registered - show registered owner menu
                         integer ownerIsStarter = TRUE;
@@ -1293,14 +1308,18 @@ default {
     dataserver(key query_id, string data) {
         if (query_id == sentinelQueryID) {
             // WE GOT A RESPONSE! 
-            // If the land is not configured, data will often be an error string like "Error: XP_ERROR_NOT_EXPERIENCE"
-            if (llGetSubString(data, 0, 4) != "Error") {
-                sentinelQueryID = NULL_KEY;
-                llSetTimerEvent(0);
-                currentTimerMode = TIMER_IDLE;
-                dbg("✅ [Peril Dice] Experience Sentinel: KVP Handshake Successful. Land is ready!");
+            integer c = llSubStringIndex(data, ",");
+            string st = data;
+            if (c != -1) st = llGetSubString(data, 0, c - 1);
+            
+            sentinelQueryID = NULL_KEY;
+            llSetTimerEvent(0);
+            if (st == "1" || st == "3") { // Status 1 (Found) or 3 (Not Found) both prove Experience access
+                 dbg("✅ [Peril Dice] Experience Sentinel: KVP Heartbeat Confirmed.");
+                 EX_READY = TRUE;
             } else {
-                dbg("⚠️ [Peril Dice] Sentinel handshake returned error: " + data);
+                 EX_READY = FALSE;
+                 dbg("⚠️ [Peril Dice] Sentinel handshake returned status: " + st);
             }
         }
     }

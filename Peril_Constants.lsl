@@ -8,6 +8,7 @@ integer LINK_SCOREBOARD = -1;       // "Scoreboard:0:0"
 integer LINK_DICE_BRIDGE = -1;      // "FURWARE text mesh:Dice:0:0"
 integer LINK_LEADERBOARD_BRIDGE = -1; // "FURWARE text mesh:Leaderboard:0:0"
 integer LINK_STATUS_BRIDGE = -1;      // "FURWARE text mesh:Status:0:0"
+integer LINK_BACKBOARD = -1;          // "backboard:0:0"
 key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C.
 #define PARCEL_DETAILS_EXPERIENCE_LIST 18
 
@@ -21,6 +22,7 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
         else if (_name == "FURWARE text mesh:Dice:0:0") LINK_DICE_BRIDGE = _i; \
         else if (_name == "FURWARE text mesh:Leaderboard:0:0") LINK_LEADERBOARD_BRIDGE = _i; \
         else if (_name == "FURWARE text mesh:Status:0:0") LINK_STATUS_BRIDGE = _i; \
+        else if (_name == "backboard:0:0") LINK_BACKBOARD = _i; \
         else if (LINK_CONTROLLER == 1 && _i == 1) { ; /* Default to root if not found */ } \
     } \
     /* Safety Fallback: Use Root if Scoreboard prim is missing */ \
@@ -60,6 +62,20 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define MSG_RESET_LEADERBOARD 3012
 #define MSG_DISPLAY_LEADERBOARD 3013
 #define MSG_STATUS_TEXT 3007
+
+// --- World Ranking Leaderboard (4000-4099) ---
+#define MSG_LB_LOAD_COMPLETE 4001
+#define MSG_LB_RECORD_PLAYER 4002
+#define MSG_LB_REQUEST_DISPLAY 4003
+#define MSG_LB_DISPLAY_DATA 4004
+#define MSG_LB_PAGE_NEXT 4005
+#define MSG_LB_PAGE_PREV 4006
+#define MAX_LB_PAGES 10                  // 10 keys (Peril_LB_1 to Peril_LB_10)
+#define LB_KEY_PREFIX "Peril_LB_"        // Base name for sharded keys
+#define LB_LOCK_KEY "Peril_LB_LOCK"       // KVP lock for multi-board synchronization
+#define LB_LOCK_TIMEOUT 60               // Lock expiry in seconds
+#define MAX_ENTRIES_PER_PAGE 50          // 50 players per key
+#define MAX_WORLD_RANKING 500            // Total capacity (Pages * Entries)
 #define MSG_DICE_ROLL 3020
 #define MSG_CLEAR_DICE 3021
 #define MSG_DICE_CLEAR 3021 // Alias for consistency in dice bridge

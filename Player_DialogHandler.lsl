@@ -405,6 +405,7 @@ default {
         }
         
         if (num == MSG_SHOW_MENU) {
+            dbg("🕵️ [Dialog Handler] Received MSG_SHOW_MENU (" + str + ") from script link/sender: " + (string)sender + ", ID: " + (string)id);
             list args = llParseString2List(str, ["|"], []);
             if (llGetListLength(args) < 2) {
                 dbg("⚠️ Invalid message format: " + str);
