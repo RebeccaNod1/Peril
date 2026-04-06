@@ -698,7 +698,7 @@ integer updatePlayerDisplay(string playerName, integer lives, string profileUUID
     ]);
     
     // Remove the glow after a moment to make it normal
-    llSleep(0.1);
+    llSleep(DELAY_SCOREBOARD_REFRESH);
     llSetLinkPrimitiveParamsFast(updateProfilePrimIndex, [
         PRIM_GLOW, ALL_SIDES, 0.0 // Remove glow
     ]);
@@ -903,7 +903,7 @@ default {
                         ]);
                         
                         // Remove the glow after a moment to make it normal
-                        llSleep(0.1);
+                        llSleep(DELAY_SCOREBOARD_REFRESH);
                         llSetLinkPrimitiveParamsFast(profilePrimIndex, [
                             PRIM_GLOW, ALL_SIDES, 0.0 // Remove glow
                         ]);

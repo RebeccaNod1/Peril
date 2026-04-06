@@ -681,7 +681,7 @@ default {
             string pick = llGetSubString(msg, 8, -1);
             string payload = "REMOVE_PICK~" + currentPickTarget + "|" + pick;
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
-            llSleep(0.2);
+            llSleep(DELAY_DIALOG_REFRESH);
             llMessageLinked(LINK_THIS, MSG_OWNER_PICK_MANAGER, currentPickTarget, id);
         }
         // Handle kick player selection
@@ -720,7 +720,7 @@ default {
             }
             string payload = "ADD_PICK~" + currentPickTarget + "|" + msg;
             llMessageLinked(LINK_THIS, MSG_PICK_ACTION, payload, id);
-            llSleep(0.2);
+            llSleep(DELAY_DIALOG_REFRESH);
             llMessageLinked(LINK_THIS, MSG_OWNER_PICK_MANAGER, currentPickTarget, id);
         }
         // Handle position scan responses from follower displays

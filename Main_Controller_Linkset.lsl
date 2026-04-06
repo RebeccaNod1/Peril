@@ -91,10 +91,6 @@ list pendingRegistrations = [];  // Keys of players who have registration in pro
 
 key currentPicker;
 
-// Game timing settings
-#define BOT_PICK_DELAY 2.0      
-#define HUMAN_PICK_DELAY 1.0    
-#define DIALOG_DELAY 1.5        
 integer gameTimer = 0;           
 
 // Dynamic channel system for floaters and dialogs (still needed for external communication)
@@ -295,9 +291,9 @@ resetGame() {
     // Let Floater Manager handle cleanup intelligently
     // Always request cleanup on a reset to ensure no orphans are left behind
     llMessageLinked(LINK_SET, MSG_CLEANUP_ALL_FLOATERS, "RESET", NULL_KEY);
-    llSleep(0.5);
+    llSleep(DELAY_STATE_TRANSITION);
     
-    llSleep(0.5);
+    llSleep(DELAY_STATE_TRANSITION);
     
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
     floaterChannels = [];
@@ -330,7 +326,7 @@ resetGame() {
     // NEW: Update status bar for idle state
     sendStatusMessage("PERIL DICE GAME\nTouch to Join!");
     
-    llSleep(0.5);
+    llSleep(DELAY_STATE_TRANSITION);
     llSetTimerEvent(0);
     
     initListeners();
@@ -659,11 +655,11 @@ default {
                     
                     // Direct floater update to ensure eliminated status is displayed
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, eliminatedPlayer, llList2Key(players, idx));
-                    llSleep(2.0); // Give floater time to show eliminated status with red display
+                    llSleep(DELAY_ELIMINATION_NOTICE); // Give floater time to show eliminated status with red display
                     
                     if (willCauseVictory) {
                         // If this elimination will cause victory, give extra time for 0 hearts display
-                        llSleep(1.5); // Additional time for victory scenarios
+                        llSleep(DELAY_VICTORY_NOTICE); // Additional time for victory scenarios
                     }
                     
                     // CHANGED: Don't cleanup floaters during elimination - let them show eliminated status
@@ -713,7 +709,7 @@ default {
                             // ENHANCED: Give eliminated player's floater time to show eliminated status
                             // before declaring victory and cleaning up
                             dbg("⏳ [Main Controller] Final elimination detected - allowing display time before victory");
-                            llSleep(2.0); // Give final eliminated player time to show red eliminated status
+                            llSleep(DELAY_ELIMINATION_NOTICE); // Give final eliminated player time to show red eliminated status
                             
                             // CRITICAL: Set victory flag immediately to prevent sync processing
                             victoryInProgress = TRUE;
@@ -783,7 +779,7 @@ default {
                         // Optimized to avoid large temporary string variables
                         llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
                             llList2CSV(lives) + "~EMPTY~" + perilPlayer + "~" + llList2CSV(names), NULL_KEY);
-                        llSleep(0.5); // Give sync time to propagate
+                        llSleep(DELAY_SYNC_PROPAGATION); // Give sync time to propagate
                         
                         // Continue the game with the new peril player - delegate to Game Manager
                         llMessageLinked(LINK_SET, 998, perilPlayer, NULL_KEY);
@@ -801,7 +797,7 @@ default {
             dbg("🚨 [Main Controller] Emergency reset triggered - sending emergency reset to all scripts");
             // Signal all scripts to emergency reset
             llMessageLinked(LINK_SET, MSG_EMERGENCY_RESET, "EMERGENCY_RESET", NULL_KEY);
-            llSleep(0.5);
+            llSleep(DELAY_SYNC_PROPAGATION);
             // Then do full reset
             resetGame();
             return;
@@ -814,7 +810,7 @@ default {
                 string winner = llList2String(parts, 1);
                 // Send dice roll winner message using LINK_SET
                 llMessageLinked(LINK_SET, MSG_DICE_ROLL, winner + "|WON", NULL_KEY);
-                llSleep(2.0);
+                llSleep(DELAY_GAME_RESET);
                 resetGame();
             }
             return;
@@ -1165,7 +1161,7 @@ default {
                         string playerName = llList2String(names, i);
                         key playerKey = llList2Key(players, i);
                         llMessageLinked(LINK_SET, MSG_REZ_FLOAT, playerName, playerKey);
-                        llSleep(0.3);
+                        llSleep(DELAY_GENERIC_TICK);
                     }
                     dbg("✅ Floater creation requests sent for all players!");
                     
@@ -1249,7 +1245,7 @@ default {
                 sendStatusMessage("GAME STARTING!\nAll players are ready!");
                 
                 // Dramatic pause to let the start announcement be read before round prep begins
-                llSleep(4.0);
+                llSleep(DELAY_LONG_SYNC);
                 
                 // For game start, use empty peril player - Game Manager will select one
                 llMessageLinked(LINK_SET, 998, "", NULL_KEY);

@@ -31,7 +31,7 @@ default {
         dbg("📋 [Leaderboard] Leaderboard Communication Script ready! (Virtual Multi-Column)");
         
         // Wait for engine to be ready, then register virtual columns
-        llSleep(1.0);
+        llSleep(DELAY_LEADERBOARD_SYNC);
         
         // Registering virtual columns inside the physical "Leaderboard" mesh
         // Format: fw_addbox:NewName:ParentName:x,y,w,h
@@ -43,7 +43,7 @@ default {
         
         // --- STARTUP HANDSHAKE ---
         // Wait a moment for the engine to process ADD_BOX, then ask Scoreboard for a fresh update
-        llSleep(0.5);
+        llSleep(DELAY_LEADERBOARD_READY);
         llMessageLinked(LINK_SET, MSG_DISPLAY_LEADERBOARD, "REFRESH_STARTUP", NULL_KEY);
         
         // Start with blank display

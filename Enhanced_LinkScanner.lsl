@@ -1,3 +1,5 @@
+#include "Peril_Constants.lsl"
+
 // ====================================================================
 // Enhanced Link Scanner for Peril Dice Linkset
 // ====================================================================
@@ -65,7 +67,7 @@ performFullScan() {
         
         // Add delays to prevent spam
         if (i % 15 == 0) {
-            llSleep(1.5);
+            llSleep(DELAY_SCAN_LINKSET);
         }
     }
     

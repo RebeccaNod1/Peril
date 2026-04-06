@@ -173,7 +173,7 @@ default {
                 
                 integer ch = FLOATER_BASE_CHANNEL + channelIdx;
                 llRezObject("StatFloat", pos, ZERO_VECTOR, ZERO_ROTATION, ch);
-                llSleep(0.2);
+                llSleep(DELAY_FLOATER_REZ);
                 llRegionSay(ch, "SET_NAME:" + name);
                 
                 // --- HUD UPGRADE: Attach to Humans ---
@@ -363,7 +363,7 @@ default {
                 
                 // Redundant broadcast for total coverage
                 llRegionSay(chTarget, "CLEANUP");
-                llSleep(0.05); 
+                llSleep(DELAY_FLOATER_UPDATE); 
             }
             // Clear ALL registries to allow fresh re-registration via Rez Guard
             allPlayerNames = [];

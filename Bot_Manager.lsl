@@ -41,7 +41,7 @@ integer LISTEN_CHANNEL; // Will be set dynamically
 integer listenHandle = -1;
 
 // Bot timing configuration to prevent dialog system overload
-#define BOT_RESPONSE_DELAY 1.5  // Delay before bot responds to commands
+// BOT_RESPONSE_DELAY defined in Peril_Constants.lsl
 
 // Memory monitoring
 #define MEMORY_WARNING_THRESHOLD 0.8  // Warn when using >80% of memory

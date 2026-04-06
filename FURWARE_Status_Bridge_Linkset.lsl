@@ -26,7 +26,7 @@ default {
         dbg("📊 [Status Bridge] Status Display Bridge ready!");
         
         // Wait a tiny bit for Furware to be ready, then set initial text
-        llSleep(1.0);
+        llSleep(DELAY_BRIDGE_READY);
         updateStatusDisplay("PERIL DICE GAME\nWaiting for players...");
     }
     

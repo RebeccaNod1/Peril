@@ -93,7 +93,7 @@ default {
             dbg("🧹 [Status Float] CLEANUP signal received. Detaching from avatar...");
             llDetachFromAvatar();
             // Fallback for non-attachments
-            llSleep(0.1);
+            llSleep(DELAY_FLOAT_UPDATE);
             llDie();
         }
         else if (llSubStringIndex(message, "ATTACH_TO:") == 0) {

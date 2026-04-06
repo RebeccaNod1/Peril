@@ -12,11 +12,6 @@ string getPlayerName(key id) {
     return displayName;
 }
 
-// Game timing settings
-#define BOT_PICK_DELAY 2.0
-#define HUMAN_PICK_DELAY 1.0
-#define DIALOG_DELAY 1.5
-#define STATUS_DISPLAY_TIME 8.0
 // Game state - synced from Main Controller
 list players = [];
 list names = [];
@@ -163,13 +158,13 @@ integer continueCurrentRound() {
     llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
     
     // Dramatic pause to let the preparation message be read
-    llSleep(4.0);
+    llSleep(DELAY_LONG_SYNC);
     
     // NEW: Update status bar for new round with colored highlight
     llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NEW ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
     
     // Dramatic pause to let the peril player be seen before the dice type is shown
-    llSleep(4.0);
+    llSleep(DELAY_LONG_SYNC);
     
     // Note: showNextPickerDialog() will be called when dice type result is received
     return 0;
@@ -224,7 +219,7 @@ integer startNextRound() {
         // Sync state to floater manager first, then update floaters to show new peril player immediately
         dbg("🔄 [Game Manager] Syncing state and updating floaters for new peril player: " + perilPlayer);
         syncStateToMain(); // Sync the peril player to all modules first
-        llSleep(0.1); // Brief delay to ensure sync propagates
+        llSleep(DELAY_SHORT_SYNC); // Brief delay to ensure sync propagates
         integer startJ;
         for (startJ = 0; startJ < llGetListLength(names); startJ++) {
             string startPlayerName = llList2String(names, startJ);
@@ -235,7 +230,7 @@ integer startNextRound() {
         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
 
         // Dramatic pause to let the first peril player be seen before round prep begins
-        llSleep(4.0);
+        llSleep(DELAY_LONG_SYNC);
     }
     
     picksData = [];
@@ -261,7 +256,7 @@ integer startNextRound() {
     llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
     
     // Dramatic pause to let the preparation message be read
-    llSleep(4.0);
+    llSleep(DELAY_LONG_SYNC);
     
     dbg("🎯 Game Manager round setup complete, requesting dice type...");
     return 0;
@@ -406,7 +401,7 @@ integer showNextPickerDialog() {
         string dialogPayload = firstName + "|" + (string)diceType + "|" + (string)humanPicksNeeded + "|" + humanAvoidListStr;
         
         dbg("🎯 Showing pick dialog for " + firstName);
-        llSleep(0.5);  // Brief delay to prevent spam
+        llSleep(DELAY_ANTI_SPAM);  // Brief delay to prevent spam
         
         // Send dialog request through Player_RegistrationManager (it has the correct player keys)
         string dialogRequest = "SHOW_DIALOG|" + firstName + "|" + dialogPayload;
@@ -677,7 +672,7 @@ default {
             llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DICE READY!\nRolling a d" + str + " this round", NULL_KEY);
             
             // Dramatic pause to let players see the dice type before picking starts
-            llSleep(4.0);
+            llSleep(DELAY_LONG_SYNC);
             
             // Start dialog if round has been started and we have a queue
             if (roundStarted && currentPickerIdx < llGetListLength(pickQueue) && llGetListLength(pickQueue) > 0 && diceType > 0) {
@@ -697,7 +692,7 @@ default {
                 
                 if (!alreadyHasPicks) {
                     dbg("🎯 Starting picks for " + currentPlayerName);
-                    llSleep(0.5);
+                    llSleep(DELAY_ANTI_SPAM);
                     showNextPickerDialog();
                 }
             }
@@ -820,7 +815,7 @@ default {
                         llList2CSV(names), NULL_KEY);
                     
                     // Brief delay to ensure sync reaches Floater Manager before update request
-                    llSleep(0.1);
+                    llSleep(DELAY_SHORT_SYNC);
                     
                     // Now update the floater
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, llList2Key(players, idx));
@@ -840,7 +835,7 @@ default {
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
                         dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
-                        llSleep(1.0); // Longer delay to ensure sync propagates to all modules
+                        llSleep(DELAY_MEDIUM_SYNC); // Longer delay to ensure sync propagates to all modules
                         
                         // Send roll dialog through Player_RegistrationManager
                         dbg("🎯 [Game Manager] Sending roll dialog request for: " + perilPlayer);
@@ -896,7 +891,7 @@ default {
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
                         dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
-                        llSleep(1.0); // Longer delay to ensure sync propagates to all modules
+                        llSleep(DELAY_MEDIUM_SYNC); // Longer delay to ensure sync propagates to all modules
                         
                         // Force close any active number picker dialogs
                         dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");
@@ -969,7 +964,7 @@ default {
                         llList2CSV(names), NULL_KEY);
                     
                     // Brief delay to ensure sync reaches Floater Manager before update request
-                    llSleep(0.1);
+                    llSleep(DELAY_SHORT_SYNC);
                     
                     // Now update the floater
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, playerName, NULL_KEY);
@@ -1006,7 +1001,7 @@ default {
                         // CRITICAL: Sync the updated picks data to all modules before roll phase
                         dbg("🔄 [Game Manager] Syncing final picks data before roll phase...");
                         syncStateToMain();
-                        llSleep(0.2); // Brief delay to ensure sync propagates
+                        llSleep(DELAY_DIALOG_REFRESH); // Brief delay to ensure sync propagates
                         
                         // Force close any active number picker dialogs
                         dbg("🚫 [Game Manager] Sending CLOSE_ALL_DIALOGS command");

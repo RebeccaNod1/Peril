@@ -267,7 +267,7 @@ default {
                     dbg("🎲 [Roll Module] 🤖 " + str + " (bot) is requesting dice type for auto-roll...");
                     
                     // Give a moment for "DICE IN THE AIR" message to be seen for bots
-                    llSleep(2.0);
+                    llSleep(DELAY_CONFETTI_START);
                     
                     rollInProgress = TRUE; // Set roll in progress for bot
                     shouldRoll = TRUE; // Set flag to perform roll when dice type is received
@@ -343,7 +343,7 @@ default {
             llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DICE SETTLED!\n" + perilPlayer + " rolled a " + resultStr + "!", NULL_KEY);
             
             // Dramatic pause to let the roll result be seen before the win/loss outcome pops up
-            llSleep(4.0);
+            llSleep(DELAY_LONG_SYNC);
 
             string newPeril = "";
             integer matched = FALSE;
@@ -389,7 +389,7 @@ default {
                 llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPeril, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
                 
                 // Add delay to let status display before next phase
-                llSleep(4.0);
+                llSleep(DELAY_LONG_SYNC);
                 
                 // Update floaters immediately to show correct peril player before sync
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
@@ -425,20 +425,20 @@ default {
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Direct Hit", NULL_KEY);
                         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DIRECT HIT!\n<!c=red>" + perilPlayer + " matched!", NULL_KEY);
                         // Add delay to let status display before next phase
-                        llSleep(4.0);
+                        llSleep(DELAY_LONG_SYNC);
                     } else if (!matched) {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
                         // Direct scoreboard status update (texture and text)
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "No Shield", NULL_KEY);
                         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NO SHIELD!\n<!c=red>" + perilPlayer + " took the hit!", NULL_KEY);
                         // Add delay to let status display before next phase
-                        llSleep(4.0);
+                        llSleep(DELAY_LONG_SYNC);
                     } else {
                         // This should never happen in normal game flow since Plot Twist case is handled above
                         // But if it does, it means someone else picked it - this should have been Plot Twist
                         dbg("🎲 [Roll Module] ⚠️ LOGIC ERROR: Someone picked " + resultStr + " but not handled as Plot Twist!");
                         llSay(0, "🩸 SHIELD FAILED! " + perilPlayer + " takes the hit despite someone picking " + resultStr + "! 🩸");
-                        llSleep(2.0);
+                        llSleep(DELAY_ELIMINATION_NOTICE);
                     }
                     
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, perilPlayer, NULL_KEY);
@@ -490,7 +490,7 @@ default {
                 llDumpList2String(picksData, "^") + "~" + 
                 perilForSync + "~" + 
                 llList2CSV(names), NULL_KEY);
-            llSleep(0.2);
+            llSleep(DELAY_DIALOG_REFRESH);
             
             // Additional floater updates to ensure correct peril player display
             dbg("🎲 [Roll Module] 🔄 Updating all floaters with new peril player: " + perilPlayer);
@@ -504,7 +504,7 @@ default {
             dbg("🎲 [Roll Module] 🎯 Round complete - sending continuation directly to Game Manager");
             
             // Brief delay to ensure sync propagates
-            llSleep(0.5);
+            llSleep(DELAY_SYNC_PROPAGATION);
             
             // Send continuation directly to Game Manager (more efficient than through Main Controller)
             // For non-elimination cases, continue with current peril player

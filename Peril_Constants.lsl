@@ -149,3 +149,35 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 // --- Helper Functions Support ---
 #define MSG_GET_PICKS_REQUIRED 1002
 #define MSG_GET_PICKER_INDEX 1003
+
+// --- Timing & Delays ---
+#define DELAY_SCAN_LINKSET 1.5           // Link scanner delay
+#define DELAY_DIALOG_REFRESH 0.2         // Brief delay before refreshing/showing dialog (0.2s)
+#define DELAY_BRIDGE_READY 1.0           // Delay for bridge initialization (1.0s)
+#define DELAY_LEADERBOARD_SYNC 1.0       // Delay for leaderboard synchronization (1.0s)
+#define DELAY_LEADERBOARD_READY 0.5      // Delay for leaderboard system readiness (0.5s)
+#define DELAY_FLOATER_REZ 0.2            // Delay between floater rezzing (0.2s)
+#define DELAY_FLOATER_UPDATE 0.05        // Very brief delay for floater updates (0.05s)
+#define DELAY_SCOREBOARD_REFRESH 0.1     // Scoreboard refresh delay (0.1s)
+#define DELAY_STATE_TRANSITION 0.5       // Generic state transition sleep (0.5s)
+#define DELAY_ELIMINATION_NOTICE 2.0     // Time given to show eliminated status (2.0s)
+#define DELAY_VICTORY_NOTICE 1.5         // Additional time for victory scenarios (1.5s)
+#define DELAY_SYNC_PROPAGATION 0.5       // Time for linked messages to propagate (0.5s)
+#define DELAY_GAME_RESET 2.0             // Delay during full system reset (2.0s)
+#define DELAY_GENERIC_TICK 0.3           // Generic tick delay (0.3s)
+#define DELAY_LONG_SYNC 4.0              // Long dramatic pause or heavy sync (4.0s)
+#define DELAY_SHORT_SYNC 0.1             // Very short sync buffer (0.1s)
+#define DELAY_MEDIUM_SYNC 1.0            // Medium sync buffer (1.0s)
+#define DELAY_ANTI_SPAM 0.5              // Delay to prevent message loops/spam (0.5s)
+#define DELAY_CONFETTI_START 2.0         // Delay before confetti effects (2.0s)
+#define DELAY_CONFETTI_DURATION 4.0      // Duration confetti stays active (4.0s)
+#define DELAY_CONFETTI_TICK 0.2          // Confetti particle interval (0.2s)
+#define DELAY_CONFETTI_PREP 0.5          // Confetti preparation delay (0.5s)
+#define DELAY_FLOAT_UPDATE 0.1           // Floater status update delay (0.1s)
+
+// --- Game Timing Settings (Originals relocated here) ---
+#define BOT_PICK_DELAY 2.0               // Bot picking decision time (2.0s)
+#define HUMAN_PICK_DELAY 1.0             // Human picking buffer (1.0s)
+#define DIALOG_DELAY 1.5                 // Base dialog presentation delay (1.5s)
+#define STATUS_DISPLAY_TIME 8.0          // How long status text stays on display (8.0s)
+#define BOT_RESPONSE_DELAY 1.5           // Bot response timing (1.5s)
