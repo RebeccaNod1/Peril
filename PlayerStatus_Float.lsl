@@ -32,6 +32,10 @@ default {
             // HUD MODE: Stop following target in-world
             llSetTimerEvent(0.0);
             
+            // RE-REQUEST PERMISSIONS: Ownership transfers on attach, which resets permissions.
+            // We refresh them here silently so CLEANUP can detach us later.
+            llRequestExperiencePermissions(id, "");
+            
             // HUD Scaling & Rotation (Center 2 focus)
             llSetLinkPrimitiveParamsFast(LINK_THIS, [
                 PRIM_SIZE, <0.05, 0.05, 0.05>,
@@ -90,16 +94,34 @@ default {
             }
         }
         else if (message == "CLEANUP") {
-            dbg("🧹 [Status Float] CLEANUP signal received. Detaching from avatar...");
-            llDetachFromAvatar();
-            // Fallback for non-attachments
-            llSleep(DELAY_FLOAT_UPDATE);
-            llDie();
+            dbg("🧹 [Status Float] CLEANUP signal received.");
+            
+            // Only attempt to detach if actually attached to avoid errors
+            if (llGetAttached() != 0) {
+                if (llGetPermissions() & PERMISSION_ATTACH) {
+                    dbg("🔗 [Status Float] Detaching from avatar...");
+                    llDetachFromAvatar();
+                } else {
+                    // Fallback: Just hide the floater if we can't detach
+                    dbg("⚠️ [Status Float] No PERMISSION_ATTACH - hiding display.");
+                    llSetText("", <1,1,1>, 0.0);
+                }
+            } else {
+                // If in-world, we can safely die
+                llSleep(DELAY_FLOAT_UPDATE);
+                llDie();
+            }
         }
         else if (llSubStringIndex(message, "ATTACH_TO:") == 0) {
             key avKey = (key)llGetSubString(message, 10, -1);
             if (avKey != NULL_KEY) {
-                llRequestExperiencePermissions(avKey, "");
+                // VERIFY AGENT: Bots are not agents, so only request permissions for real users.
+                // llGetAgentSize returns ZERO_VECTOR if the key is not a valid Agent in the region.
+                if (llGetAgentSize(avKey) != ZERO_VECTOR) {
+                    llRequestExperiencePermissions(avKey, "");
+                } else {
+                    dbg("📊 [Status Float] Bot or non-local agent detected. Following in-world instead.");
+                }
             }
         }
         else if (llSubStringIndex(message, "SET_NAME:") == 0) {
