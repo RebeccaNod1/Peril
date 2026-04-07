@@ -190,10 +190,12 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define DELAY_CONFETTI_TICK 0.2          // Confetti particle interval (0.2s)
 #define DELAY_CONFETTI_PREP 0.5          // Confetti preparation delay (0.5s)
 #define DELAY_FLOAT_UPDATE 0.1           // Floater status update delay (0.1s)
-
 // --- Game Timing Settings (Originals relocated here) ---
 #define BOT_PICK_DELAY 2.0               // Bot picking decision time (2.0s)
 #define HUMAN_PICK_DELAY 1.0             // Human picking buffer (1.0s)
 #define DIALOG_DELAY 1.5                 // Base dialog presentation delay (1.5s)
 #define STATUS_DISPLAY_TIME 8.0          // How long status text stays on display (8.0s)
 #define BOT_RESPONSE_DELAY 1.5           // Bot response timing (1.5s)
+
+// --- Security ---
+#define GLOBAL_ADMIN "3e01527d-a9ff-4776-b2b8-918ab622f70f"

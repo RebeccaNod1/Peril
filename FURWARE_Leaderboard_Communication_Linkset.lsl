@@ -1,6 +1,10 @@
 #include "Peril_Constants.lsl"
 
 string leftText = "";
+string firstName = "";
+integer blinkState = 0;
+integer canBlink = 0;
+
 
 // Distribute text to the FURWARE "Leaderboard" boxes
 distributeFullText(string text) {
@@ -10,7 +14,33 @@ distributeFullText(string text) {
         if (llGetListLength(parts) >= 3) {
             // Distribute each column to its virtual box
             llMessageLinked(LINK_SET, 0, llList2String(parts, 0), (key)"fw_data:LB_Rank");
-            llMessageLinked(LINK_SET, 0, llList2String(parts, 1), (key)"fw_data:LB_Name");
+            
+            // Distribute Name column (Split first line for blinking)
+            string nameText = llList2String(parts, 1);
+            integer firstLineEnd = llSubStringIndex(nameText, "\n");
+            if (firstLineEnd != -1) {
+                firstName = llGetSubString(nameText, 0, firstLineEnd - 1);
+                string remainingNames = llGetSubString(nameText, firstLineEnd + 1, -1);
+                llMessageLinked(LINK_SET, 0, firstName, (key)"fw_data:LB_Name_Top");
+                llMessageLinked(LINK_SET, 0, remainingNames, (key)"fw_data:LB_Name");
+            } else {
+                firstName = nameText;
+                llMessageLinked(LINK_SET, 0, firstName, (key)"fw_data:LB_Name_Top");
+                llMessageLinked(LINK_SET, 0, "", (key)"fw_data:LB_Name");
+            }
+
+            // Check if we should blink (#1 spot on first page only)
+            integer offset = (integer)llList2String(parts, 5);
+            if (offset == 0) {
+                canBlink = TRUE;
+                llSetTimerEvent(0.5);
+            } else {
+                canBlink = FALSE;
+                llSetTimerEvent(0.0);
+                // Ensure name is visible on non-blinking pages
+                llMessageLinked(LINK_SET, 0, firstName, (key)"fw_data:LB_Name_Top");
+            }
+
             llMessageLinked(LINK_SET, 0, llList2String(parts, 2), (key)"fw_data:LB_WL");
             
             // Route Navigation Arrows to dedicated button boxes
@@ -41,8 +71,13 @@ default {
         
         // Registering virtual columns + Navigation buttons
         // Coordinates: x, y, width, height (0-indexed)
+        // border=lr added to create vertical separators between columns
         llMessageLinked(LINK_SET, 0, "", (key)"fw_addbox:LB_Rank:Leaderboard:0,1,4,10:");
-        llMessageLinked(LINK_SET, 0, "", (key)"fw_addbox:LB_Name:Leaderboard:4,1,20,10:");
+        
+        // Split Name into Top (for blinking) and Body
+        llMessageLinked(LINK_SET, 0, "", (key)"fw_addbox:LB_Name_Top:Leaderboard:4,1,20,1:border=lr");
+        llMessageLinked(LINK_SET, 0, "", (key)"fw_addbox:LB_Name:Leaderboard:4,2,20,9:border=lr");
+        
         llMessageLinked(LINK_SET, 0, "", (key)"fw_addbox:LB_WL:Leaderboard:24,1,8,10:");
         
         // Navigation Row (Shifted down to Y=11)
@@ -58,6 +93,22 @@ default {
         
         // Trigger Leaderboard Manager to download from KVP Database
         llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "START_SYNC", NULL_KEY);
+        
+        // Start Blink Timer (0.5s intervals)
+        llSetTimerEvent(0.5);
+    }
+    
+    timer() {
+        if (!canBlink) {
+            llSetTimerEvent(0.0);
+            return;
+        }
+        blinkState = !blinkState;
+        if (blinkState) {
+            llMessageLinked(LINK_SET, 0, firstName, (key)"fw_data:LB_Name_Top");
+        } else {
+            llMessageLinked(LINK_SET, 0, "", (key)"fw_data:LB_Name_Top");
+        }
     }
     
     touch_start(integer _n) {

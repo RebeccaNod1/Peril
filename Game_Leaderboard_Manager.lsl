@@ -149,6 +149,8 @@ startUpdateSequence(string pName, string pResult) {
 }
 
 default {
+    on_rez(integer _p) { llResetScript(); }
+    
     state_entry() {
         REPORT_MEMORY();
         dbg("⏳ [Leaderboard] Startup: Handshake link active.");
@@ -343,7 +345,7 @@ default {
             }
             string _p = " "; if (_offset > 0) _p = "[ < PREV ]";
             string _n = " "; if (_offset + 10 < _globalTotal) _n = "[ NEXT > ]";
-            llMessageLinked(LINK_SET, MSG_DISPLAY_LEADERBOARD, "COLUMNS|" + _rankCol + "|" + _nameCol + "|" + _statsCol + "|" + _p + "|" + _n, NULL_KEY);
+            llMessageLinked(LINK_SET, MSG_DISPLAY_LEADERBOARD, "COLUMNS|" + _rankCol + "|" + _nameCol + "|" + _statsCol + "|" + _p + "|" + _n + "|" + (string)_offset, NULL_KEY);
         }
         else if (num == MSG_LB_PAGE_NEXT) {
             integer _maxEntries = llGetListLength(leaderboardData) / 3;
@@ -366,6 +368,18 @@ default {
             
             if (str == "START_SYNC") {
                 loadLBPage(1);
+            }
+            else if (str == "WIPE" || str == "HARD_RESET") {
+                if (id != (key)GLOBAL_ADMIN) {
+                    llOwnerSay("🚫 [Security] Unauthorized WIPE attempt blocked from: " + (string)id);
+                    return;
+                }
+                // Soft Wipe: Clear all shards to empty in world datastore
+                integer _i;
+                for (_i = 1; _i <= MAX_LB_PAGES; _i++) {
+                    llUpdateKeyValue(LB_KEY_PREFIX + (string)_i, "", FALSE, "");
+                }
+                dbg("🚫 [Leaderboard Manager] GLOBAL WIPE: All 10 datastore shards have been set to empty.");
             }
             else if (str == "DEBUG_GENERATE" && llGetOwner() == llGetCreator()) {
                 generateShardedData();

@@ -1127,15 +1127,30 @@ default {
                     return;
                 }
                 if (msg == "Reset Leaderboard") {
-                    // CHANGED: Send to scoreboard, which will handle leaderboard reset
-                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "", NULL_KEY);
-                    dbg("🏆 Leaderboard scores reset - game wins cleared!");
+                    llDialog(id, "⚠️ WARNING: This will PERMANENTLY WIPE the World Ranking database (all 10 shards). Are you sure?", ["YES, WIPE LB", "NO, CANCEL"], DIALOG_CHANNEL);
+                    return;
+                }
+                if (msg == "YES, WIPE LB") {
+                    if (id != (key)GLOBAL_ADMIN) {
+                        llRegionSayTo(id, 0, "🚫 Access Denied: Only the Global Admin can perform this action.");
+                        return;
+                    }
+                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "WIPE", id); // Use 'id' to pass user key
+                    llOwnerSay("🏆 GLOBAL LEADERBOARD WIPE confirmed and executed.");
                     return;
                 }
                 if (msg == "Reset All") {
+                    llDialog(id, "⚠️ WARNING: This will factory reset the game AND permanently wipe the leaderboard. Are you sure?", ["YES, RESET ALL", "NO, CANCEL"], DIALOG_CHANNEL);
+                    return;
+                }
+                if (msg == "YES, RESET ALL") {
+                    if (id != (key)GLOBAL_ADMIN) {
+                        llRegionSayTo(id, 0, "🚫 Access Denied: Only the Global Admin can perform this action.");
+                        return;
+                    }
                     resetGame();
-                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "", NULL_KEY);
-                    dbg("🔄 Complete reset - game and leaderboard cleared!");
+                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "WIPE", id); // Use 'id' for security check
+                    llOwnerSay("🔄 FULL RESET confirmed and executed.");
                     return;
                 }
                 if (msg == "Memory Stats") {
