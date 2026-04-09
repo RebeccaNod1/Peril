@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Player Registration Manager ===
 // Handles all player registration, join/leave operations to reduce Main Controller memory usage
@@ -16,6 +16,12 @@ list readyPlayers = [];
 integer FLOATER_BASE_CHANNEL;
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;
+
+// Experience Sentinel Tracking
+key sentinelQueryID;
+integer EX_READY = FALSE;
+#define TIMER_XP_CHECK 1
+integer currentTimerMode = 0;
 
 integer resetInProgress = FALSE; // Lockout for reset syncs
 
@@ -54,6 +60,31 @@ publicMsg(string msg) {
 
 regionMsg(key player, string msg) {
     llMessageLinked(LINK_SET, MSG_REGION_MESSAGE, (string)player + "|" + msg, NULL_KEY);
+}
+
+// MOVED: Experience Sentinel Logic
+checkExperience() {
+    dbg("🔍 [RegMgr] Experience Sentinel: Starting functional diagnostics...");
+    
+    if (!llAgentInExperience(llGetOwner())) {
+        llOwnerSay("🛡️ [Peril Dice] LAND NOTICE: Experience 'Final Girlz I.N.C.' is NOT enabled on this land.");
+        llOwnerSay("⚠️ [Peril Dice] Automatic HUD attachments will FAIL. To fix this:");
+        llOwnerSay("👉 1. Right-click the ground -> 'About Land'");
+        llOwnerSay("👉 2. Go to the 'Experiences' tab.");
+        llOwnerSay("👉 3. Click the 'Add' button.");
+        llOwnerSay("👉 4. Search for 'Final Girlz I.N.C.' and click 'OK'.");
+        
+        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
+        llSetTimerEvent(10.0);
+        currentTimerMode = TIMER_XP_CHECK;
+    } else {
+        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ACTIVE. HUD Auto-attachment ready.");
+        EX_READY = TRUE;
+        
+        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
+        llSetTimerEvent(10.0);
+        currentTimerMode = TIMER_XP_CHECK;
+    }
 }
 
 // Handle player registration with all the complex logic moved here
@@ -153,12 +184,11 @@ handlePlayerRegistration(string regData, key requesterId) {
     llMessageLinked(LINK_SET, MSG_UPDATE_MAIN_LISTS, updateData, newKey);
     
     // Show appropriate menu to the new player
+    integer isStarter = (humanCount <= 1);
     if (newKey == llGetOwner()) {
-        integer isStarter = (humanCount <= 1);
         llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, newKey);
     } else {
         // NEW: Also show menu for non-owners immediately after registration
-        integer isStarter = (humanCount <= 1);
         llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, newKey);
     }
     
@@ -169,6 +199,7 @@ default {
     state_entry() {
         DISCOVER_CORE_LINKS();
         initializeChannels();
+        checkExperience();
         REPORT_MEMORY();
         dbg("🎯 [RegMgr] Player Registration Manager ready - discovery complete! Scoreboard: " + (string)LINK_SCOREBOARD);
     }
@@ -176,6 +207,7 @@ default {
     on_rez(integer start_param) {
         DISCOVER_CORE_LINKS();
         initializeChannels();
+        checkExperience();
         REPORT_MEMORY();
         dbg("🎯 [RegMgr] Player Registration Manager rezzed - resetting state...");
         // Reset local state
@@ -338,8 +370,20 @@ default {
     }
 
     timer() {
+        if (currentTimerMode == TIMER_XP_CHECK) {
+            // Diagnostic timer complete
+            llSetTimerEvent(0);
+            currentTimerMode = 0;
+            return;
+        }
         resetInProgress = FALSE;
         llSetTimerEvent(0);
         dbg("🎯 [RegMgr] Reset lockout complete - sync active.");
+    }
+
+    dataserver(key queryid, string data) {
+        if (queryid == sentinelQueryID) {
+            dbg("📡 [RegMgr] Experience KVP Heartbeat: " + data);
+        }
     }
 }

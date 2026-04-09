@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Main Controller - Peril Dice Game (Linkset Version) ===
 
@@ -184,32 +184,7 @@ checkMemoryUsage(string context) {
 // NOTE FOR FUTURE AI/DEVS: KVP (World Rankings) ONLY requires the script to be 
 // compiled with the Experience. Land-Scope whitelisting (llAgentInExperience) 
 // is ONLY required for HUD auto-attachments and Animations.
-checkExperience() {
-    dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional heartbeat...");
-    
-    // PROBE 1: Land-Scope Check (Crucial for HUD auto-attachment)
-    if (!llAgentInExperience(llGetOwner())) {
-        llOwnerSay("🛡️ [Peril Dice] LAND NOTICE: Experience 'Final Girlz I.N.C.' is NOT enabled on this land.");
-        llOwnerSay("⚠️ [Peril Dice] Automatic HUD attachments will FAIL. To fix this:");
-        llOwnerSay("👉 1. Right-click the ground -> 'About Land'");
-        llOwnerSay("👉 2. Go to the 'Experiences' tab.");
-        llOwnerSay("👉 3. Click the 'Add' button.");
-        llOwnerSay("👉 4. Search for 'Final Girlz I.N.C.' and click 'OK'.");
-        
-        // Silent probe for KVP (which works regardless)
-        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
-        llSetTimerEvent(10.0);
-        currentTimerMode = TIMER_XP_CHECK;
-    } else {
-        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ACTIVE. HUD Auto-attachment ready.");
-        EX_READY = TRUE;
-        
-        // Full KVP heartbeat
-        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
-        llSetTimerEvent(10.0);
-        currentTimerMode = TIMER_XP_CHECK;
-    }
-}
+// MOVED: checkExperience() - delegated to Player_RegistrationManager.lsl
 
 // Send status message to scoreboard using link messages
 sendStatusMessage(string status) {
@@ -333,8 +308,8 @@ resetGame() {
     llMessageLinked(LINK_SET, MSG_CLEAR_DICE, "", NULL_KEY);
     
     // Give other scripts time to finish their reset before starting sync
-    // INCREASED to 2.0s for high-speed Mono startup with Debug Logs OFF
-    llSleep(2.0); 
+    // INCREASED to 5.0s for high-speed Mono startup with Debug Logs OFF
+    llSleep(5.0); 
     
     // NEW: Trigger Leaderboard to reload rankings from KVP on reset
     llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "START_SYNC", NULL_KEY);
@@ -374,9 +349,7 @@ default {
         // Reset the game on startup to ensure clean state
         resetGame();
         
-        // Experience Sentinel check - Moved after reset to protect timer
-        llSleep(2.0); 
-        checkExperience();
+        // MOVED: checkExperience() - already called by Registration Management
         
         dbg("✅ Main Controller initialization complete!");
     }
@@ -396,8 +369,7 @@ default {
         // Reset the game to ensure clean state when rezzed
         resetGame();
         
-        // Experience Sentinel check - Moved after reset to protect timer
-        checkExperience();
+        // MOVED: checkExperience()
         
         dbg("✅ Main Controller reset complete after rez!");
     }
@@ -405,152 +377,10 @@ default {
     touch_start(integer total_number) {
         integer clickedLink = llDetectedLinkNumber(0);
         string clickedName = llGetLinkName(clickedLink);
-        
-        // Ensure core links are discovered to prevent misidentification
-        if (LINK_LEADERBOARD_BRIDGE == -1) { DISCOVER_CORE_LINKS(); }
-        
-        // IGNORE TOUCHES ON UI BRIDGES ONLY
-        // Always allow touch on Root (link 1) or any prim containing 'Scoreboard' or NOT containing 'FURWARE'
-        // ENHANCED: Also filter out click on Leaderboard elements which was causing redundant diagnostic logs
-        if (clickedLink != 1 && (llSubStringIndex(clickedName, "FURWARE") != -1 || llSubStringIndex(clickedName, "LB_") != -1)) {
-            dbg("🛑 [Touch Filter] Bypassing menu for Bridge element: " + clickedName);
-            return;
-        }
-        
         key toucher = llDetectedKey(0);
-        integer idx = llListFindList(players, [toucher]);
-        
-        // Enhanced disconnect/reconnect handling - check if this player should be picking
-        if (idx != -1 && toucher != llGetOwner() && roundStarted) {
-            string playerName = llList2String(names, idx);
-            
-            // ENHANCED: Check if this player is supposed to be the current picker based on game state
-            integer shouldBePicking = FALSE;
-            if (currentPickerIdx < llGetListLength(pickQueue)) {
-                string expectedPickerName = llList2String(pickQueue, currentPickerIdx);
-                if (playerName == expectedPickerName) {
-                    shouldBePicking = TRUE;
-                    // Fix corrupted currentPicker state
-                    if (currentPicker != toucher) {
-                        currentPicker = toucher;
-                    }
-                }
-            }
-            
-            // FALLBACK: If game is stuck and no one is set as current picker, but we're in pick phase,
-            // let any registered player attempt to resume (with owner confirmation)
-            if (!shouldBePicking && currentPicker == NULL_KEY && currentPickerIdx < llGetListLength(pickQueue)) {
-                if (toucher == llGetOwner()) {
-                    currentPicker = toucher;
-                    shouldBePicking = TRUE;
-                }
-            }
-            
-            // Check for dialog recovery (original logic OR enhanced detection)
-            if (currentPicker == toucher || shouldBePicking) {
-                llSay(0, "🔄 " + playerName + " - Welcome back! Restoring your number picking dialog...");
-                llMessageLinked(LINK_SET, MSG_GET_CURRENT_DIALOG, playerName, toucher);
-                return;
-            }
-            else if (playerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
-                llSay(0, "🔄 " + playerName + " - Welcome back! Restoring your roll dialog...");
-                llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, perilPlayer, toucher);
-                return;
-            }
-        }
 
-        // Special handling for owner during gameplay
-        if (toucher == llGetOwner() && roundStarted) {
-            string ownerName = getPlayerName(toucher);
-            list options = [];
-            string menuText = "Game in progress. What would you like to do?";
-            
-            integer hasActiveDialog = FALSE;
-            if (currentPicker == toucher) {
-                options += ["🔄 Recover Pick Dialog"];
-                hasActiveDialog = TRUE;
-            }
-            if (ownerName == perilPlayer && currentPickerIdx >= llGetListLength(pickQueue)) {
-                options += ["🔄 Recover Roll Dialog"];
-                hasActiveDialog = TRUE;
-            }
-            
-            options += ["🔧 Admin Menu"];
-            
-            if (!hasActiveDialog) {
-                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", toucher);
-                return;
-            }
-            
-            llDialog(toucher, menuText, options, DIALOG_CHANNEL);
-            return;
-        }
-        
-        if (toucher == llGetOwner()) {
-            dbg("🔍 [DEBUG] Owner touched - idx: " + (string)idx + ", players list: " + llList2CSV(players));
-            if (idx == -1) {
-                // Owner is not in game - show join/admin choice
-                if (llListFindList(pendingRegistrations, [toucher]) != -1) {
-                    dbg("⏳ Registration already in progress for " + getPlayerName(toucher));
-                    return;
-                }
-                
-                // Owner is not in game - determine menu type based on player count
-                if (llGetListLength(players) >= 2) {
-                    // Enough players for game - show starter menu
-                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "unregistered_owner_starter|1", toucher);
-                } else {
-                    // Not enough players - show basic menu
-                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "unregistered_owner|0", toucher);
-                }
-            } else {
-                // Owner is already in game - show player menu with appropriate starter status
-                integer isStarter = TRUE;
-                integer k;
-                for (k = 0; k < idx && isStarter; k++) {
-                    string existingName = llList2String(names, k);
-                    if (llSubStringIndex(existingName, "Bot") != 0) {
-                        isStarter = FALSE;
-                    }
-                }
-                if (idx == 0) {
-                    isStarter = TRUE;
-                }
-                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
-            }
-        } else if (idx != -1) {
-            // Non-owner player who is already registered
-            integer isStarter = TRUE;
-            integer m;
-            for (m = 0; m < idx && isStarter; m++) {
-                string existingName = llList2String(names, m);
-                if (llSubStringIndex(existingName, "Bot") != 0) {
-                    isStarter = FALSE;
-                }
-            }
-            llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
-        } else {
-            string playerName = getPlayerName(toucher);
-            if (playerName != "") {
-                if (llListFindList(pendingRegistrations, [toucher]) != -1) {
-                    dbg("⏳ Registration already in progress for " + playerName);
-                    return;
-                }
-                
-                pendingRegistrations += [toucher];
-                llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, playerName + "|" + (string)toucher, NULL_KEY);
-                
-                integer isStarter = TRUE;
-                integer n;
-                for (n = 0; n < llGetListLength(names) && isStarter; n++) {
-                    string existingName = llList2String(names, n);
-                    if (llSubStringIndex(existingName, "Bot") != 0) {
-                        isStarter = FALSE;
-                    }
-                }
-                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
-            }
-        }
+        // DELIVER: Forward touch event to Dialog Handler to save bytecode in Main
+        llMessageLinked(LINK_SET, MSG_TOUCH_EVENT, (string)clickedLink + "|" + clickedName, toucher);
     }
 
     link_message(integer sender, integer num, string str, key id) {
@@ -618,224 +448,35 @@ default {
         }
         
         // Handle elimination requests
-        if (num == MSG_ELIMINATE_PLAYER) {
-            list parts = llParseString2List(str, ["|"], []);
-            if (llList2String(parts, 0) == "ELIMINATE_PLAYER") {
-                string eliminatedPlayer = llList2String(parts, 1);
-                integer idx = llListFindList(names, [eliminatedPlayer]);
-                if (idx != -1) {
-                    // NEW: Only announce elimination if it's not the end of the game (winner)
-                    if (llGetListLength(names) > 1) {
-                        sendStatusMessage("PLAYER STRUCK!\n" + eliminatedPlayer + " has been eliminated!");
+        // MOVED: MSG_ELIMINATE_PLAYER logic - delegated to Game_Manager.lsl
+        // Process ONLY the final list cleanup here after Game Manager finishes visuals
+        if (num == MSG_PROCESS_ELIMINATION) {
+            string eliminatedPlayer = str;
+            integer idx = llListFindList(names, [eliminatedPlayer]);
+            if (idx != -1) {
+                // Remove from indexed lists
+                players = llDeleteSubList(players, idx, idx);
+                names = llDeleteSubList(names, idx, idx);
+                lives = llDeleteSubList(lives, idx, idx);
+                floaterChannels = llDeleteSubList(floaterChannels, idx, idx);
+                
+                // Remove from picksData
+                integer pickIdx = -1;
+                integer p;
+                for (p = 0; p < llGetListLength(picksData); p++) {
+                    string entry = llList2String(picksData, p);
+                    if (llSubStringIndex(entry, eliminatedPlayer + "|") == 0) {
+                        pickIdx = p;
+                        jump found_pick_entry;
                     }
-                    
-                    // FIRST: Set the player's lives to 0 and show 0 hearts
-                    lives = llListReplaceList(lives, [0], idx, idx);
-                    
-                    // Send ONLY a direct scoreboard update to show 0 hearts
-                    llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, 
-                                   eliminatedPlayer + "|0|" + (string)llList2Key(players, idx), NULL_KEY);
-                    
-                    // RECORD LOSS: Send eliminated player to World Ranking database
-                    llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, eliminatedPlayer + "|LOSS", NULL_KEY);
-                    
-                    // CRITICAL: Check for victory condition BEFORE assigning new peril player
-                    integer willCauseVictory = (llGetListLength(names) <= 2); // After removing one player
-                    string potentialWinner = "";
-                    
-                    if (willCauseVictory) {
-                        // Find the winner (the remaining non-eliminated player)
-                        integer w;
-                        for (w = 0; w < llGetListLength(names); w++) {
-                            string candidateName = llList2String(names, w);
-                            if (candidateName != eliminatedPlayer) {
-                                potentialWinner = candidateName;
-                                jump found_winner;
-                            }
-                        }
-                        @found_winner;
-                        
-                        if (potentialWinner != "") {
-                            // NEW: Broadcast sync BEFORE redraw to ensure Floater Manager has fresh heart count
-                            syncGameState();
-                            
-                            // SEND WINNER GLOW to scoreboard and trigger floater update
-                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
-                            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, potentialWinner, NULL_KEY);  // Update winner's floater
-                            dbg("🏆 [Main Controller] Pre-victory winner glow sent for: " + potentialWinner);
-                        }
-                    }
-                    
-                    // Only assign new peril player if NOT causing victory
-                    if (!willCauseVictory && (perilPlayer == eliminatedPlayer || perilPlayer == "")) {
-                        // Find first remaining alive player to be new peril player (before removing eliminated player)
-                        string newPerilPlayer = "";
-                        integer k;
-                        for (k = 0; k < llGetListLength(names) && newPerilPlayer == ""; k++) {
-                            string candidateName = llList2String(names, k);
-                            if (candidateName != eliminatedPlayer) { // Skip the player being eliminated
-                                integer candidateIdx = llListFindList(names, [candidateName]);
-                                if (candidateIdx != -1 && candidateIdx < llGetListLength(lives)) {
-                                    integer candidateLives = llList2Integer(lives, candidateIdx);
-                                    if (candidateLives > 0) {
-                                        newPerilPlayer = candidateName;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (newPerilPlayer != "") {
-                            perilPlayer = newPerilPlayer;
-                            // Send peril player update to scoreboard for glow effect
-                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPerilPlayer, NULL_KEY);
-                        } else {
-                            perilPlayer = "NONE";
-                            // Clear peril player glow on scoreboard
-                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, "", NULL_KEY);
-                        }
-                    }
-                    
-                    // UNIFIED SYNC: Replaces inline sync calls to prevent language rift
-                    syncGameState();
-                    
-                    // Direct floater update to ensure eliminated status is displayed
-                    llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, eliminatedPlayer, llList2Key(players, idx));
-                    llSleep(DELAY_ELIMINATION_NOTICE); // Give floater time to show eliminated status with red display
-                    
-                    if (willCauseVictory) {
-                        // If this elimination will cause victory, give extra time for 0 hearts display
-                        llSleep(DELAY_VICTORY_NOTICE); // Additional time for victory scenarios
-                    }
-                    
-                    // CHANGED: Don't cleanup floaters during elimination - let them show eliminated status
-                    // The floater will show red glow + "ELIMINATED!" and stay visible until game end
-                    // integer ch = llList2Integer(floaterChannels, idx);
-                    // llMessageLinked(LINK_SET, MSG_CLEANUP_FLOAT, (string)ch, NULL_KEY);
-                    // llSleep(0.3); // Give floater time to cleanup
-                    
-                    // CRITICAL: Remove eliminated player's picks data by searching for their entry
-                    // NOT by index, since picksData format is "PlayerName|picks" strings
-                    integer pickIdx = -1;
-                    integer p;
-                    for (p = 0; p < llGetListLength(picksData); p++) {
-                        string entry = llList2String(picksData, p);
-                        if (llSubStringIndex(entry, eliminatedPlayer + "|") == 0) {
-                            pickIdx = p;
-                            jump found_pick_entry;
-                        }
-                    }
-                    @found_pick_entry;
-                    if (pickIdx != -1) {
-                        picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
-                    }
-                    
-                    // Now remove from indexed lists (players, names, lives, floaterChannels)
-                    players = llDeleteSubList(players, idx, idx);
-                    names = llDeleteSubList(names, idx, idx);
-                    lives = llDeleteSubList(lives, idx, idx);
-                    floaterChannels = llDeleteSubList(floaterChannels, idx, idx);
-                    
-                    // NEW: FINAL SYNC - Tell everyone the list has actually SHRUNK now
-                    // This prevents "Zombie Respawns" and "Ghost Heals"
-                    syncGameState();
-                    
-                    // Peril player assignment already handled before sync message was sent
-                    
-                    // CHANGED: Send to scoreboard, which will handle leaderboard updates
-                    llMessageLinked(LINK_SCOREBOARD, MSG_GAME_LOST, eliminatedPlayer, NULL_KEY);
-                    
-                    // Status message now sent directly by Roll Module
-                    
-                    // Check for victory condition BEFORE calling updateHelpers()
-                    if (llGetListLength(names) <= 1) {
-                        if (llGetListLength(names) == 1) {
-                            string winner = llList2String(names, 0);
-                            
-                            // ENHANCED: Give eliminated player's floater time to show eliminated status
-                            // before declaring victory and cleaning up
-                            dbg("⏳ [Main Controller] Final elimination detected - allowing display time before victory");
-                            llSleep(DELAY_ELIMINATION_NOTICE); // Give final eliminated player time to show red eliminated status
-                            
-                            // CRITICAL: Set victory flag immediately to prevent sync processing
-                            victoryInProgress = TRUE;
-                            
-                            // CRITICAL: Clear all game state immediately before any sync messages
-                            // This prevents broadcasting stale winner data to other scripts
-                            players = [];
-                            names = [];
-                            lives = [];
-                            picksData = [];
-                            perilPlayer = "";
-                            pickQueue = [];
-                            currentPickerIdx = 0;
-                            roundStarted = FALSE;
-                            gameStarting = FALSE;
-                            currentPicker = NULL_KEY;
-                            
-                            llSay(0, "✨ ULTIMATE VICTORY! " + winner + " is the Ultimate Survivor!");
-                            
-                            // NEW: Send victory status to board and display winner name!
-                            sendStatusMessage("Victory"); 
-                            llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "=== ULTIMATE VICTORY ===\n<!c=white>" + winner + " wins!", NULL_KEY);
-                            
-                            llMessageLinked(LINK_SET, MSG_PLAYER_WON, winner, NULL_KEY);
-                            llMessageLinked(LINK_SET, MSG_EFFECT_CONFETTI, "VICTORY_CONFETTI", NULL_KEY);
-                            
-                            // IMPORTANT: Send winner update to scoreboard and trigger floater update
-                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, winner, NULL_KEY);
-                            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, winner, NULL_KEY);  // Update winner's floater
-                            
-                            // RECORD WIN: Send ultimate survivor to World Ranking database
-                            llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, winner + "|WIN", NULL_KEY);
-                            
-                            // CHANGED: Send to scoreboard, which will handle visual updates (no more duplicate records)
-                            llMessageLinked(LINK_SCOREBOARD, MSG_GAME_WON, winner, NULL_KEY);
-                            
-                            // Use timer instead of llSleep to avoid immediate reset
-                            dbg("🏆 [Main Controller] Winner glow applied - starting victory delay timer");
-                            victoryDelayTimer = llGetUnixTime();
-                            currentTimerMode = TIMER_VICTORY_DELAY;
-                            llSetTimerEvent(1.0);  // Check every second
-                            return;  // Exit here - timer will handle reset
-                        } else {
-                            // CRITICAL: Set victory flag and clear state for no survivors scenario too
-                            victoryInProgress = TRUE;
-                            players = [];
-                            names = [];
-                            lives = [];
-                            picksData = [];
-                            perilPlayer = "";
-                            pickQueue = [];
-                            currentPickerIdx = 0;
-                            roundStarted = FALSE;
-                            gameStarting = FALSE;
-                            currentPicker = NULL_KEY;
-                            
-                            llSay(0, "💀 DESPAIR WINS! No Ultimate Survivors remain!");
-                            
-                            // Use timer for no survivors scenario too
-                            victoryDelayTimer = llGetUnixTime();
-                            currentTimerMode = TIMER_VICTORY_DELAY;
-                            llSetTimerEvent(1.0);
-                            return;
-                        }
-                    }
-                    
-                    // CRITICAL: After elimination, sync state and continue game with new peril player
-                    if (perilPlayer != "" && perilPlayer != "NONE") {
-                        // Sync the updated game state to all modules (4-part format)
-                        // Optimized to avoid large temporary string variables
-                        llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
-                            llList2CSV(lives) + "~EMPTY~" + perilPlayer + "~" + llList2CSV(names), NULL_KEY);
-                        llSleep(DELAY_SYNC_PROPAGATION); // Give sync time to propagate
-                        
-                        // Continue the game with the new peril player - delegate to Game Manager
-                        llMessageLinked(LINK_SET, 998, perilPlayer, NULL_KEY);
-                    }
-                    
-                    // MINIMAL: Only send direct scoreboard update for remaining players
-                    // Skip heavy updateHelpers() calls to prevent memory crashes
                 }
+                @found_pick_entry;
+                if (pickIdx != -1) {
+                    picksData = llDeleteSubList(picksData, pickIdx, pickIdx);
+                }
+                
+                syncGameState();
+                dbg("🎯 [Main Controller] Deep Cleanup Complete: " + eliminatedPlayer + " purged from state.");
             }
             return;
         }
@@ -929,37 +570,35 @@ default {
         
         // Handle ready state queries
         if (num == MSG_QUERY_READY_STATE) {
-            list queryParts = llParseString2List(str, ["|"], []);
-            string playerName;
-            integer requestID = 0;
+            list qParts = llParseString2List(str, ["|"], []);
+            string qPlayerName;
+            integer qRequestID = 0;
             
-            if (llGetListLength(queryParts) >= 2) {
-                playerName = llList2String(queryParts, 0);
-                requestID = (integer)llList2String(queryParts, 1);
+            if (llGetListLength(qParts) >= 2) {
+                qPlayerName = llList2String(qParts, 0);
+                qRequestID = (integer)llList2String(qParts, 1);
             } else {
-                playerName = str;
+                qPlayerName = str;
             }
             
-            integer isReady = llListFindList(readyPlayers, [playerName]) != -1;
-            integer isBot = llSubStringIndex(playerName, "Bot") == 0;
-            string result = playerName + "|" + (string)isReady + "|" + (string)isBot + "|" + (string)requestID;
-            llMessageLinked(LINK_SET, MSG_READY_STATE_RESULT, result, id);
+            integer isReady = llListFindList(readyPlayers, [qPlayerName]) != -1;
+            integer isBot = llSubStringIndex(qPlayerName, "Bot") == 0;
+            string resultStr = qPlayerName + "|" + (string)isReady + "|" + (string)isBot + "|" + (string)qRequestID;
+            llMessageLinked(LINK_SET, MSG_READY_STATE_RESULT, resultStr, id);
             return;
         }
         
         // Handle owner status queries
         if (num == MSG_QUERY_OWNER_STATUS) {
-            list queryParts = llParseString2List(str, ["|"], []);
-            string ownerName;
-            integer requestID = 0;
+            list osParts = llParseString2List(str, ["|"], []);
+            string osName;
+            integer osRequestID = 0;
             
-            // Owner status check (Now fully automated via on_rez / reset)
-            
-            if (llGetListLength(queryParts) >= 2) {
-                ownerName = llList2String(queryParts, 0);
-                requestID = (integer)llList2String(queryParts, 1);
+            if (llGetListLength(osParts) >= 2) {
+                osName = llList2String(osParts, 0);
+                osRequestID = (integer)llList2String(osParts, 1);
             } else {
-                ownerName = str;
+                osName = str;
             }
             
             // Check if owner is registered
@@ -983,7 +622,7 @@ default {
                 }
             }
             
-            string result = ownerName + "|" + (string)isRegistered + "|" + (string)isPending + "|" + (string)isStarter + "|" + (string)requestID;
+            string result = osName + "|" + (string)isRegistered + "|" + (string)isPending + "|" + (string)isStarter + "|" + (string)osRequestID;
             llMessageLinked(LINK_SET, MSG_OWNER_STATUS_RESULT, result, id);
             return;
         }
@@ -1313,8 +952,8 @@ default {
                 
                 llSay(0, "⚡ ALL PARTICIPANTS READY! THE DEADLY PERIL DICE GAME BEGINS! ⚡");
                 
-                integer actualPlayerCount = llGetListLength(names);
-                llSetText("🎮 GAME IN PROGRESS\n" + (string)actualPlayerCount + " players", <1.0, 0.2, 0.2>, 1.0);
+                integer currentLiveCount = llGetListLength(names);
+                llSetText("🎮 GAME IN PROGRESS\n" + (string)currentLiveCount + " players", <1.0, 0.2, 0.2>, 1.0);
                 
                 // FIXED: Use proper announcement instead of internal texture name "Title"
                 sendStatusMessage("GAME STARTING!\nAll players are ready!");

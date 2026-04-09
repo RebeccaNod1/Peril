@@ -97,7 +97,7 @@ list        setDataList;    // Strided list of display set data.
 // Per-prim data
 list        primLinkList;   // List of the prims' link indices
 list        primFillList;   // Tells us which faces are showing non-blanks.
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 list        primLayerList;  // Contains layer assignments for each face.
 

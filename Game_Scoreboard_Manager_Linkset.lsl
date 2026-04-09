@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // =============================================================================
 // PERIL SCOREBOARD - GRID DISPLAY MANAGER (v3.2.7 Final)

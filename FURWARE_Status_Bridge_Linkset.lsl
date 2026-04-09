@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // =============================================================================
 // FURWARE STATUS BRIDGE - Dynamic Game Info Display

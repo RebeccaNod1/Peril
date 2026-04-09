@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === System Debugger - Game State Validation ===
 // Validates game state consistency and reports issues

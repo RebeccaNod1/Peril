@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Game Calculator Module (Max 10 players) ===
 // Calculates dice types, pick requirements, and other game mechanics

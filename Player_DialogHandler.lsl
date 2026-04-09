@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Dialog Handler (Owner & Player) with unified Ready/Leave menu and join support ===
 
@@ -88,6 +88,11 @@ list troubleshootingOptions = ["Cleanup Floaters", "Force Floaters", "⬅️ Bac
 
 // State tracking for dynamic ready menu with race condition protection
 key pendingMenuPlayer = NULL_KEY;
+integer roundStarted = FALSE;
+list players = [];
+list names = [];
+list readyPlayers = [];
+list pendingRegistrations = []; // Local track of registration attempts
 integer pendingMenuIsStarter = FALSE;
 integer pendingMenuIsOwner = FALSE;
 integer pendingMenuRequestID = 0;      // Unique ID for each menu request
@@ -404,6 +409,63 @@ default {
             return;
         }
         
+        // --- TOP LEVEL EVENT HANDLERS ---
+        if (num == MSG_TOUCH_EVENT) {
+            list parts = llParseString2List(str, ["|"], []);
+            integer clickedLink = (integer)llList2String(parts, 0);
+            string clickedName = llList2String(parts, 1);
+            key toucher = id;
+            if (clickedLink != 1 && (llSubStringIndex(clickedName, "FURWARE") != -1 || llSubStringIndex(clickedName, "LB_") != -1)) return;
+            integer idx = llListFindList(players, [toucher]);
+            if (roundStarted) {
+                if (toucher == llGetOwner()) { llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|0", toucher); return; }
+                if (idx != -1) { llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|0", toucher); return; }
+            }
+            if (toucher == llGetOwner()) {
+                if (idx == -1) {
+                    if (llListFindList(pendingRegistrations, [toucher]) != -1) return;
+                    if (llGetListLength(players) >= 2) llMessageLinked(LINK_SET, MSG_SHOW_MENU, "unregistered_owner_starter|1", toucher);
+                    else llMessageLinked(LINK_SET, MSG_SHOW_MENU, "unregistered_owner|0", toucher);
+                } else {
+                    integer isStarter = (idx == 0); 
+                    llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, toucher);
+                }
+            } else if (idx != -1) {
+                integer isStarter = (idx == 0);
+                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, toucher);
+            } else {
+                string playerName = llGetDisplayName(toucher);
+                if (playerName == "") playerName = llKey2Name(toucher);
+                if (llListFindList(pendingRegistrations, [toucher]) == -1) {
+                    pendingRegistrations += [toucher];
+                    if (llGetListLength(pendingRegistrations) > 10) pendingRegistrations = llDeleteSubList(pendingRegistrations, 0, 0);
+                    llMessageLinked(LINK_SET, MSG_REGISTER_PLAYER_REQUEST, playerName + "|" + (string)toucher, NULL_KEY);
+                }
+                llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|0", toucher);
+            }
+            return;
+        }
+        if (num == MSG_SYNC_GAME_STATE) {
+            list parts = llParseStringKeepNulls(str, ["~"], []);
+            if (llGetListLength(parts) >= 4) names = llCSV2List(llList2String(parts, 3));
+            return;
+        }
+        
+        if (num == MSG_UPDATE_MAIN_LISTS) {
+            if (llSubStringIndex(str, "READY_LIST|") == 0) readyPlayers = llCSV2List(llGetSubString(str, 11, -1));
+            else {
+                list parts = llParseString2List(str, ["~"], []);
+                if (llGetListLength(parts) >= 2 && llListFindList(players, [id]) == -1) players += [id];
+            }
+            return;
+        }
+
+        if (num == MSG_RESET_ALL) {
+            players = []; names = []; readyPlayers = []; pendingRegistrations = [];
+            roundStarted = FALSE;
+            return;
+        }
+        
         if (num == MSG_SHOW_MENU) {
             dbg("🕵️ [Dialog Handler] Received MSG_SHOW_MENU (" + str + ") from script link/sender: " + (string)sender + ", ID: " + (string)id);
             list args = llParseString2List(str, ["|"], []);
@@ -414,44 +476,33 @@ default {
             string targetType = llList2String(args, 0);
             integer isStarter = (integer)llList2String(args, 1);
             if (targetType == "owner") {
-                // Both starter and non-starter owners get ready/leave menu with Owner button
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "registered_owner") {
-                // Registered owner gets ready/leave menu with Owner button
                 showReadyLeaveMenu(id, isStarter, TRUE);
             } else if (targetType == "player") {
                 showReadyLeaveMenu(id, isStarter, FALSE);
             } else if (targetType == "admin") {
-                // Show admin category menu directly
                 showOwnerMenu(id);
             } else if (targetType == "unregistered_owner") {
-                // Unregistered owner - basic menu (join, owner menu)
                 showUnregisteredOwnerMenu(id, FALSE);
             } else if (targetType == "unregistered_owner_starter") {
-                // Unregistered owner with enough players to start game
                 showUnregisteredOwnerMenu(id, TRUE);
             }
         }
         else if (num == MSG_READY_STATE_RESULT) {
-            // Parse ready state response and show appropriate menu
             list parts = llParseString2List(str, ["|"], []);
             if (llGetListLength(parts) >= 4) {
                 string playerName = llList2String(parts, 0);
                 integer isReady = (integer)llList2String(parts, 1);
                 integer isBot = (integer)llList2String(parts, 2);
                 integer responseRequestID = (integer)llList2String(parts, 3);
-                
-                // Validate that this response matches our pending request
                 if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
-                    // Check for timeout
                     if ((llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
                         dbg("⏰ Menu request timed out, ignoring response");
                         pendingMenuPlayer = NULL_KEY;
                         return;
                     }
-                    
                     showReadyLeaveMenuWithState(pendingMenuPlayer, pendingMenuIsStarter, pendingMenuIsOwner, isReady, isBot);
-                    // Reset pending state ONLY after successfully showing the dialog
                     pendingMenuPlayer = NULL_KEY;
                     pendingMenuRequestID = 0;
                 }
@@ -465,29 +516,16 @@ default {
             dbg("📋 Fetching list of players for pick management...");
             showPickManageMenu(id, playerNames);
         }
-        // Handle player list result for kick functionality
         else if (num == MSG_REQUEST_PLAYER_LIST_KICK) {
-            dbg("🔍 [Dialog Handler] Received kick player list string: '" + str + "'");
             list rawNames = llParseString2List(str, [","], []);
-            dbg("🔍 [Dialog Handler] Raw parsed into " + (string)llGetListLength(rawNames) + " names: " + llList2CSV(rawNames));
-            
-            // Filter out any command strings that might have gotten mixed in
             list playerNames = [];
             integer i;
             for (i = 0; i < llGetListLength(rawNames); i++) {
                 string name = llStringTrim(llList2String(rawNames, i), STRING_TRIM);
-                // Skip empty names and command strings
-                if (name != "" && 
-                    llSubStringIndex(name, "REQUEST_") != 0 &&
-                    llSubStringIndex(name, "COMMAND_") != 0 &&
-                    llSubStringIndex(name, "MSG_") != 0) {
+                if (name != "" && llSubStringIndex(name, "REQUEST_") != 0 && llSubStringIndex(name, "COMMAND_") != 0 && llSubStringIndex(name, "MSG_") != 0) {
                     playerNames += [name];
-                } else {
-                    dbg("⚠️ [Dialog Handler] Filtered out invalid name: '" + name + "'");
                 }
             }
-            
-            dbg("🔍 [Dialog Handler] Filtered to " + (string)llGetListLength(playerNames) + " valid names: " + llList2CSV(playerNames));
             showKickPlayerMenu(id, playerNames);
         }
         else if (num == MSG_PICK_LIST_RESULT) {
@@ -495,11 +533,8 @@ default {
             string returnedName = llList2String(parts, 0);
             string picks = llList2String(parts, 1);
             if (llStringTrim(returnedName, STRING_TRIM) == llStringTrim(currentPickTarget, STRING_TRIM)) {
-                dbg("✅ Matched pick list for: " + returnedName);
                 currentPickList = llCSV2List(picks);
                 llMessageLinked(LINK_THIS, MSG_LIFE_LOOKUP_REQUEST, currentPickTarget, id);
-            } else {
-                dbg("❌ Name mismatch: got " + returnedName + " but expected " + currentPickTarget);
             }
         }
         else if (num == MSG_LIFE_LOOKUP_REQUEST) {
@@ -510,7 +545,6 @@ default {
             }
         }
         else if (num == MSG_OWNER_STATUS_RESULT) {
-            // Parse owner status response and show appropriate menu
             list parts = llParseString2List(str, ["|"], []);
             if (llGetListLength(parts) >= 5) {
                 string ownerName = llList2String(parts, 0);
@@ -518,45 +552,23 @@ default {
                 integer isPending = (integer)llList2String(parts, 2);
                 integer isStarter = (integer)llList2String(parts, 3);
                 integer responseRequestID = (integer)llList2String(parts, 4);
-                
-                // Validate that this response matches our pending request
                 if (pendingMenuPlayer == id && responseRequestID == pendingMenuRequestID) {
-                    // Check for timeout
                     if ((llGetTime() - pendingMenuTimestamp) > MENU_REQUEST_TIMEOUT) {
-                        dbg("⏰ Owner status query timed out, ignoring response");
                         pendingMenuPlayer = NULL_KEY;
                         return;
                     }
-                    
-                    // Decide which menu to show based on registration status
                     if (isRegistered) {
-                        // Owner is registered - show ready/leave menu with Owner button
-                        dbg("🔍 [Debug] Owner is registered, isStarter=" + (string)isStarter + ", showing ready/leave menu");
-                        dbg("🔍 [Debug] About to call showReadyLeaveMenu with id=" + (string)id + ", isStarter=" + (string)isStarter + ", isOwner=TRUE");
-                        
-                        // DON'T reset pending state here - showReadyLeaveMenu needs it!
-                        // The ready state handler will reset it when the dialog is shown
                         showReadyLeaveMenu(id, isStarter, TRUE);
-                        dbg("🔍 [Debug] showReadyLeaveMenu call completed");
                     } else if (isPending) {
                         llRegionSayTo(id, 0, "⏳ Registration already in progress for " + ownerName);
-                        // Reset pending state for non-registered responses
                         pendingMenuPlayer = NULL_KEY;
                         pendingMenuRequestID = 0;
                     } else {
-                        // Owner is not registered - show join/admin choice menu
-                        list options = ["Join Game", "Owner Menu"];
-                        string menuText = "👑 Owner Options:\n\n🎮 Join Game - Register as a player\n🔧 Owner Menu - Admin functions without joining";
-                        llDialog(id, menuText, options, DIALOG_CHANNEL);
-                        // Reset pending state for non-registered responses
+                        showUnregisteredOwnerMenu(id, (llGetListLength(players) >= 2));
                         pendingMenuPlayer = NULL_KEY;
                         pendingMenuRequestID = 0;
                     }
-                } else {
-                    dbg("⚠️ Owner status response mismatch - ignoring");
                 }
-            } else {
-                dbg("⚠️ Invalid owner status result format - expected 5 parts, got " + (string)llGetListLength(parts));
             }
             return;
         }

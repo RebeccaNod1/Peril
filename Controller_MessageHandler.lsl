@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Controller Message Handler Helper Script ===
 // Handles non-critical message processing for the Main Controller

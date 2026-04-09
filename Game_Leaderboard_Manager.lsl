@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 debugMsg(string msg) {
     if (DEBUG_LOGS) llMessageLinked(LINK_SET, MSG_DEBUG_TEXT, msg, NULL_KEY);
@@ -95,7 +95,7 @@ generateShardedData() {
 }
 
 loadLBPage(integer pageNum) {
-    if ((isBusy || isSaving || isLocking) && pageNum == 1) {
+    if ((isBusy || isSaving) && pageNum == 1) {
         dbg("⏳ [Leaderboard] Sync requested while Busy/Saving. Ignoring duplicate reset.");
         return; 
     }
@@ -113,8 +113,8 @@ loadLBPage(integer pageNum) {
     
     if (kvpReadReq == NULL_KEY) {
         dbg("⚠️ [Leaderboard] KVP Request FAILED (Throttle/NULL_KEY). Retrying " + keyName + " in 2s...");
-        isBusy = FALSE; // Unlock for retry
-        llSetTimerEvent(2.0); // Use timer to trigger the retry
+        // KEEP isBusy = TRUE to prevent collisions during retry
+        llSetTimerEvent(2.0); 
         return;
     }
     
@@ -147,14 +147,14 @@ updatePlayerRecord(string pName, string pResult) {
         if (pResult == "WIN") leaderboardData += [1, 0, pName];
         else leaderboardData += [0, 1, pName];
     } else {
-        integer _base = _idx - 2;
-        integer _v;
+        integer _updBase = _idx - 2;
+        integer _updVal;
         if (pResult == "WIN") {
-            _v = llList2Integer(leaderboardData, _base);
-            leaderboardData = llListReplaceList(leaderboardData, [_v + 1], _base, _base);
+            _updVal = llList2Integer(leaderboardData, _updBase);
+            leaderboardData = llListReplaceList(leaderboardData, [_updVal + 1], _updBase, _updBase);
         } else {
-            _v = llList2Integer(leaderboardData, _base + 1);
-            leaderboardData = llListReplaceList(leaderboardData, [_v + 1], _base+1, _base+1);
+            _updVal = llList2Integer(leaderboardData, _updBase + 1);
+            leaderboardData = llListReplaceList(leaderboardData, [_updVal + 1], _updBase + 1, _updBase + 1);
         }
     }
     
@@ -234,16 +234,16 @@ default {
                         string _rawEntry = llList2String(_ent, _ei);
                         if (llSubStringIndex(_rawEntry, ",") != -1) {
                             // NEW FORMAT: Wins,Losses,Name
-                            list _it = llParseString2List(_rawEntry, [","], []);
-                            if (llGetListLength(_it) >= 3) {
-                                leaderboardData += [(integer)llList2String(_it, 0), (integer)llList2String(_it, 1), llList2String(_it, 2)];
+                            list _itNew = llParseString2List(_rawEntry, [","], []);
+                            if (llGetListLength(_itNew) >= 3) {
+                                leaderboardData += [(integer)llList2String(_itNew, 0), (integer)llList2String(_itNew, 1), llList2String(_itNew, 2)];
                             }
                         } else {
                             // OLD LEGACY FORMAT: Name:Wins:Losses
-                            list _it = llParseString2List(_rawEntry, [":"], []);
-                            if (llGetListLength(_it) >= 3) {
+                            list _itOld = llParseString2List(_rawEntry, [":"], []);
+                            if (llGetListLength(_itOld) >= 3) {
                                 // Translate to new stride structure in memory
-                                leaderboardData += [(integer)llList2String(_it, 1), (integer)llList2String(_it, 2), llList2String(_it, 0)];
+                                leaderboardData += [(integer)llList2String(_itOld, 1), (integer)llList2String(_itOld, 2), llList2String(_itOld, 0)];
                             }
                         }
                     }
@@ -253,40 +253,54 @@ default {
                     retryCount = 0; // Reset retries for next page
                     loadLBPage(currentLoadPage + 1);
                 } else {
-                    if (isBusy) {
-                        isBusy = FALSE;
-                        llSetTimerEvent(0);
-                        dbg("🏆 [Leaderboard] SYNC COMPLETE - " + (string)(llGetListLength(leaderboardData)/3) + " players.");
-                        llMessageLinked(LINK_SET, MSG_LB_LOAD_COMPLETE, "", NULL_KEY);
-                        llMessageLinked(LINK_SET, MSG_LB_REQUEST_DISPLAY, "0", NULL_KEY); // Show page 1
-                    }
+                    // SYNC COMPLETE (Natural end)
+                    llSetTimerEvent(0);
+                    dbg("🏆 [Leaderboard] SYNC COMPLETE - " + (string)(llGetListLength(leaderboardData)/3) + " players.");
+                    llMessageLinked(LINK_SET, MSG_LB_LOAD_COMPLETE, "", NULL_KEY);
+                    llMessageLinked(LINK_SET, MSG_LB_REQUEST_DISPLAY, "0", NULL_KEY); // Show page 1
                     
-                    // IF WE WERE SYNCING FOR AN UPDATE, APPLY IT NOW
-                    if (isSaving && llGetListLength(pendingRecords) > 0) {
-                        isSaving = FALSE;
+                    // Check if any records were queued while we were busy or saving
+                    if (llGetListLength(pendingRecords) > 0) {
+                        dbg("🔄 [Leaderboard] Processing queued record for [" + llList2String(pendingRecords, 0) + "]...");
                         string nextName = llList2String(pendingRecords, 0);
                         string nextRes = llList2String(pendingRecords, 1);
                         pendingRecords = llDeleteSubList(pendingRecords, 0, 1);
+                        isBusy = FALSE;
+                        isSaving = FALSE;
                         updatePlayerRecord(nextName, nextRes);
+                    } else {
+                        isBusy = FALSE;
+                        isSaving = FALSE;
                     }
                 }
             } else if (_st == "0") {
                 if (_vl == "1") { // XP_ERROR_THROTTLED
                     dbg("⚠️ [Leaderboard] Read throttled. Retrying Shard " + (string)currentLoadPage + " in 2s...");
                     llSleep(2.0);
-                    isBusy = FALSE;
+                    // RETAIN isBusy/isSaving status during retry
                     loadLBPage(currentLoadPage);
                 } else if (_vl == "14") { // XP_ERROR_KEY_NOT_FOUND (Value is empty)
-                    isBusy = FALSE;
-                    llSetTimerEvent(0);
-                    dbg("🏆 [Leaderboard] Shard " + (string)currentLoadPage + " is empty (New).");
-                    
                     if (currentLoadPage < 10) {
                         loadLBPage(currentLoadPage + 1);
-                    } else if (isBusy) {
+                    } else {
+                        // SYNC COMPLETE (Empty trailing shards)
+                        llSetTimerEvent(0);
                         dbg("🏆 [Leaderboard] SYNC COMPLETE - " + (string)(llGetListLength(leaderboardData)/3) + " players total.");
                         llMessageLinked(LINK_SET, MSG_LB_LOAD_COMPLETE, "", NULL_KEY);
                         llMessageLinked(LINK_SET, MSG_LB_REQUEST_DISPLAY, "0", NULL_KEY);
+                        
+                        if (llGetListLength(pendingRecords) > 0) {
+                            dbg("🔄 [Leaderboard] Processing queued record after empty shards...");
+                            string nextName = llList2String(pendingRecords, 0);
+                            string nextRes = llList2String(pendingRecords, 1);
+                            pendingRecords = llDeleteSubList(pendingRecords, 0, 1);
+                            isBusy = FALSE;
+                            isSaving = FALSE;
+                            updatePlayerRecord(nextName, nextRes);
+                        } else {
+                            isBusy = FALSE;
+                            isSaving = FALSE;
+                        }
                     }
                 } else {
                     dbg("❌ [Leaderboard] Read Error (Code " + _vl + ") on Shard " + (string)currentLoadPage);
@@ -359,18 +373,18 @@ default {
                     
                     if (llList2String(_p, 0) == (string)llGetKey()) {
                         dbg("🔐 [Leaderboard] Lock already held by this board (Self-Sync). Proceeding...");
-                        myLockVal = _curVal; // CRITICAL: Sync timestamp to allow future release
+                        myLockVal = _curVal; 
                         isLocking = FALSE; 
-                        isSaving = TRUE;   // MARK THAT WE ARE SYNCING FOR A SAVE
-                        leaderboardData = []; // PURGE STALE MEMORY
+                        // Set isBusy before loading to ensure the guard is handled correctly
+                        isBusy = TRUE;
+                        leaderboardData = []; 
                         loadLBPage(1);
-                        return; // Done
+                        return; 
                     }
                     
                     if (_curVal == "" || _curVal == "OFF" || _isStale) {
                         dbg("🔐 [Leaderboard] Lock available (or stale). Claiming...");
                         myLockVal = (string)llGetKey() + ":" + (string)llGetUnixTime();
-                        dbg("🔓 [Leaderboard] CLAIMING WITH: [" + myLockVal + "] (Len: " + (string)llStringLength(myLockVal) + ")");
                         isClaiming = TRUE;
                         kvpClaimReq = llUpdateKeyValue(LB_LOCK_KEY, myLockVal, TRUE, _curVal);
                     } else {
@@ -380,9 +394,7 @@ default {
                 } else if (_st == "0" && _vl == "14") { // KEY_NOT_FOUND (Lock key doesn't exist)
                     dbg("🔐 [Leaderboard] Lock doesn't exist. Creating initial lock...");
                     myLockVal = (string)llGetKey() + ":" + (string)llGetUnixTime();
-                    dbg("🔓 [Leaderboard] CLAIMING WITH: [" + myLockVal + "] (Len: " + (string)llStringLength(myLockVal) + ")");
                     isClaiming = TRUE;
-                    // INITIAL CREATION: Use kvpClaimReq to match Stage 2 handler
                     kvpClaimReq = llUpdateKeyValue(LB_LOCK_KEY, myLockVal, FALSE, "");
                 } else if (_st == "0" && _vl == "1") { // Throttled
                     dbg("⚠️ [Leaderboard] Lock check throttled. Retrying...");
@@ -407,7 +419,7 @@ default {
             return;
         }
         
-        if (isBusy || (kvpReadReq == NULL_KEY && currentLoadPage > 0)) {
+        if (isBusy) { // DO NOT check isSaving here, as isBusy should be the authoritative lock for READS
             if (retryCount < 3) {
                 retryCount++;
                 dbg("⏳ [Leaderboard] Retrying Shard " + (string)currentLoadPage + " (" + (string)retryCount + "/3)...");
@@ -498,7 +510,7 @@ default {
             }
         }
         else if (num == MSG_RESET_ALL) { 
-            if (str == "FULL_RESET" || str == "HARD_RESET") llResetScript(); 
+            if (str == "HARD_RESET" || str == "ADMIN_RESET") llResetScript(); 
         }
     }
 }

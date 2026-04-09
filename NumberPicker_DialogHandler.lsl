@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Dialog Handler (Updated for Peril Dice - Paginated Multiple Picks) ===
 

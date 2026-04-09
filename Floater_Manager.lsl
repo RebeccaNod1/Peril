@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === FloatManager (Consolidated) ===
 // This version enforces a maximum of 10 players.

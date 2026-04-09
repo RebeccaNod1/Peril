@@ -36,7 +36,7 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define FW_DONE "fw_done"
 
 // --- System/Debug (9000-9999) ---
-#define DEBUG_LOGS 0           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
+#define DEBUG_LOGS 1           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
 #if DEBUG_LOGS
 #define dbg(msg) llOwnerSay(msg)
 #else
@@ -108,6 +108,9 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define MSG_REQUEST_PLAYER_LIST_KICK 8009
 #define MSG_LOCK_GAME 9001
 #define MSG_UNLOCK_GAME 9002
+#define MSG_TOUCH_EVENT 215
+#define MSG_PROCESS_ELIMINATION 3015
+
 
 // --- Dialogs & Menus (100-399) ---
 #define MSG_SHOW_MENU 201

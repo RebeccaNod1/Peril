@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Controller Memory Monitor ===
 // Handles memory monitoring and reporting for the Main Controller

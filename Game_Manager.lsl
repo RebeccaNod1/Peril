@@ -1,4 +1,4 @@
-#include "Peril_Constants.lsl"
+#include "peril/Peril_Constants.lsl"
 
 // === Game Manager - Game Flow Logic ===
 
@@ -254,9 +254,9 @@ integer startNextRound() {
     currentPickerIdx = 0;
     dbg("🎯 Debug - Created pickQueue: " + llList2CSV(pickQueue) + ", currentPickerIdx: " + (string)currentPickerIdx);
     
-    integer currentPlayerCount = llGetListLength(names);
-    if (currentPlayerCount == lastPlayerCount && diceType > 0) {
-        dbg("🎯 [Game Manager] Player count unchanged (" + (string)currentPlayerCount + "), reusing stored dice type: d" + (string)diceType);
+    integer totalPlayers = llGetListLength(names);
+    if (totalPlayers == lastPlayerCount && diceType > 0) {
+        dbg("🎯 [Game Manager] Player count unchanged (" + (string)totalPlayers + "), reusing stored dice type: d" + (string)diceType);
         
         // NEW: Add a brief buffer to let the previous outcome status stay on screen
         llSleep(DELAY_MEDIUM_SYNC);
@@ -265,9 +265,9 @@ integer startNextRound() {
         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
         showNextPickerDialog();
     } else {
-        lastPlayerCount = currentPlayerCount;
+        lastPlayerCount = totalPlayers;
         // Request dice type for this round
-        llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)currentPlayerCount, NULL_KEY);
+        llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)totalPlayers, NULL_KEY);
         // NEW: Update status bar for round start
         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
     }
@@ -1097,5 +1097,90 @@ default {
             dbg("🔒 [Game Manager] Emergency state reset complete");
             return;
         }
+
+        // Handle elimination requests (Offloaded from Main Controller)
+        if (num == MSG_ELIMINATE_PLAYER) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llList2String(parts, 0) == "ELIMINATE_PLAYER") {
+                string eliminatedPlayer = llList2String(parts, 1);
+                integer idx = llListFindList(names, [eliminatedPlayer]);
+                if (idx != -1) {
+                    dbg("🎯 [Game Manager] Processing elimination for: " + eliminatedPlayer);
+                    
+                    // NEW: Only announce elimination if it's not the end of the game (winner)
+                    if (llGetListLength(names) > 1) {
+                        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PLAYER STRUCK!\n" + eliminatedPlayer + " has been eliminated!", NULL_KEY);
+                    }
+                    
+                    // FIRST: Set the player's lives to 0 (locally and visually)
+                    lives = llListReplaceList(lives, [0], idx, idx);
+                    
+                    // Update scoreboard visually for 0 hearts
+                    llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, 
+                                   eliminatedPlayer + "|0|" + (string)llList2Key(players, idx), NULL_KEY);
+                    
+                    // RECORD LOSS: Send eliminated player to World Ranking database
+                    llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, eliminatedPlayer + "|LOSS", NULL_KEY);
+                    
+                    // CRITICAL: Check for victory condition BEFORE assigning new peril player
+                    integer willCauseVictory = (llGetListLength(names) <= 2);
+                    string potentialWinner = "";
+                    
+                    if (willCauseVictory) {
+                        integer w;
+                        for (w = 0; w < llGetListLength(names); w++) {
+                            string candidateName = llList2String(names, w);
+                            if (candidateName != eliminatedPlayer) {
+                                potentialWinner = candidateName;
+                                jump found_winner;
+                            }
+                        }
+                        @found_winner;
+                        
+                        if (potentialWinner != "") {
+                            // Synchronize visually
+                            llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
+                            llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, potentialWinner, NULL_KEY);
+                        }
+                    }
+                    
+                    // Visual elimination effect
+                    llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, eliminatedPlayer, NULL_KEY);
+                    llSleep(DELAY_ELIMINATION_NOTICE);
+                    
+                    if (willCauseVictory) {
+                        llSleep(DELAY_VICTORY_NOTICE);
+                    }
+                    
+                    // Inform Main Controller to perform deep cleanup (list deletion)
+                    llMessageLinked(LINK_SET, MSG_PROCESS_ELIMINATION, eliminatedPlayer, NULL_KEY);
+                    
+                    // Handle Ultimate Victory Sequence
+                    if (willCauseVictory && potentialWinner != "") {
+                        // Clear local state
+                        roundStarted = FALSE;
+                        
+                        llSay(0, "✨ ULTIMATE VICTORY! " + potentialWinner + " is the Ultimate Survivor!");
+                        
+                        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "=== ULTIMATE VICTORY ===\n<!c=white>" + potentialWinner + " wins!", NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_PLAYER_WON, potentialWinner, NULL_KEY);
+                        llMessageLinked(LINK_SET, MSG_EFFECT_CONFETTI, "VICTORY_CONFETTI", NULL_KEY);
+                        
+                        // RECORD WIN: Send ultimate survivor to World Ranking database
+                        llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, potentialWinner + "|WIN", NULL_KEY);
+                        
+                        // Inform scoreboard of victory visuals
+                        llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Victory", NULL_KEY);
+                        llMessageLinked(LINK_SCOREBOARD, MSG_GAME_WON, potentialWinner, NULL_KEY);
+                        
+                        // CRITICAL: Signal Main Controller to perform final reset after victory delay
+                        // Main Controller expects 998 | "GAME_WON|name"
+                        llMessageLinked(LINK_SET, MSG_CONTINUE_GAME, "GAME_WON|" + potentialWinner, NULL_KEY);
+                    }
+                }
+            }
+            return;
+        }
     }
 }
+
