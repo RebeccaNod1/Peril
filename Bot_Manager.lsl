@@ -47,6 +47,7 @@ integer listenHandle = -1;
 #define MEMORY_WARNING_THRESHOLD 0.8  // Warn when using >80% of memory
 
 // Track game state to validate bot commands
+list players = [];
 list names = [];
 list lives = [];
 string perilPlayer = "";
@@ -236,6 +237,7 @@ default {
         // Handle full reset from main controller
         if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             // Reset bot manager state
+            players = [];
             names = [];
             lives = [];
             perilPlayer = "";
@@ -247,7 +249,7 @@ default {
         
         // Handle game state sync to track player eliminations
         if (num == MSG_SYNC_GAME_STATE) {
-            list parts = llParseString2List(str, ["~"], []);
+            list parts = llParseStringKeepNulls(str, ["~"], []);
             if (llGetListLength(parts) >= 4) {
                 lives = llCSV2List(llList2String(parts, 0));
                 // Don't need picks data for validation, skip parts[1]
@@ -274,13 +276,12 @@ default {
                     sentBotMessages = [];
                     dbg("🤖 [Bot Manager] New round detected (peril change), cleared processed commands and sent messages");
                 } else {
-                    // Only clear if we detect truly empty picks data during an active game
-                    // Don't clear during initial registration (when picks = "EMPTY")
+                    // Standardized ~EMPTY~ token logic
                     string picksStr = llList2String(parts, 1);
-                    if (picksStr != "EMPTY" && (picksStr == "" || llSubStringIndex(picksStr, "|") == -1) && perilPlayer != "") {
+                    if (picksStr == "~EMPTY~" && perilPlayer != "") {
                         processedBotCommands = [];
                         sentBotMessages = [];
-                        dbg("🤖 [Bot Manager] New round detected (picks cleared), cleared processed commands and sent messages");
+                        dbg("🤖 [Bot Manager] Turn reset detected (picks cleared), cleared processed commands and sent messages");
                     }
                 }
             }

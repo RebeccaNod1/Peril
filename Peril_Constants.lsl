@@ -43,6 +43,8 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define dbg(msg) ;
 #endif
 
+#define MSG_DEBUG_TEXT 7000
+
 #define MSG_RESET_ALL -99999
 #define MSG_EMERGENCY_RESET -99998
 #define MSG_DEBUG_PICKS_ON 7001

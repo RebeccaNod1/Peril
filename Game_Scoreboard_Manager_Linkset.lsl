@@ -107,9 +107,10 @@ clearAllPlayers() {
         integer _hL = getHeartsPrimLink(_ca_i);
         integer _oL = getOverlayPrimLink(_ca_i);
         if (_pL > 0) {
-            llSetLinkPrimitiveParamsFast(_pL, [PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
-            llSetLinkPrimitiveParamsFast(_hL, [PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
-            llSetLinkPrimitiveParamsFast(_oL, [PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
+            // Explicitly reset textures to blank to prevent profile persistence
+            llSetLinkPrimitiveParamsFast(_pL, [PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0, PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
+            llSetLinkPrimitiveParamsFast(_hL, [PRIM_TEXTURE, ALL_SIDES, TEXTURE_0_HEARTS, <1,1,0>, <0,0,0>, 0.0, PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
+            llSetLinkPrimitiveParamsFast(_oL, [PRIM_TEXTURE, ALL_SIDES, BLANK_TEXTURE, <1,1,0>, <0,0,0>, 0.0, PRIM_COLOR, ALL_SIDES, <1,1,1>, 0.0]);
         }
     }
 }
@@ -232,13 +233,15 @@ updatePlayerDisplay(string pName, integer pLives, string pUUID) {
 }
 
 default {
-    on_rez(integer _sp) { discoverLinks(); llResetScript(); }
+    on_rez(integer _sp) { discoverLinks(); clearAllPlayers(); llResetScript(); }
     state_entry() {
         discoverLinks();
         llListen(1, "", llGetOwner(), ""); 
         REPORT_MEMORY();
+        clearAllPlayers(); // Ensure board is clean on initialization
         resetBackgroundPrim();
         resetManagerCube();
+        updateActionsPrim("Title");
         updatePlayerGlowEffects();
         dbg("Ready");
     }
@@ -256,8 +259,10 @@ default {
             currentPerilPlayer = ""; currentWinner = ""; updatePlayerGlowEffects();
             llMessageLinked(LINK_SET, MSG_LB_REQUEST_DISPLAY, "", NULL_KEY);
         }
-        else if (_n == MSG_GAME_WON) llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, _st + "|WIN", NULL_KEY);
-        else if (_n == MSG_GAME_LOST) llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, _st + "|LOSS", NULL_KEY);
+        else if (_n == MSG_GAME_WON || _n == MSG_GAME_LOST) {
+            // Visual winning/losing logic is already handled by specific update messages
+            // Record keeping is now centralized in Main Controller
+        }
         else if (_n == MSG_LB_DISPLAY_DATA) {
             string _tl = "WORLD RANKING RECORD"; string _sp = "                                "; 
             integer _m = (LEADERBOARD_WIDTH - llStringLength(_tl)) / 2;
@@ -307,9 +312,9 @@ default {
                     activePlayers = llListReplaceList(activePlayers, [_pU], (_pIdx * 3) + 2, (_pIdx * 3) + 2);
                     integer _pL = getProfilePrimLink(_pIdx);
                     if (_pL > 0) {
-                        llSetLinkPrimitiveParamsFast(_pL, [PRIM_TEXTURE, ALL_SIDES, _pU, <1,1,0>, <0,0,0>, 0.0, PRIM_COLOR, ALL_SIDES, <1,1,1>, 1.0, PRIM_GLOW, 0.01]);
+                        llSetLinkPrimitiveParamsFast(_pL, [PRIM_TEXTURE, ALL_SIDES, _pU, <1,1,0>, <0,0,0>, 0.0, PRIM_COLOR, ALL_SIDES, <1,1,1>, 1.0, PRIM_GLOW, ALL_SIDES, 0.01]);
                         llSleep(DELAY_SCOREBOARD_REFRESH);
-                        llSetLinkPrimitiveParamsFast(_pL, [PRIM_GLOW, 0.0]);
+                        llSetLinkPrimitiveParamsFast(_pL, [PRIM_GLOW, ALL_SIDES, 0.0]);
                     }
                 }
             }

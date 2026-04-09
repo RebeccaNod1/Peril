@@ -68,6 +68,7 @@ integer victoryInProgress = FALSE;
 
 // Lockout system variables
 integer isLocked = FALSE;
+integer resetInProgress = FALSE;  // Lockout flag for reset synchronization
 key gameOwner;
 
 list pickQueue = [];
@@ -179,23 +180,34 @@ checkMemoryUsage(string context) {
 // REMOVED: emergencyMemoryCleanup() - delegated to Controller_Memory.lsl
 // REMOVED: reportMemoryStats() - delegated to Controller_Memory.lsl
 
-// Experience Sentinel - Functional probe to check if Experience is allowed on land
+// Experience Sentinel - Functional probe to check if KVP is active
+// NOTE FOR FUTURE AI/DEVS: KVP (World Rankings) ONLY requires the script to be 
+// compiled with the Experience. Land-Scope whitelisting (llAgentInExperience) 
+// is ONLY required for HUD auto-attachments and Animations.
 checkExperience() {
-    dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional diagnostic...");
-    llOwnerSay("🛡️ [Peril Dice] Experience Sentinel: Verifying Land-Scope permissions for 'Final Girlz I.N.C.'...");
+    dbg("🔍 [Peril Dice] Experience Sentinel: Starting functional heartbeat...");
     
-    // PROBE 1: Owner Agent Check (Instant indicator for land-readiness)
+    // PROBE 1: Land-Scope Check (Crucial for HUD auto-attachment)
     if (!llAgentInExperience(llGetOwner())) {
-        llOwnerSay("⚠️ [Peril Dice] SYSTEM WARNING: Experience Features are currently BLOCKED on this parcel.");
-        llOwnerSay("🛡️ [Peril Dice] TO FIX: Open 'About Land' -> 'Experiences' -> 'Add' and search for 'Final Girlz I.N.C.'");
+        llOwnerSay("🛡️ [Peril Dice] LAND NOTICE: Experience 'Final Girlz I.N.C.' is NOT enabled on this land.");
+        llOwnerSay("⚠️ [Peril Dice] Automatic HUD attachments will FAIL. To fix this:");
+        llOwnerSay("👉 1. Right-click the ground -> 'About Land'");
+        llOwnerSay("👉 2. Go to the 'Experiences' tab.");
+        llOwnerSay("👉 3. Click the 'Add' button.");
+        llOwnerSay("👉 4. Search for 'Final Girlz I.N.C.' and click 'OK'.");
         
-        // Final probe check
+        // Silent probe for KVP (which works regardless)
         sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
-        llSetTimerEvent(10.0); // Increased to 10s for reliability
+        llSetTimerEvent(10.0);
         currentTimerMode = TIMER_XP_CHECK;
     } else {
-        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ENABLED on this parcel.");
+        llOwnerSay("✅ [Peril Dice] Experience 'Final Girlz I.N.C.' is ACTIVE. HUD Auto-attachment ready.");
         EX_READY = TRUE;
+        
+        // Full KVP heartbeat
+        sentinelQueryID = llReadKeyValue("PERIL_SENTINEL");
+        llSetTimerEvent(10.0);
+        currentTimerMode = TIMER_XP_CHECK;
     }
 }
 
@@ -227,13 +239,17 @@ sendStatusMessage(string status) {
 syncGameState() {
     // Build sync message WITHOUT redundant player keys to save memory
     // Format: lives~picks~perilPlayer~names
+    string picksStr = (string)llDumpList2String(picksData, "^");
+    if (picksStr == "") picksStr = "EMPTY"; // Standardized token
+    
+    // DELIMITER FIX: Ensure each of the 4 parts is explicitly separated by ~
     string syncMsg = llList2CSV(lives) + "~" + 
-                     (string)llDumpList2String(picksData, "^") + "~" + 
+                     picksStr + "~" + 
                      (string)llList2String([perilPlayer, "NONE"], (perilPlayer == "")) + "~" + 
                      llList2CSV(names);
                      
     llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, syncMsg, NULL_KEY);
-    dbg("🌍 [Main Controller] 📡 Global State Sync broadcasted.");
+    dbg("🌍 [Main Controller] 📡 Global State Sync broadcasted (Picks: " + picksStr + ")");
 }
 
 
@@ -288,14 +304,13 @@ updateFloatingText() {
 }
 
 resetGame() {
+    resetInProgress = TRUE;  // Start lockout
     cleanupListeners();
     
     // Let Floater Manager handle cleanup intelligently
-    // Always request cleanup on a reset to ensure no orphans are left behind
     llMessageLinked(LINK_SET, MSG_CLEANUP_ALL_FLOATERS, "RESET", NULL_KEY);
-    llSleep(DELAY_STATE_TRANSITION);
-    
-    llSleep(DELAY_STATE_TRANSITION);
+    // Reduced delay for snappy restart
+    llSleep(0.1); 
     
     players = names = lives = picksData = globalPickedNumbers = readyPlayers = [];
     floaterChannels = [];
@@ -317,6 +332,13 @@ resetGame() {
     llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, "", NULL_KEY);  // Clear winner glow
     llMessageLinked(LINK_SET, MSG_CLEAR_DICE, "", NULL_KEY);
     
+    // Give other scripts time to finish their reset before starting sync
+    // INCREASED to 2.0s for high-speed Mono startup with Debug Logs OFF
+    llSleep(2.0); 
+    
+    // NEW: Trigger Leaderboard to reload rankings from KVP on reset
+    llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "START_SYNC", NULL_KEY);
+    
     dbg("🎮 Game reset! All state cleared (including scoreboard).");
     
     statusTimer = 0;
@@ -328,15 +350,12 @@ resetGame() {
     // NEW: Update status bar for idle state
     sendStatusMessage("PERIL DICE GAME\nTouch to Join!");
     
-    llSleep(DELAY_STATE_TRANSITION);
+    // Quick buffer for Linkset to settle
+    llSleep(0.2); 
     llSetTimerEvent(0);
     
     initListeners();
-    
-    // SAFETY: Only call updateHelpers if we have actual game data to prevent startup issues
-    if (llGetListLength(names) > 0) {
-        updateHelpers();
-    }
+    resetInProgress = FALSE;  // End lockout
 }
 
 default {
@@ -384,15 +403,17 @@ default {
     }
 
     touch_start(integer total_number) {
-        // IGNORE TOUCHES INTENDED FOR THE LEADERBOARD
-        string _rawNm = llGetLinkName(llDetectedLinkNumber(0));
-        string _linkNm = llToLower(_rawNm);
+        integer clickedLink = llDetectedLinkNumber(0);
+        string clickedName = llGetLinkName(clickedLink);
         
-        // TEMPORARY DEBUG TO CATCH THE EXACT LINK NAME
-        dbg("🎯 [Touch Filter] Clicked Link Name: '" + _rawNm + "'");
+        // Ensure core links are discovered to prevent misidentification
+        if (LINK_LEADERBOARD_BRIDGE == -1) { DISCOVER_CORE_LINKS(); }
         
-        if (llSubStringIndex(_linkNm, "leaderboard") != -1 || llSubStringIndex(_linkNm, "furware") != -1 || llSubStringIndex(_linkNm, "lb_") != -1) {
-            dbg("🛑 [Touch Filter] Bypassing menu for Leaderboard element!");
+        // IGNORE TOUCHES ON UI BRIDGES ONLY
+        // Always allow touch on Root (link 1) or any prim containing 'Scoreboard' or NOT containing 'FURWARE'
+        // ENHANCED: Also filter out click on Leaderboard elements which was causing redundant diagnostic logs
+        if (clickedLink != 1 && (llSubStringIndex(clickedName, "FURWARE") != -1 || llSubStringIndex(clickedName, "LB_") != -1)) {
+            dbg("🛑 [Touch Filter] Bypassing menu for Bridge element: " + clickedName);
             return;
         }
         
@@ -544,8 +565,11 @@ default {
                 if (pidx != -1) {
                     lives = llListReplaceList(lives, [newLifeCount], pidx, pidx);
                     dbg("🛡️ [Main Controller] 💗 Damage Report Confirmed: " + hitPlayer + " -> " + (string)newLifeCount + " hearts.");
-                    // Broadcast the OFFICIAL ledger to the entire Linkset
                     syncGameState();
+                    
+                    // AUTHORITATIVE: Signal Game Manager to continue to the next round after the damage report
+                    llSleep(DELAY_SYNC_PROPAGATION);
+                    llMessageLinked(LINK_SET, MSG_CONTINUE_ROUND, perilPlayer, NULL_KEY);
                 }
             }
             return;
@@ -612,6 +636,9 @@ default {
                     llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, 
                                    eliminatedPlayer + "|0|" + (string)llList2Key(players, idx), NULL_KEY);
                     
+                    // RECORD LOSS: Send eliminated player to World Ranking database
+                    llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, eliminatedPlayer + "|LOSS", NULL_KEY);
+                    
                     // CRITICAL: Check for victory condition BEFORE assigning new peril player
                     integer willCauseVictory = (llGetListLength(names) <= 2); // After removing one player
                     string potentialWinner = "";
@@ -629,6 +656,9 @@ default {
                         @found_winner;
                         
                         if (potentialWinner != "") {
+                            // NEW: Broadcast sync BEFORE redraw to ensure Floater Manager has fresh heart count
+                            syncGameState();
+                            
                             // SEND WINNER GLOW to scoreboard and trigger floater update
                             llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, potentialWinner, NULL_KEY);
                             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, potentialWinner, NULL_KEY);  // Update winner's floater
@@ -755,7 +785,10 @@ default {
                             llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_WINNER, winner, NULL_KEY);
                             llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, winner, NULL_KEY);  // Update winner's floater
                             
-                            // CHANGED: Send to scoreboard, which will handle leaderboard updates
+                            // RECORD WIN: Send ultimate survivor to World Ranking database
+                            llMessageLinked(LINK_SET, MSG_LB_RECORD_PLAYER, winner + "|WIN", NULL_KEY);
+                            
+                            // CHANGED: Send to scoreboard, which will handle visual updates (no more duplicate records)
                             llMessageLinked(LINK_SCOREBOARD, MSG_GAME_WON, winner, NULL_KEY);
                             
                             // Use timer instead of llSleep to avoid immediate reset
@@ -840,6 +873,18 @@ default {
             // DON'T forward sync messages - this creates loops!
             // Game Manager should receive the original message directly
             // Main Controller just ignores sync messages now
+            return;
+        }
+        
+        // Handle peril player updates from other modules
+        if (num == MSG_UPDATE_PERIL_PLAYER) {
+            perilPlayer = str;
+            dbg("🎯 [Main Controller] Peril Player Updated: " + perilPlayer);
+            syncGameState();
+            
+            // AUTHORITATIVE: Signal Game Manager to continue to the next round after Plot Twist
+            llSleep(DELAY_SYNC_PROPAGATION);
+            llMessageLinked(LINK_SET, MSG_CONTINUE_ROUND, perilPlayer, NULL_KEY);
             return;
         }
         
@@ -953,11 +998,11 @@ default {
             string action = llList2String(parts, 0);
             if (action == "LEAVE_GAME" || action == "KICK_PLAYER") {
                 string leavingName = llList2String(parts, 1);
-                // Find and remove the player from main controller lists
-                integer idx = llListFindList(names, [leavingName]);
-                if (idx != -1) {
-                    // CHANGED: Remove player from scoreboard BEFORE updating lists
-                    llMessageLinked(LINK_SCOREBOARD, MSG_REMOVE_PLAYER, leavingName, NULL_KEY);
+                    // Find and remove the player from main controller lists
+                    integer idx = llListFindList(names, [leavingName]);
+                    if (idx != -1) {
+                        // CRITICAL: Inform all scripts (Registration Manager) to scrub this player
+                        llMessageLinked(LINK_SET, MSG_REMOVE_PLAYER, leavingName, NULL_KEY);
                     
                     // Only announce if it's not the end of the game
                     if (llGetListLength(names) > 1) {
@@ -1135,7 +1180,7 @@ default {
                         llRegionSayTo(id, 0, "🚫 Access Denied: Only the Global Admin can perform this action.");
                         return;
                     }
-                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "WIPE", id); // Use 'id' to pass user key
+                    llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "WIPE", id); // Use LINK_SET
                     llOwnerSay("🏆 GLOBAL LEADERBOARD WIPE confirmed and executed.");
                     return;
                 }
@@ -1149,7 +1194,7 @@ default {
                         return;
                     }
                     resetGame();
-                    llMessageLinked(LINK_SCOREBOARD, MSG_RESET_LEADERBOARD, "WIPE", id); // Use 'id' for security check
+                    llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "WIPE", id); // Use LINK_SET
                     llOwnerSay("🔄 FULL RESET confirmed and executed.");
                     return;
                 }

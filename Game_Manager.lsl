@@ -27,6 +27,7 @@ integer roundStarted = FALSE;
 integer diceTypeProcessed = FALSE;  // Track if we've already processed dice type for this round
 integer ignorePicksSync = FALSE;     // Temporarily ignore picks data sync during round initialization
 integer roundContinueInProgress = FALSE;  // Prevent multiple rapid calls to continueCurrentRound
+integer lastPlayerCount = 0;         // Memory for dice type calculation (skips redundant requests)
 integer lastSyncProcessTime = 0;     // Track when we last processed a sync to prevent rapid duplicates
 
 // Duplicate request prevention
@@ -149,24 +150,28 @@ integer continueCurrentRound() {
     }
     currentPickerIdx = 0;
     
-    dbg("🎯 [Game Manager] Pick queue created: " + llList2CSV(pickQueue) + ", requesting dice type");
+    dbg("🎯 [Game Manager] Pick queue created: " + llList2CSV(pickQueue) + ", checking dice memory...");
     
-    // Request dice type directly from Calculator for the new round
-    llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
+    integer currentPlayerCount = llGetListLength(names);
+    if (currentPlayerCount == lastPlayerCount && diceType > 0) {
+        dbg("🎯 [Game Manager] Player count unchanged (" + (string)currentPlayerCount + "), reusing stored dice type: d" + (string)diceType);
+        
+        // NEW: Add a brief buffer to let the previous outcome status stay on screen
+        llSleep(DELAY_MEDIUM_SYNC);
+        
+        // Reuse stored dice type and skip redundant request/status Flicker
+        diceTypeProcessed = TRUE;
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NEW ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+        showNextPickerDialog();
+    } else {
+        lastPlayerCount = currentPlayerCount;
+        // NEW: Update status bar for new round initialization
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NEW ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+        // Request dice type directly from Calculator for the new round
+        llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)currentPlayerCount, NULL_KEY);
+    }
     
-    // NEW: Update status bar for new round initialization
-    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
-    
-    // Dramatic pause to let the preparation message be read
-    llSleep(DELAY_LONG_SYNC);
-    
-    // NEW: Update status bar for new round with colored highlight
-    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NEW ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
-    
-    // Dramatic pause to let the peril player be seen before the dice type is shown
-    llSleep(DELAY_LONG_SYNC);
-    
-    // Note: showNextPickerDialog() will be called when dice type result is received
+    // Note: showNextPickerDialog() will be called when dice type result is received (or immediately if cached)
     return 0;
 }
 
@@ -249,16 +254,25 @@ integer startNextRound() {
     currentPickerIdx = 0;
     dbg("🎯 Debug - Created pickQueue: " + llList2CSV(pickQueue) + ", currentPickerIdx: " + (string)currentPickerIdx);
     
-    // Request dice type for this round
-    llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
+    integer currentPlayerCount = llGetListLength(names);
+    if (currentPlayerCount == lastPlayerCount && diceType > 0) {
+        dbg("🎯 [Game Manager] Player count unchanged (" + (string)currentPlayerCount + "), reusing stored dice type: d" + (string)diceType);
+        
+        // NEW: Add a brief buffer to let the previous outcome status stay on screen
+        llSleep(DELAY_MEDIUM_SYNC);
+        
+        diceTypeProcessed = TRUE;
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+        showNextPickerDialog();
+    } else {
+        lastPlayerCount = currentPlayerCount;
+        // Request dice type for this round
+        llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)currentPlayerCount, NULL_KEY);
+        // NEW: Update status bar for round start
+        llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "ROUND STARTING!\nPeril: <!c=red>" + perilPlayer, NULL_KEY);
+    }
     
-    // NEW: Update status bar for new round initialization
-    llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PREPARING ROUND...\nCalculating dice size...", NULL_KEY);
-    
-    // Dramatic pause to let the preparation message be read
-    llSleep(DELAY_LONG_SYNC);
-    
-    dbg("🎯 Game Manager round setup complete, requesting dice type...");
+    dbg("🎯 Game Manager round setup complete.");
     return 0;
 }
 
@@ -484,7 +498,7 @@ default {
             // Only skip sync messages if we're explicitly ignoring them
             // Allow player registration syncs even when game is not active
             
-            list parts = llParseString2List(str, ["~"], []);
+            list parts = llParseStringKeepNulls(str, ["~"], []);
             if (llGetListLength(parts) >= 4) {
                 list newLives = llCSV2List(llList2String(parts, 0));
                 string currentLivesStr = llList2CSV(lives);
@@ -509,7 +523,7 @@ default {
                 if (livesChanged || perilChanged) {
                     string encodedPicksDataStr = llList2String(parts, 1);
                     list newPicksData = [];
-                    if (encodedPicksDataStr != "") {
+                    if (encodedPicksDataStr != "" && encodedPicksDataStr != "~EMPTY~") {
                         list encodedEntries = llParseString2List(encodedPicksDataStr, ["^"], []);
                         integer syncI;
                         for (syncI = 0; syncI < llGetListLength(encodedEntries); syncI++) {
@@ -551,10 +565,8 @@ default {
                         }
                     }
                     
-                    if (livesChanged && newPerilPlayer != "" && newPerilPlayer != "NONE" && roundStarted && allPicksEmpty) {
-                        dbg("🎯 Post-roll state update detected - continuing round");
-                        continueCurrentRound();
-                    }
+                    // Note: Round continuation is now handled by the Main Controller's explicit MSG_CONTINUE_ROUND signal
+                    // This prevents duplicate round starts and race conditions during Plot Twists.
                 }
             }
             return;
@@ -778,7 +790,7 @@ default {
                         // Use complete avoid list for re-shown dialog too
                         list updatedCompleteAvoidList = buildCompleteAvoidanceList();
                         string dialogPayload = playerName + "|" + (string)diceType + "|" + (string)picksNeeded + "|" + llList2CSV(updatedCompleteAvoidList);
-                        string dialogRequest = "SHOW_DIALOG|" + playerName + "|" + dialogPayload;
+                        string dialogRequest = "SHOW_DIALOG~" + playerName + "~" + dialogPayload;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, dialogRequest, NULL_KEY);
                     }
                     return;
@@ -839,7 +851,7 @@ default {
                         
                         // Send roll dialog through Player_RegistrationManager
                         dbg("🎯 [Game Manager] Sending roll dialog request for: " + perilPlayer);
-                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        string rollRequest = "SHOW_ROLL_DIALOG~" + perilPlayer + "~" + perilPlayer;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     }
                 }
@@ -898,7 +910,7 @@ default {
                         llMessageLinked(LINK_SET, MSG_BOT_COMMAND, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
-                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        string rollRequest = "SHOW_ROLL_DIALOG~" + perilPlayer + "~" + perilPlayer;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     }
                             return; // Ignore duplicate - bot already has real picks
@@ -1008,7 +1020,7 @@ default {
                         llMessageLinked(LINK_SET, MSG_BOT_COMMAND, "CLOSE_ALL_DIALOGS", NULL_KEY);
                         
                         // Send roll dialog through Player_RegistrationManager
-                        string rollRequest = "SHOW_ROLL_DIALOG|" + perilPlayer + "|" + perilPlayer;
+                        string rollRequest = "SHOW_ROLL_DIALOG~" + perilPlayer + "~" + perilPlayer;
                         llMessageLinked(LINK_SET, MSG_DIALOG_FORWARD_REQUEST, rollRequest, NULL_KEY);
                     } else {
                         // Move to next picker
@@ -1065,6 +1077,7 @@ default {
             currentPicker = NULL_KEY;
             roundStarted = FALSE;
             diceTypeProcessed = FALSE;  // Reset for new game
+            lastPlayerCount = 0;        // Reset dice memory for new game
             roundContinueInProgress = FALSE;  // Reset protection flag
             lastSyncProcessTime = 0;  // Reset sync timing
             dbg("🎯 Game Manager reset - ready for new game!");

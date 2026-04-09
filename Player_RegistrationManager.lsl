@@ -17,6 +17,8 @@ integer FLOATER_BASE_CHANNEL;
 integer roundStarted = FALSE;
 integer gameStarting = FALSE;
 
+integer resetInProgress = FALSE; // Lockout for reset syncs
+
 integer calculateChannel(integer offset) {
     string ownerStr = (string)llGetOwner();
     string objectStr = (string)llGetLinkKey(1);
@@ -154,6 +156,10 @@ handlePlayerRegistration(string regData, key requesterId) {
     if (newKey == llGetOwner()) {
         integer isStarter = (humanCount <= 1);
         llMessageLinked(LINK_SET, MSG_SHOW_MENU, "owner|" + (string)isStarter, newKey);
+    } else {
+        // NEW: Also show menu for non-owners immediately after registration
+        integer isStarter = (humanCount <= 1);
+        llMessageLinked(LINK_SET, MSG_SHOW_MENU, "player|" + (string)isStarter, newKey);
     }
     
     ownerMsg("JOIN|" + newName);
@@ -190,77 +196,150 @@ default {
         
         // Handle game state sync from Main Controller
         if (num == MSG_SYNC_GAME_STATE) {
+            if (resetInProgress) return; // IGNORE stale syncs during reset lockout
+            
             // PRESERVE PLAYER KEYS: Don't overwrite our authoritative player registry
-            // We only sync lives and names, but keep our real player keys
-            list parts = llParseString2List(str, ["~"], []);
+            list parts = llParseStringKeepNulls(str, ["~"], []);
             if (llGetListLength(parts) >= 4) {
                 list newLives = llCSV2List(llList2String(parts, 0));
+                string picksPart = llList2String(parts, 1);
                 list newNames = llCSV2List(llList2String(parts, 3));
                 
-                // Only update lives if list length matches (safety check)
                 if (llGetListLength(newLives) == llGetListLength(players)) {
                     lives = newLives;
                 }
-                
-                // Only update names if they match our current registry
-                // This prevents sync messages from overwriting our authoritative data
                 if (llGetListLength(newNames) == llGetListLength(players)) {
                     names = newNames;
                 }
                 
-                // KEEP our player keys - they are authoritative
                 dbg("🔄 [RegMgr] Synced game state, preserving " + (string)llGetListLength(players) + " player keys");
             }
             return;
         }
+
+        // --- Status Queries ---
+        if (num == MSG_QUERY_READY_STATE) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                string name = llList2String(parts, 0);
+                string requestId = llList2String(parts, 1);
+                
+                integer isReady = (llListFindList(readyPlayers, [name]) != -1);
+                integer isBot = (llSubStringIndex(name, "Bot") == 0);
+                
+                llMessageLinked(LINK_SET, MSG_READY_STATE_RESULT, 
+                               name + "|" + (string)isReady + "|" + (string)isBot + "|" + requestId, id);
+            }
+            return;
+        }
         
+        if (num == MSG_QUERY_OWNER_STATUS) {
+            list parts = llParseString2List(str, ["|"], []);
+            if (llGetListLength(parts) >= 2) {
+                string name = llList2String(parts, 0);
+                string requestId = llList2String(parts, 1);
+                
+                integer isRegistered = (llListFindList(players, [id]) != -1);
+                integer isPending = FALSE; 
+                
+                integer isStarter = FALSE;
+                if (isRegistered) {
+                    integer starterIdx = -1;
+                    integer i;
+                    for (i = 0; i < llGetListLength(names) && starterIdx == -1; i++) {
+                        if (llSubStringIndex(llList2String(names, i), "Bot") != 0) starterIdx = i;
+                    }
+                    if (starterIdx != -1 && llList2Key(players, starterIdx) == id) isStarter = TRUE;
+                }
+                
+                dbg("📤 [RegMgr] Responding to OWNER STATUS (" + requestId + ") - Registered: " + (string)isRegistered);
+                llMessageLinked(LINK_SET, MSG_OWNER_STATUS_RESULT, 
+                               name + "|" + (string)isRegistered + "|" + (string)isPending + "|" + (string)isStarter + "|" + requestId, id);
+            }
+            return;
+        }
+        
+        if (num == MSG_TOGGLE_READY) {
+            string name = str;
+            integer idx = llListFindList(readyPlayers, [name]);
+            if (idx == -1) {
+                readyPlayers += [name];
+                publicMsg("GAME|" + name + " is NOW READY!");
+            } else {
+                readyPlayers = llDeleteSubList(readyPlayers, idx, idx);
+                publicMsg("GAME|" + name + " is NO LONGER READY.");
+            }
+            // Broadcast the official state list to all scripts (Main Controller needs this)
+            llMessageLinked(LINK_SET, MSG_UPDATE_MAIN_LISTS, "READY_LIST|" + llList2CSV(readyPlayers), NULL_KEY);
+            return;
+        }
+
+        if (num == MSG_REMOVE_PLAYER) {
+            string leavingName = str;
+            integer idx = llListFindList(names, [leavingName]);
+            if (idx != -1) {
+                // Scrub from all synchronized lists
+                players = llDeleteSubList(players, idx, idx);
+                names = llDeleteSubList(names, idx, idx);
+                lives = llDeleteSubList(lives, idx, idx);
+                
+                // ALSO scrub from ready list if they were there
+                integer rIdx = llListFindList(readyPlayers, [leavingName]);
+                if (rIdx != -1) readyPlayers = llDeleteSubList(readyPlayers, rIdx, rIdx);
+                
+                dbg("🎯 [RegMgr] Deep Scrub Complete: " + leavingName + " removed from all registries.");
+                
+                // Broadcast updated lists to keep Main Controller in sync
+                llMessageLinked(LINK_SET, MSG_UPDATE_MAIN_LISTS, "READY_LIST|" + llList2CSV(readyPlayers), NULL_KEY);
+            }
+            return;
+        }
+
         // Handle dialog forwarding requests from Game Manager
         if (num == MSG_DIALOG_FORWARD_REQUEST) {
-            list parts = llParseString2List(str, ["|"], []);
+            list parts = llParseString2List(str, ["~"], []); // Fixed delimiter to match forwarder
             if (llGetListLength(parts) >= 3) {
-                string dialogType = llList2String(parts, 0); // "SHOW_DIALOG" or "SHOW_ROLL_DIALOG"
+                string dialogType = llList2String(parts, 0); 
                 string targetPlayerName = llList2String(parts, 1);
                 
-                // Reconstruct dialog payload from remaining parts
                 string dialogPayload = "";
                 integer i;
                 for (i = 2; i < llGetListLength(parts); i++) {
-                    if (i > 2) dialogPayload += "|"; // Add separator between parts
+                    if (i > 2) dialogPayload += "|"; 
                     dialogPayload += llList2String(parts, i);
                 }
                 
-                // Find player key in our authoritative registry
                 integer playerIdx = llListFindList(names, [targetPlayerName]);
                 if (playerIdx != -1 && playerIdx < llGetListLength(players)) {
                     key playerKey = llList2Key(players, playerIdx);
                     if (playerKey != NULL_KEY) {
                         if (dialogType == "SHOW_DIALOG") {
                             llMessageLinked(LINK_SET, MSG_SHOW_DIALOG, dialogPayload, playerKey);
-                            dbg("📋 [RegMgr] Forwarded dialog to " + targetPlayerName + ": " + dialogPayload);
                         } else if (dialogType == "SHOW_ROLL_DIALOG") {
                             llMessageLinked(LINK_SET, MSG_SHOW_ROLL_DIALOG, dialogPayload, playerKey);
-                            dbg("🎲 [RegMgr] Forwarded roll dialog to " + targetPlayerName);
                         }
-                    } else {
-                        dbg("⚠️ [RegMgr] Player " + targetPlayerName + " has NULL_KEY");
                     }
-                } else {
-                    dbg("⚠️ [RegMgr] Player " + targetPlayerName + " not found in registry");
                 }
             }
             return;
         }
         
         if (num == MSG_RESET_ALL && str == "FULL_RESET") {
-
-            players = [];
-            names = [];
-            lives = [];
-            readyPlayers = [];
-            roundStarted = FALSE;
-            gameStarting = FALSE;
-            dbg("🎯 [RegMgr] Player Registration Manager reset complete");
+            resetInProgress = TRUE;
+            players = []; names = []; lives = []; readyPlayers = [];
+            roundStarted = FALSE; gameStarting = FALSE;
+            
+            // Activate brief lockout timer to ignore stale syncs while Linkset settles
+            llSetTimerEvent(0.2); 
+            
+            dbg("🎯 [RegMgr] Player Registration Manager reset complete (Lockout Active)");
             return;
         }
+    }
+
+    timer() {
+        resetInProgress = FALSE;
+        llSetTimerEvent(0);
+        dbg("🎯 [RegMgr] Reset lockout complete - sync active.");
     }
 }

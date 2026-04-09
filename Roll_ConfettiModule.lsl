@@ -214,7 +214,7 @@ default {
                 string picksDataStr = llList2String(parts, 1);
                 dbg("🎲 [Roll Module] 🔍 [Roll Module] Received picksDataStr: '" + picksDataStr + "'");
                 
-                if (picksDataStr == "" || picksDataStr == "EMPTY") {
+                if (picksDataStr == "" || picksDataStr == "EMPTY" || picksDataStr == "~EMPTY~") {
                     picksData = [];
                     dbg("🎲 [Roll Module] 🔍 [Roll Module] Set picksData to empty");
                 } else {
@@ -270,9 +270,18 @@ default {
                     llSleep(DELAY_CONFETTI_START);
                     
                     rollInProgress = TRUE; // Set roll in progress for bot
-                    shouldRoll = TRUE; // Set flag to perform roll when dice type is received
-                    // Request current dice type from Calculator
-                    llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
+                    
+                    // NEW: Use the dice type already received from Game Manager at round start!
+                    if (diceType > 0) {
+                        dbg("🎲 [Roll Module] 🤖 Bot using stored dice type: d" + (string)diceType);
+                        // Trigger the roll directly
+                        llMessageLinked(LINK_THIS, MSG_ROLL_RESULT, (string)diceType, NULL_KEY);
+                    } else {
+                        // Fallback: If for some reason we don't have it, request it
+                        dbg("🎲 [Roll Module] 🤖 Fallback: Bot requesting dice type...");
+                        shouldRoll = TRUE;
+                        llMessageLinked(LINK_SET, MSG_GET_DICE_TYPE, (string)llGetListLength(names), NULL_KEY);
+                    }
                 } else {
                     // Reset any previous roll state before showing dialog
                     rollInProgress = FALSE;
@@ -385,11 +394,12 @@ default {
                 llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Plot Twist", NULL_KEY);
                 llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "PLOT TWIST!\n<!c=green>Shield Up!<!c=white> Target shifted!", NULL_KEY);
                 
-                // IMPORTANT: Send peril player update to scoreboard for glow effect
-                llMessageLinked(LINK_SCOREBOARD, MSG_UPDATE_PERIL_PLAYER, newPeril, NULL_KEY);  // MSG_UPDATE_PERIL_PLAYER
-                
                 // Add delay to let status display before next phase
-                llSleep(DELAY_LONG_SYNC);
+                llSleep(DELAY_LONG_SYNC + DELAY_MEDIUM_SYNC);
+                
+                // NEW: Move peril player update signal DOWN to after the sleep
+                // This prevents Game Manager from starting new round too soon
+                llMessageLinked(LINK_SET, MSG_UPDATE_PERIL_PLAYER, newPeril, NULL_KEY); 
                 
                 // Update floaters immediately to show correct peril player before sync
                 llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, newPeril, NULL_KEY);
@@ -406,9 +416,8 @@ default {
                     llMessageLinked(LINK_SCOREBOARD, MSG_PLAYER_UPDATE, perilPlayer + "|" + (string)(currentLives - 1) + "|" + "NULL_KEY", NULL_KEY);
                     dbg("🎲 [Roll Module] 💗 Player lives updated: " + perilPlayer + " now has " + (string)(currentLives - 1) + " lives");
                     
-                    // NEW: REPORT LIFE REDUCTION to Main Controller (Source of Truth)
-                    // This replaces the unreliable self-syncing and allows the Controller to broadcast the official state.
-                    llMessageLinked(LINK_SET, MSG_UPDATE_LIFE, perilPlayer + "|" + (string)(currentLives - 1), NULL_KEY);
+                    // NEW: Move life update signal DOWN to after the outcome sleeps
+                    // This prevents Game Manager/Controller from starting next round too soon
                     
                     // Check if peril player picked the rolled number
                     list perilPicks = getPicksFor(perilPlayer);
@@ -424,21 +433,30 @@ default {
                         // Direct scoreboard status update (texture and text)
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "Direct Hit", NULL_KEY);
                         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "DIRECT HIT!\n<!c=red>" + perilPlayer + " matched!", NULL_KEY);
+                        
                         // Add delay to let status display before next phase
-                        llSleep(DELAY_LONG_SYNC);
+                        llSleep(DELAY_LONG_SYNC + DELAY_MEDIUM_SYNC);
+                        
+                        // SIGNAL DOWN: Now report life reduction to Controller
+                        llMessageLinked(LINK_SET, MSG_UPDATE_LIFE, perilPlayer + "|" + (string)(currentLives - 1), NULL_KEY);
                     } else if (!matched) {
                         llSay(0, "🩸 NO SHIELD! Nobody picked " + resultStr + " - " + perilPlayer + " takes the hit from the d" + (string)diceType + "! 🩸");
                         // Direct scoreboard status update (texture and text)
                         llMessageLinked(LINK_SCOREBOARD, MSG_GAME_STATUS, "No Shield", NULL_KEY);
                         llMessageLinked(LINK_SET, MSG_STATUS_TEXT, "NO SHIELD!\n<!c=red>" + perilPlayer + " took the hit!", NULL_KEY);
+                        
                         // Add delay to let status display before next phase
-                        llSleep(DELAY_LONG_SYNC);
+                        llSleep(DELAY_LONG_SYNC + DELAY_MEDIUM_SYNC);
+                        
+                        // SIGNAL DOWN: Now report life reduction to Controller
+                        llMessageLinked(LINK_SET, MSG_UPDATE_LIFE, perilPlayer + "|" + (string)(currentLives - 1), NULL_KEY);
                     } else {
                         // This should never happen in normal game flow since Plot Twist case is handled above
                         // But if it does, it means someone else picked it - this should have been Plot Twist
                         dbg("🎲 [Roll Module] ⚠️ LOGIC ERROR: Someone picked " + resultStr + " but not handled as Plot Twist!");
                         llSay(0, "🩸 SHIELD FAILED! " + perilPlayer + " takes the hit despite someone picking " + resultStr + "! 🩸");
                         llSleep(DELAY_ELIMINATION_NOTICE);
+                        llMessageLinked(LINK_SET, MSG_UPDATE_LIFE, perilPlayer + "|" + (string)(currentLives - 1), NULL_KEY);
                     }
                     
                     llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, perilPlayer, NULL_KEY);
@@ -477,38 +495,8 @@ default {
 
             // Note: Win condition checking is handled by Main Controller after elimination
 
-            // Validate perilPlayer is not empty before syncing
-            string perilForSync = perilPlayer;
-            if (perilForSync == "") {
-                perilForSync = "NONE";
-            }
-            
-            // MEMORY OPTIMIZED: Direct sync message construction to avoid temporary string allocations
-            // Uses 4-part format to remain compatible with Game Manager
-            llMessageLinked(LINK_SET, MSG_SYNC_GAME_STATE, 
-                llList2CSV(lives) + "~" + 
-                llDumpList2String(picksData, "^") + "~" + 
-                perilForSync + "~" + 
-                llList2CSV(names), NULL_KEY);
-            llSleep(DELAY_DIALOG_REFRESH);
-            
-            // Additional floater updates to ensure correct peril player display
-            dbg("🎲 [Roll Module] 🔄 Updating all floaters with new peril player: " + perilPlayer);
-            integer f;
-            for (f = 0; f < llGetListLength(names); f++) {
-                string fname = llList2String(names, f);
-                llMessageLinked(LINK_SET, MSG_UPDATE_FLOAT, fname, NULL_KEY);
-            }
-            
-            // After roll is processed and sync is sent, send continuation directly to Game Manager
-            dbg("🎲 [Roll Module] 🎯 Round complete - sending continuation directly to Game Manager");
-            
-            // Brief delay to ensure sync propagates
-            llSleep(DELAY_SYNC_PROPAGATION);
-            
-            // Send continuation directly to Game Manager (more efficient than through Main Controller)
-            // For non-elimination cases, continue with current peril player
-            llMessageLinked(LINK_SET, MSG_CONTINUE_GAME, perilForSync, NULL_KEY);
+            // Note: State sync and round continuation are now handled exclusively by the Main Controller 
+            // after it receives the Damage/Elimination reports, ensuring a single source of truth.
             
             // Clear roll protection after processing is complete
             rollInProgress = FALSE;

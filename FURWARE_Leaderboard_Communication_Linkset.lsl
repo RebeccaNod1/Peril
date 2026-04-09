@@ -91,8 +91,9 @@ default {
         // Set the Top Line Header on the main box
         llMessageLinked(LINK_SET, 0, "=== WORLD RANKING ===", (key)"fw_data:Leaderboard");
         
-        // Trigger Leaderboard Manager to download from KVP Database
-        llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "START_SYNC", NULL_KEY);
+        // Note: Leaderboard sync should be triggered by the Main Controller or Game Manager 
+        // during game resets, rather than every time the bridge initializes.
+        // llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "START_SYNC", NULL_KEY);
         
         // Start Blink Timer (0.5s intervals)
         llSetTimerEvent(0.5);
@@ -148,5 +149,6 @@ default {
                 }
             }
         }
+        else if (num == MSG_RESET_ALL) { llResetScript(); }
     }
 }

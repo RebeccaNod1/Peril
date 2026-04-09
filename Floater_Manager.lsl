@@ -123,6 +123,7 @@ default {
         // Handle full reset from main controller
         if (num == MSG_RESET_ALL && str == "FULL_RESET") {
             allPlayerNames = [];
+            allPlayerKeys = [];
             names = [];
             players = [];
             lives = [];
@@ -198,7 +199,7 @@ default {
             
             integer syncIdx = llListFindList(names, [name]);
             key avKey = id;
-            integer lifeCount = 0;
+            integer lifeCount = 3; // DEFAULT TO HEALTHY (Prevent Red Flashes)
             
             if (syncIdx != -1) {
                 if (syncIdx < llGetListLength(players)) avKey = llList2Key(players, syncIdx);
@@ -228,14 +229,15 @@ default {
             
             string txt = "🎲 Peril Dice\n👤 " + name + "\n" + perilStatus + "\n🔢 Picks: " + picksDisplay;
             
-            if (lifeCount <= 0) {
-                glow = 0.3;
-                color = <1,0,0>; // Red
-                txt = "🎲 Peril Dice\n👤 " + name + "\n🔢 Picks: " + picksDisplay + "\n💀 ELIMINATED! 💀";
-            } else if (livingPlayers == 1 && llGetListLength(names) >= 2) {
+            // COLOR PRIORITY: Green (Victory) > Red (Eliminated) > Yellow (Peril)
+            if (livingPlayers == 1 && llGetListLength(names) >= 2 && lifeCount > 0) {
                 glow = 0.3;
                 color = <0,1,0>; // Green
                 txt = "🎲 Peril Dice\n👤 " + name + "\n✨ ULTIMATE VICTORY! ✨\n🏆 ULTIMATE SURVIVOR 🏆\n🔢 Final Picks: " + picksDisplay;
+            } else if (lifeCount <= 0) {
+                glow = 0.3;
+                color = <1,0,0>; // Red
+                txt = "🎲 Peril Dice\n👤 " + name + "\n🔢 Picks: " + picksDisplay + "\n💀 ELIMINATED! 💀";
             } else if (name == perilPlayer) {
                 glow = 0.2;
                 color = <1,1,0>; // Yellow
@@ -309,12 +311,12 @@ default {
             }
         }
         else if (num == MSG_SYNC_GAME_STATE) {
-            list parts = llParseString2List(str, ["~"], []);
+            list parts = llParseStringKeepNulls(str, ["~"], []);
             if (llGetListLength(parts) < 4) return;
             
             lives = llCSV2List(llList2String(parts, 0));
             string picksDataStr = llList2String(parts, 1);
-            if (picksDataStr == "" || picksDataStr == "EMPTY") {
+            if (picksDataStr == "" || picksDataStr == "EMPTY" || picksDataStr == "~EMPTY~") {
                 picksData = [];
             } else {
                 picksData = llParseString2List(picksDataStr, ["^"], []);
