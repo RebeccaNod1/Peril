@@ -36,7 +36,7 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define FW_DONE "fw_done"
 
 // --- System/Debug (9000-9999) ---
-#define DEBUG_LOGS 1           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
+#define DEBUG_LOGS 0           // GLOBAL MASTER SWITCH - Set to 1 for dev feedback, 0 to STRIP from memory
 #if DEBUG_LOGS
 #define dbg(msg) llOwnerSay(msg)
 #else
@@ -143,7 +143,7 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define MSG_QUERY_OWNER_STATUS 213
 
 // --- Memory Management (6000-6099) ---
-#define SHOW_MEMORY 1           // Toggle this to 1 to see memory usage on rez/reset
+#define SHOW_MEMORY 0           // Toggle this to 1 to see memory usage on rez/reset
 
 #define REPORT_MEMORY() { \
     if (SHOW_MEMORY) { \

@@ -4,6 +4,13 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
+## [3.2.6] - 2026-04-09
+### 🏁 **Final Production Sweep (Tournament Edition)**
+- **Global Silence**: Implemented unconditional stripping of all debug string literals using the `DEBUG_LOGS 0` pre-processor macro across the entire codebase.
+- **Memory Hardening**: Set `SHOW_MEMORY 0` to eliminate runtime memory reporting overhead during high-traffic tournament play.
+- **Repository Sanitization**: Purged all legacy GitHub updater documentation and development tools (`lsl_validator`, etc.) for a clean production package.
+- **Sentinel finalization**: Verified "Auto-Pilot" Sentinel 7.9.2 for automated, no-touch land diagnostics.
+
 ## [3.2.6] - 2026-04-05
 
 ### 🎰 **Hybrid HUD Evolution**

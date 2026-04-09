@@ -97,67 +97,16 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **Microscopic Position Offsets**: Resolved persistent Z-fighting on the custom UI (scoreboard, header, start button) by applying microscopic local axis offsets (`0.005m` and `0.008m` relative to the backboard).
 - **Initialization Stability**: Patched Scoreboard, Leaderboard, and Dice Bridge scripts with `on_rez` auto-reset handlers to ensure flawless texture synchronization and state recovery upon rezzing.
 
-## Major v2.8.7 Improvements 🔄
+## System Architecture (v3.2.6) 🏗️
 
-### 🔄 **GitHub Update System (Superseded)**
-> **⚠️ Note**: The GitHub Update System was fully replaced by the CasperVend update system in v3.0.0 for commercial release.
-- **In-World Update Checker**: Revolutionary `Update_Checker.lsl` script provides direct GitHub integration
-  - **GitHub API Integration**: Connects to `https://github.com/RebeccaNod1/Peril/releases` for automatic update detection
-  - **Smart File Filtering**: Only downloads essential game files, excludes development/test files
-  - **Precise Deployment Instructions**: Tells you exactly which link each script belongs on
-  - **Owner Menu Integration**: Access via Owner Menu → Troubleshooting → Check for Updates
-  - **Chat Commands**: `/1 check`, `/1 download ScriptName.lsl`, `/1 list` for direct access
-- **Memory Optimized**: Fits perfectly in the slot freed by eliminated UpdateHelper.lsl (v2.8.5)
-- **Professional Error Handling**: Clear feedback for network issues, missing releases, file validation
+Peril Dice is now a unified single-linkset system utilizing modern LSL pre-processor techniques and mesh text displays.
 
-### 🔍 **Enhanced LinkScanner System**
-- **Complete 84-Prim Analysis**: `Enhanced_LinkScanner.lsl` provides detailed linkset structure mapping
-  - **VERIFIED Structure**: Based on actual linkset scan showing exact prim names and positions
-  - **Script Placement Guide**: Shows which scripts belong on which links with verification
-  - **XyzzyText Mapping**: Detailed analysis of all 48 leaderboard prims (Links 35-82)
-  - **Update Deployment Guide**: Generates precise instructions for Update_Checker placement
-- **Real-Time Validation**: Automated "Invisible Guardian" scans land permissions and verifies if the "Final Girlz I.N.C." experience is correctly configured on every rez and reset.
-
-### 🎯 **Smart File Classification**
-- **Essential Game Files Only**: Update system intelligently filters files for end users
-  - **✅ Included**: All LSL scripts, documentation (README, CHANGELOG, notecards)
-  - **🚫 Excluded**: lsl_validator.py, debug_mcp.py, test_*.py, MCP files, templates
-- **Link-Specific Instructions**: Downloads include verified deployment locations
-  - **Link 1**: 13 root prim scripts + Update_Checker.lsl
-  - **Link 12**: "scoreboard manager cube" - Game_Scoreboard_Manager_Linkset.lsl
-  - **Link 35**: "leaderboard row 1 col 1" - Leaderboard_Communication_Linkset.lsl
-  - **Links 35-82**: All 48 XyzzyText prims need xyzzy_Master_script.lsl
-  - **Link 83**: "dice col 1" - XyzzyText_Dice_Bridge_Linkset.lsl
-
-### 🚀 **Zero-Infrastructure Updates**
-- **No Update Server Required**: Leverages existing GitHub + Jenkins CI/CD pipeline perfectly
-- **Automatic Release Detection**: Finds new versions as soon as they're tagged and released
-- **Individual File Updates**: Download specific scripts without full release packages
-- **GitHub Raw Integration**: Direct access to latest files from main branch
-- **Multi-Instance Safe**: Multiple game tables can check for updates independently
-
-### 🎨 **Professional User Experience**
-- **Clear Version Information**: Shows current vs latest versions with release dates
-- **Release Notes Preview**: Displays first 200 characters of GitHub release notes
-- **Download Progress**: File size reporting and content preview for verification
-- **Deployment Verification**: Confirms updates are designed for verified 84-prim structure
-- **Graceful Error Handling**: Helpful messages for GitHub rate limits, missing files, etc.
-
-### 📊 **System Integration Benefits**
-- **Replaces Eliminated UpdateHelper**: Perfect use of memory freed in v2.8.5 optimization
-- **Existing Admin Menu**: Integrates seamlessly with current troubleshooting interface
-- **Message Protocol Compatibility**: Uses established link message patterns and constants
-- **Verbose Logging Support**: Follows existing debug toggle system
-- **Memory Reporting**: Includes standard memory usage reporting like other scripts
-
-### 💱 **Before vs After v2.8.7**
-| **Before** | **After** |
-|------------|----------|
-| ❌ Manual update distribution via inventory | ✅ Automatic GitHub integration with update detection |
-| ❌ No way to check for new versions | ✅ One-click update checking via `/1 check` or admin menu |
-| ❌ Guessing which scripts go where | ✅ Precise deployment instructions verified by linkset scan |
-| ❌ Development files mixed with game files | ✅ Smart filtering shows only essential files |
-| ❌ No linkset structure validation | ✅ Complete 84-prim analysis and verification tools |
+### **Core Components:**
+- **Main Controller (Root)**: Authoritative source of truth for all game states.
+- **Experience Sentinel (v7.9.2)**: Automated "Auto-Pilot" land diagnostics.
+- **Hybrid HUD System**: personal HUDs for humans + in-world floaters for bots.
+- **FURWARE Text Mesh**: High-performance mesh displays for dice and leaderboard.
+- **Dynamic Link Discovery**: Root-level discovery of all sibling prims by name.
 
 ## Major v2.8.6 Improvements 🏆
 
