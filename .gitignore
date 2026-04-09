@@ -12,6 +12,7 @@ DEPLOYMENT_NOTES.txt
 # IDE and editor files
 .vscode/
 .idea/
+*.code-workspace
 *.sublime-*
 *~
 .*.swp
