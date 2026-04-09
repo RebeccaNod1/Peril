@@ -616,7 +616,7 @@ default {
     
     state_entry() {
         REPORT_MEMORY();
-        llOwnerSay("FURWARE text is starting...");
+        dbg("FURWARE text is starting...");
         
         CHARS = llBase64ToString(
             "IGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFS" +
@@ -674,7 +674,7 @@ default {
         
         // Abort if not a single element was found.
         if (!dataLength) {
-            llOwnerSay("FW text: No text 2.x prims found.");
+            dbg("FW text: No text 2.x prims found.");
             return;
         }
         
@@ -710,7 +710,7 @@ default {
                     
                     if (faceCount) {
                         if (newFaceCount != faceCount) {
-                            llOwnerSay("FW text: All prims within a set need to have the same number of faces.");
+                            dbg("FW text: All prims within a set need to have the same number of faces.");
                             setCount = 0;
                             return;
                         }
@@ -731,7 +731,7 @@ default {
                 
                 if (colCount) {
                     if (newColCount != colCount) {
-                        llOwnerSay("FW text: All rows within a set need to have the same number of prims.");
+                        dbg("FW text: All rows within a set need to have the same number of prims.");
                         setCount = 0;
                         return;
                     }
@@ -794,7 +794,7 @@ default {
                     first = llListFindList(boxNameList, [boxToken0]);
                     
                     if (!~first) {
-                        llOwnerSay(token0 + ": Box \"" + boxToken0 + "\" not found.");
+                        dbg(token0 + ": Box \"" + boxToken0 + "\" not found.");
                         jump SkipBox;
                     }
                     
@@ -806,7 +806,7 @@ default {
                     last = llListFindList(boxNameList, [boxToken1]);
                     
                     if (!~last) {
-                        llOwnerSay(token0 + ": Box \"" + boxToken1 + "\" not found.");
+                        dbg(token0 + ": Box \"" + boxToken1 + "\" not found.");
                         jump SkipBox;
                     }
                     
@@ -814,7 +814,7 @@ default {
                     integer secondSetIndex = (llList2Integer(boxDataList, last + BOX_STATUS) >> 4) & 0xFF;
                     
                     if (~setIndex && setIndex != secondSetIndex) {
-                        llOwnerSay(token0 + ": Box sets must match when specifying a range.");
+                dbg(token0 + ": Box Sets must match when specifying a range.");
                         jump SkipBox;
                     }
                     
@@ -837,7 +837,7 @@ default {
             if (lastAction && lastAction != ACTION_CONTENT) refresh();
             
             if (token1 == "") {
-                llOwnerSay("fw_var: No variable name given.");
+                dbg("fw_var: No variable name given.");
                 return;
             }
             
@@ -888,7 +888,7 @@ default {
         
         if (token0 == "fw_addbox") {
             if (token1 == "") {
-                llOwnerSay("fw_addbox: Box name cannot be empty.");
+                dbg("fw_addbox: Box name cannot be empty.");
                 return;
             }
             
@@ -897,14 +897,14 @@ default {
             integer boxNameIndex = llListFindList(boxNameList, [token1]);
             
             if (~boxNameIndex) {
-                llOwnerSay("fw_addbox: Box \"" + token1 + "\" already exists.");
+                dbg("fw_addbox: Box \"" + token1 + "\" already exists.");
                 return;
             }
             
             integer parNameIndex = llListFindList(boxNameList, [token2]);
             
             if (!~parNameIndex) {
-                llOwnerSay("fw_addbox: No parent box \"" + token2 + "\".");
+                dbg("fw_addbox: No parent box \"" + token2 + "\".");
                 return;
             }
             
@@ -922,7 +922,7 @@ default {
             }
             
             if (layersUsed == 0xFFFF) {
-                llOwnerSay("fw_addbox: No layer available.");
+                dbg("fw_addbox: No layer available.");
                 return;
             }
             
@@ -941,7 +941,7 @@ default {
                 (boxGeom.x + boxGeom.z) > (setGeom.x * setGeom.z) ||
                 (boxGeom.y + boxGeom.s) > setGeom.y)
             {
-                llOwnerSay("fw_addbox: Invalid box geometry.");
+                dbg("fw_addbox: Invalid box geometry.");
                 return;
             }
             
@@ -965,7 +965,7 @@ default {
                 integer boxNameIndex = llListFindList(boxNameList, [boxName]);
                 
                 if (!~boxNameIndex || (boxNameIndex < setCount)) {
-                    llOwnerSay("fw_delbox: Box \"" + boxName + "\" doesn't exist.");
+                    dbg("fw_delbox: Box \"" + boxName + "\" doesn't exist.");
                     jump SkipDelBox;
                 }
                 

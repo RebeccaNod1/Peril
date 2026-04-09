@@ -146,12 +146,11 @@ key EXPERIENCE_ID = "06926390-26e6-11f1-a452-0242ac110003"; // Final Girlz I.N.C
 #define SHOW_MEMORY 0           // Toggle this to 1 to see memory usage on rez/reset
 
 #define REPORT_MEMORY() { \
-    if (SHOW_MEMORY) { \
-        integer used = llGetUsedMemory(); \
-        integer free = llGetFreeMemory(); \
-        float percent = ((float)used / (float)(used + free)) * 100.0; \
-        llOwnerSay("🧠 [" + llGetScriptName() + "] Memory: " + (string)used + " used, " + (string)free + " free (" + llGetSubString((string)percent, 0, 4) + "% used)."); \
-    } \
+    integer used = llGetUsedMemory(); \
+    integer free = llGetFreeMemory(); \
+    integer total = used + free; \
+    float percent = ((float)used / (float)total) * 100.0; \
+    dbg("🧠 [" + llGetScriptName() + "] Memory: " + (string)used + " used, " + (string)free + " free (" + llGetSubString((string)percent, 0, 4) + "% used)."); \
 }
 
 #define MSG_MEMORY_CHECK 6001

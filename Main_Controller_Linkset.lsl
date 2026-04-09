@@ -38,7 +38,7 @@ reportMemoryUsage(string scriptName) {
     integer total = used + free;
     float percentUsed = ((float)used / (float)total) * 100.0;
     
-    llOwnerSay("🧠 [" + scriptName + "] Memory: " + 
+    dbg("🧠 [" + scriptName + "] Memory: " + 
                (string)used + " used, " + 
                (string)free + " free (" + 
                llGetSubString((string)percentUsed, 0, 4) + "% used)");
@@ -820,7 +820,7 @@ default {
                         return;
                     }
                     llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "WIPE", id); // Use LINK_SET
-                    llOwnerSay("🏆 GLOBAL LEADERBOARD WIPE confirmed and executed.");
+                    dbg("🏆 GLOBAL LEADERBOARD WIPE confirmed and executed.");
                     return;
                 }
                 if (msg == "Reset All") {
@@ -834,7 +834,7 @@ default {
                     }
                     resetGame();
                     llMessageLinked(LINK_SET, MSG_RESET_LEADERBOARD, "WIPE", id); // Use LINK_SET
-                    llOwnerSay("🔄 FULL RESET confirmed and executed.");
+                    dbg("🔄 FULL RESET confirmed and executed.");
                     return;
                 }
                 if (msg == "Memory Stats") {
