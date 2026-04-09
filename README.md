@@ -1,13 +1,15 @@
 # 🎲 Peril Dice — Professional Single Linkset Game System for Second Life
 
 **Created by Rebecca Nod and Noose the Bunny**  
-**Current Version: 3.2.6 - The "Hybrid HUD" Update**
+**Current Version: 3.3.0 - The "Tournament Edition" Update**
 
 ## Overview
 
 Peril Dice is a multiplayer elimination game where each player selects numbers before a die is rolled. If the peril player's number is rolled, they lose a life. Players are eliminated when they reach zero lives.
 
-**🎯 NEW in v3.2.6**: **HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL** - Revolutionary dual-mode status display. Humans receive a personal, Experience-authorized HUD (Center 2), while bots maintain in-world floaters. Features a built-in **Experience Sentinel** (v7.3) that automatically diagnoses land-readiness for 'Final Girlz I.N.C.' and provides owner-facing fix instructions for blocked parcels.
+**🎯 NEW in v3.3.0**: **TOURNAMENT EDITION** - Final production sweep featuring global silence hardening, library warning suppression, and repository sanitization for peak stability.
+
+**🧪 NEW in v3.2.6**: **HYBRID HUD EVOLUTION & EXPERIENCE SENTINEL** - Revolutionary dual-mode status display. Humans receive a personal, Experience-authorized HUD (Center 2), while bots maintain in-world floaters. Features a built-in **Experience Sentinel** (v7.3) that automatically diagnoses land-readiness for 'Final Girlz I.N.C.' and provides owner-facing fix instructions for blocked parcels.
 
 **🧪 NEW in v3.2.0**: **SYNC SANCTITY & SCOREBOARD VIRTUALIZATION** - Total refactoring of the synchronization engine. The Main Controller is now the single source of truth for life counts, permanently eliminating "Ghost Heals." The scoreboard is now "Virtualized"—supporting a 3-column layout (Rank, Name, WL) and dynamic Alpha 0.0 hiding for unused slots. 
 
@@ -15,7 +17,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **📦 NEW in v3.0.0**: **COMMERCIAL CASPERVEND RELEASE & EXPERIENCE LEADERBOARD**
 
-**🔍 NEW in v2.8.7**: **ENHANCED LINKSCANNER SYSTEM** - Complete 84-prim structure analysis and verification tools. *(Note: The legacy GitHub Update System introduced in v2.8.7 has been superseded by CasperVend in v3.0.0).*
+**🔍 NEW in v2.8.7**: **ENHANCED LINKSCANNER SYSTEM** - Complete 84-prim structure analysis and verification tools. *(Note: the legacy GitHub Update System introduced in v2.8.7 has been superseded by CasperVend in v3.0.0).*
 
 **🏆 NEW in v2.8.6**: **WINNER GLOW CELEBRATION SYSTEM** - Revolutionary winner recognition with bright green glow effects on both scoreboard and floaters, plus 24-second victory celebration timer giving proper recognition to the Ultimate Survivor before game reset.
 
@@ -31,7 +33,14 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 
 **NEW in v2.7.0**: Complete architectural overhaul featuring consolidated single linkset design (74 prims total) with bulletproof link message communication, eliminating all channel conflicts and deployment complexity.
 
-## Major v3.2.6 Improvements (Current) 🎯
+## Major v3.3.0 Improvements (Current) 🎯
+
+### 🏁 **Tournament Edition**
+- **Global Silence**: Unconditional stripping of all debug string literals across the entire codebase.
+- **Library Suppression**: Direct silencing of internal Furware Engine warnings for zero-chatter operation.
+- **Repository Purge**: Removal of all legacy development files for a clean production package.
+
+## Major v3.2.6 Improvements 🎯
 
 ### 🎰 **Hybrid HUD Evolution**
 - **Personalized Gaming UI**: Human players automatically receive a temporary, Experience-authorized HUD (Final Girlz I.N.C.) snapping to **Center 2**.
@@ -97,7 +106,7 @@ Peril Dice is a multiplayer elimination game where each player selects numbers b
 - **Microscopic Position Offsets**: Resolved persistent Z-fighting on the custom UI (scoreboard, header, start button) by applying microscopic local axis offsets (`0.005m` and `0.008m` relative to the backboard).
 - **Initialization Stability**: Patched Scoreboard, Leaderboard, and Dice Bridge scripts with `on_rez` auto-reset handlers to ensure flawless texture synchronization and state recovery upon rezzing.
 
-## System Architecture (v3.2.6) 🏗️
+## System Architecture (v3.3.0) 🏗️
 
 Peril Dice is now a unified single-linkset system utilizing modern LSL pre-processor techniques and mesh text displays.
 
@@ -598,9 +607,14 @@ Dice type is automatically chosen to ensure at least 3 picks per player:
 
 ## Version
 
-**Current Version**: 3.2.0
-**Last Updated**: April 05, 2026
-**Status**: Production Ready - Sync Sanctity Release
+**Current Version:** 3.3.0  
+**Last Updated:** April 09, 2026
+**Status:** Production Ready - Tournament Edition Release
+
+### Key Achievements in v3.3.0:
+- ✅ **Global Silence**: Absolute stripping of debug chatter.
+- ✅ **Storage Hardening**: Production-ready memory management.
+- ✅ **Sanitized Package**: Zero dev-clutter architecture.
 
 ### Key Achievements in v3.2.0:
 - ✅ **Sync Sanctity Protocol**: 100% unified life counting via the Main Controller.

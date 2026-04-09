@@ -4,21 +4,21 @@
 
 All notable changes to Peril Dice will be documented in this file.
 
-## [3.2.6] - 2026-04-09
+## [3.3.0] - 2026-04-09
 ### 🏁 **Final Production Sweep (Tournament Edition)**
 - **Global Silence**: Implemented unconditional stripping of all debug string literals using the `DEBUG_LOGS 0` pre-processor macro across the entire codebase.
 - **Memory Hardening**: Set `SHOW_MEMORY 0` to eliminate runtime memory reporting overhead during high-traffic tournament play.
 - **Repository Sanitization**: Purged all legacy GitHub updater documentation and development tools (`lsl_validator`, etc.) for a clean production package.
 - **Sentinel finalization**: Verified "Auto-Pilot" Sentinel 7.9.2 for automated, no-touch land diagnostics.
 
-## [3.2.6] - 2026-04-05
-
-### 🎰 **Hybrid HUD Evolution**
+### 🎰 **v3.3.0: Final Production Sweep - Global Silence & Memory Hardening**
 - **Personalized Gaming UI**: Human players now automatically receive a temporary, Experience-authorized HUD (Final Girlz I.N.C.) snapping to **Center 2**.
 - **Spectator AI Visibility**: Bots continue to rez in-world floaters, ensuring spectators can follow along with the AI's performance.
 - **Direct-Target Signaling**: Switched to `llRegionSayTo(avKey, ...)` for cleanup pulses, ensuring HUDs reliably hear their "Self-Destruct" command.
 - **Auto-Cleanup Handshake**: Uses `llDetachFromAvatar()` to instantly purge temporary HUDs upon game end or reset without inventory clutter.
 - **Root-Key Unification**: All channel calculations now use the **Root Link Key** (`llGetLinkKey(1)`), preventing "Signal Drift" between scripts in different prims.
+
+## [3.2.6] - 2026-04-05
 
 ### 🛡️ **Experience Sentinel (Diag Prototype v7.3)**
 - **Auto-Pilot Diagnostic (v7.9.2)**: Operates automatically on rez and reset—no manual touch-trigger required.
